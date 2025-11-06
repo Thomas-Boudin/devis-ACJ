@@ -198,16 +198,16 @@
 </main>
 
 <footer>© ACJ — outil devis express</footer>
-
 <script>
-const $ = sel => document.querySelector(sel);
+/* ===== Helpers & stockage ===== */
+const $ = s => document.querySelector(s);
 const LS = k => 'devisACJ_'+k;
 
-// ----- Sociétés + SIRET -----
+/* ===== Sociétés / SIRET ===== */
 const SOC_KEYS = {
   acj_services: { name:'ACJ Services', defaultSiret:'90514278200010' },
-  acj_lens: { name:'ACJ Services Lens', defaultSiret:'' },
-  jet_services: { name:'Jet Services', defaultSiret:'' }
+  acj_lens:     { name:'ACJ Services Lens', defaultSiret:'' },
+  jet_services: { name:'Jet Services',      defaultSiret:'' }
 };
 function getCurrentSocKey(){ return $('#societe').selectedOptions[0].dataset.key; }
 function loadSiret(){
@@ -221,7 +221,7 @@ function saveSiret(){
   alert('SIRET enregistré pour '+SOC_KEYS[key].name+' ✅');
 }
 
-// ----- Prestations bricolage -----
+/* ===== Prestations bricolage ===== */
 const PREST_KEY = LS('prestations');
 function seedPrestations(){
   if(!localStorage.getItem(PREST_KEY)){
@@ -235,50 +235,42 @@ function seedPrestations(){
 function loadPrestations(){
   const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]');
   const sel = $('#prestations'); sel.innerHTML='';
-  arr.forEach(p=>{
-    const o=document.createElement('option'); o.textContent=p; sel.appendChild(o);
-  });
+  arr.forEach(p=>{ const o=document.createElement('option'); o.textContent=p; sel.appendChild(o); });
 }
 function ajouterPrestation(){
   const name = prompt('Nom de la prestation ?');
   if(name){
-    const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]');
-    arr.push(name);
-    localStorage.setItem(PREST_KEY, JSON.stringify(arr));
-    loadPrestations();
+    const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]'); arr.push(name);
+    localStorage.setItem(PREST_KEY, JSON.stringify(arr)); loadPrestations();
   }
 }
 function retirerPrestation(){
-  const sel = $('#prestations');
-  if(!sel.value) return;
+  const sel = $('#prestations'); if(!sel.value) return;
   const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]');
-  const idx = arr.indexOf(sel.value);
-  if(idx>-1){ arr.splice(idx,1); localStorage.setItem(PREST_KEY, JSON.stringify(arr)); loadPrestations(); }
+  const i = arr.indexOf(sel.value); if(i>-1){ arr.splice(i,1); localStorage.setItem(PREST_KEY, JSON.stringify(arr)); loadPrestations(); }
 }
 
-// ----- Calculs -----
-function num(v){ return parseFloat(v||0) || 0; }
-function modeBricol(){ return $('#mode').value==='bricol'; }
+/* ===== Calcul (version avec #totals) ===== */
+const num = v => parseFloat(v||0)||0;
+const modeBricol = () => $('#mode').value==='bricol';
 
 function compute(){
   let rows=[], ht=0, tva=0, ttc=0;
 
   if(modeBricol()){
-    const tauxTTC = num($('#taux').value); // affiché à 50 TTC par défaut
     const tvaRate = num($('#tva').value)/100;
-    const puTTC = num($('#puBricol').value||tauxTTC);
-    const qte = num($('#qteBricol').value||1);
-    const dist = num($('#distBricol').value);
-    const km = num($('#km').value);
+    const puTTC = num($('#puBricol').value||50);
+    const qte   = num($('#qteBricol').value||1);
+    const dist  = num($('#distBricol').value);
+    const km    = num($('#km').value);
 
-    const moTTC = puTTC * qte;
-    const fkmTTC = dist * km;
+    const moTTC  = puTTC*qte;
+    const fkmTTC = dist*km;
     const sousTotalTTC = moTTC + fkmTTC;
 
-    // Recalcule HT/TVA à partir du TTC si TVA connue
     ttc = sousTotalTTC;
-    ht  = ttc / (1 + tvaRate);
-    tva = ttc - ht;
+    ht  = ttc/(1+tvaRate);
+    tva = ttc-ht;
 
     rows = [
       ['Prestation', qte.toFixed(2)+' u • '+($('#prestations').value||'Prestation'), moTTC.toFixed(2)+' € TTC'],
@@ -289,68 +281,41 @@ function compute(){
       ['TOTAL TTC', '', ttc.toFixed(2)+' €']
     ];
   } else {
-    // Jardinage – reprends les règles v1
     const prod = { tonte:400, haie:6, deb:200 };
-    const pelouse = num($('#pelouse').value);
-    const haies   = num($('#haies').value);
-    const deb     = num($('#debrouss').value);
-    const dechets = num($('#dechets').value);
-    const dist    = num($('#dist').value);
+    const pelouse=num($('#pelouse').value), haies=num($('#haies').value), deb=num($('#debrouss').value);
+    const dechets=num($('#dechets').value), dist=num($('#dist').value);
+    const speed=Math.max(1,num($('#speed').value)), taux=num($('#taux').value), tvap=num($('#tva').value)/100;
+    const km=num($('#km').value), dechet=num($('#dechet').value);
+    const hTonte=pelouse/prod.tonte, hHaie=haies/prod.haie, hDeb=deb/prod.deb, hTrajet=dist/speed, hTot=hTonte+hHaie+hDeb+hTrajet;
 
-    const speed = Math.max(1, num($('#speed').value));
-    const taux  = num($('#taux').value);
-    const tvap  = num($('#tva').value)/100;
-    const km    = num($('#km').value);
-    const dechet = num($('#dechet').value);
+    const mo=hTot*taux, fkm=dist*km, fdec=dechets*dechet;
+    const autreQ=num($('#autreQte').value), autrePU=num($('#autrePU').value), autre=autreQ*autrePU;
 
-    const hTonte = pelouse / prod.tonte;
-    const hHaie  = haies   / prod.haie;
-    const hDeb   = deb     / prod.deb;
-    const hTrajet= dist / speed;
-    const hTot   = hTonte + hHaie + hDeb + hTrajet;
-
-    const mo   = hTot * taux;
-    const fkm  = dist * km;
-    const fdec = dechets * dechet;
-    const autreQ = num($('#autreQte').value);
-    const autrePU= num($('#autrePU').value);
-    const autre  = autreQ * autrePU;
-
-    ht = mo + fkm + fdec + autre;
-    tva = ht * tvap;
-    ttc = ht + tva;
+    ht=mo+fkm+fdec+autre; tva=ht*tvap; ttc=ht+tva;
 
     rows = [
-      ['Heures totales', hTot.toFixed(2) + ' h', (mo).toFixed(2) + ' € HT'],
-      ['Déplacement', dist.toFixed(1) + ' km', fkm.toFixed(2) + ' € HT'],
-      ['Déchetterie', dechets.toFixed(1) + ' m³', fdec.toFixed(2) + ' € HT'],
-      [($('#autreLib').value||'Autre'), autreQ.toFixed(2) + ' u', autre.toFixed(2) + ' € HT'],
-      ['Sous-total HT', '', ht.toFixed(2) + ' €'],
-      ['TVA', (num($('#tva').value)).toFixed(1) + ' %', tva.toFixed(2) + ' €'],
-      ['TOTAL TTC', '', ttc.toFixed(2) + ' €']
+      ['Heures totales', hTot.toFixed(2)+' h', mo.toFixed(2)+' € HT'],
+      ['Déplacement', dist.toFixed(1)+' km', fkm.toFixed(2)+' € HT'],
+      ['Déchetterie', dechets.toFixed(1)+' m³', fdec.toFixed(2)+' € HT'],
+      [($('#autreLib').value||'Autre'), autreQ.toFixed(2)+' u', autre.toFixed(2)+' € HT'],
+      ['Sous-total HT', '', ht.toFixed(2)+' €'],
+      ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
+      ['TOTAL TTC', '', ttc.toFixed(2)+' €']
     ];
   }
 
   const t = $('#totals'); t.innerHTML='';
-  rows.forEach((r,i)=>{
-    const k = document.createElement('div'); k.textContent=r[0]; if(i===rows.length-1) k.className='sum';
-    const v = document.createElement('div'); v.textContent=(r[1]?'• '+r[1]+' – ':'')+r[2]; if(i===rows.length-1) v.className='sum';
-    t.appendChild(k); t.appendChild(v);
-  });
+  rows.forEach((r,i)=>{ const k=document.createElement('div'); k.textContent=r[0]; if(i===rows.length-1) k.className='sum';
+                        const v=document.createElement('div'); v.textContent=(r[1]?'• '+r[1]+' – ':'')+r[2]; if(i===rows.length-1) v.className='sum';
+                        t.appendChild(k); t.appendChild(v); });
 
-  return { ht,tva,ttc };
+  return {ht,tva,ttc};
 }
 
-// ----- Presets & interactions -----
+/* ===== Presets ===== */
 function preset(p,h,d,dec,km){ $('#pelouse').value=p||''; $('#haies').value=h||''; $('#debrouss').value=d||''; $('#dechets').value=dec||''; if(km!==undefined) $('#dist').value=km||''; compute(); }
 
-['input','change'].forEach(evt=>{
-  document.addEventListener(evt, e => {
-    if(e.target.matches('input, textarea, select')) compute();
-  });
-});
-
-// ----- Share / Export Ogust -----
+/* ===== Partage simple ===== */
 async function share(){
   const c = $('#client').value||'Client';
   const s = compute();
@@ -358,17 +323,17 @@ async function share(){
   const text = `Devis ${c} (${soc})
 Total TTC: ${s.ttc.toFixed(2)} €
 HT ${s.ht.toFixed(2)} € – TVA ${s.tva.toFixed(2)} €`;
-  if(navigator.share){
-    try { await navigator.share({ title:'Devis ACJ', text }); } catch(e){}
-  } else { prompt('Copier le devis', text); }
+  if(navigator.share){ try{ await navigator.share({ title:'Devis ACJ', text }); }catch(e){} }
+  else { prompt('Copier le devis', text); }
 }
 
-function exportOgust(){
-  const today = new Date(); const ymd = today.toISOString().slice(0,10).replaceAll('-','');
-  const s = compute();
-  const mode = $('#mode').value;
-  const PROXY_URL = "https://acj-ogust-proxy.vercel.app/api/ogust-devis";
-  const payload = {
+/* ===== Export Ogust via proxy Vercel ===== */
+async function exportOgust(){
+  const today=new Date(); const ymd=today.toISOString().slice(0,10).replaceAll('-','');
+  const s=compute(); const mode=$('#mode').value;
+  const PROXY_URL="https://acj-ogust-proxy.vercel.app/api/ogust-devis";
+
+  const payload={
     quotation:{
       method:"setQuotation",
       create_date: ymd,
@@ -377,62 +342,57 @@ function exportOgust(){
       amount_HT: Number(s.ht.toFixed(2)),
       amount_taxes: Number(s.tva.toFixed(2)),
       amount_TTC: Number(s.ttc.toFixed(2)),
-      customer_service: $('#client').value || '',
-      service_address: $('#adresse').value || '',
+      customer_service: $('#client').value||'',
+      service_address: $('#adresse').value||'',
       company: $('#societe').value,
       siret: $('#siret').value,
       tva_rate: Number(($('#tva').value)||0)
     },
     lines: [],
-    meta:{
-      mode,
-      tel: $('#tel').value,
-      note: $('#notes').value
-    }
+    meta:{ mode, tel: $('#tel')?.value||'', note: $('#notes')?.value||'' }
   };
 
   if(mode==='bricol'){
-    const lib = $('#prestations').value || 'Prestation';
-    const q = parseFloat($('#qteBricol').value||'1');
-    const pu = parseFloat($('#puBricol').value||'50');
-    const dist = parseFloat($('#distBricol').value||'0');
-    payload.lines.push({ short_description: lib, quantity: q, unit:"U", price: pu, is_ttc:true });
-    if(dist>0) payload.lines.push({ short_description: "Déplacement", quantity: dist, unit:"KM", price: parseFloat($('#km').value), is_ttc:true });
-  } else {
-    // Jardinage: regrouper en 3-4 lignes selon les entrées
-    const dist = parseFloat($('#dist').value||'0');
-    const dechets = parseFloat($('#dechets').value||'0');
-    const tv = parseFloat($('#taux').value||'45');
-    // main d'oeuvre = heures totales * taux : récapitulatif textuel
-    payload.lines.push({ short_description:"Main d'œuvre (estimation heure + trajet)", quantity:1, unit:"U", price: Number((s.ht - (dist*parseFloat($('#km').value||'0')) - (dechets*parseFloat($('#dechet').value||'0')) - (parseFloat($('#autreQte').value||'0')*parseFloat($('#autrePU').value||'0'))).toFixed(2)) });
-    if(dist>0) payload.lines.push({ short_description:"Frais déplacement", quantity: dist, unit:"KM", price: parseFloat($('#km').value) });
-    if(dechets>0) payload.lines.push({ short_description:"Déchetterie", quantity: dechets, unit:"M3", price: parseFloat($('#dechet').value) });
-    const aq=parseFloat($('#autreQte').value||'0'), ap=parseFloat($('#autrePU').value||'0'); if(aq>0&&ap>0) payload.lines.push({ short_description:($('#autreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
+    const lib=$('#prestations').value||'Prestation';
+    const q=parseFloat($('#qteBricol').value||'1');
+    const pu=parseFloat($('#puBricol').value||'50');
+    const dist=parseFloat($('#distBricol').value||'0');
+    payload.lines.push({ short_description:lib, quantity:q, unit:"U", price:pu, is_ttc:true });
+    if(dist>0) payload.lines.push({ short_description:"Déplacement", quantity:dist, unit:"KM", price:parseFloat($('#km').value), is_ttc:true });
+  }else{
+    const dist=parseFloat($('#dist').value||'0');
+    const dechets=parseFloat($('#dechets').value||'0');
+    const km=parseFloat($('#km').value||'0');
+    const dch=parseFloat($('#dechet').value||'0');
+    const aq=parseFloat($('#autreQte').value||'0'), ap=parseFloat($('#autrePU').value||'0');
+    const moHT=Number((s.ht - (dist*km) - (dechets*dch) - (aq*ap)).toFixed(2));
+    payload.lines.push({ short_description:"Main d'œuvre (estimation heure + trajet)", quantity:1, unit:"U", price:moHT });
+    if(dist>0)   payload.lines.push({ short_description:"Frais déplacement", quantity:dist, unit:"KM", price:km });
+    if(dechets>0)payload.lines.push({ short_description:"Déchetterie", quantity:dechets, unit:"M3", price:dch });
+    if(aq>0&&ap>0)payload.lines.push({ short_description:($('#autreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
   }
 
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob); const a = document.createElement('a');
-  a.href=url; a.download='ogust_devis_payload.json'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(url),2000);
+  try{
+    const r=await fetch(PROXY_URL,{ method:"POST", headers:{ "Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    const out=await r.json();
+    if(out.ok){ alert("Devis créé dans Ogust ✅\nID: "+out.id_quotation); }
+    else { alert("Ogust a renvoyé une erreur ❌\nÉtape: "+(out.step||'?')+"\n"+JSON.stringify(out.resp||out,null,2)); }
+  }catch(e){
+    alert("Erreur de connexion au proxy ❌\n"+e.message);
+  }
 }
 
-<script>
-// ----- Init -----
+/* ===== Init & listeners ===== */
 window.addEventListener('load', ()=>{
-  // Mode initial: Jardinage
-  $('#mode').value='jardin';
-  $('#taux').value=45; $('#tva').value=20;
+  // Valeurs par défaut
+  $('#mode').value='jardin'; $('#taux').value=45; $('#tva').value=20;
 
-  // Sociétés
   loadSiret();
   $('#societe').addEventListener('change', loadSiret);
   $('#saveSiretBtn').addEventListener('click', saveSiret);
 
-  // Prestations bricolage
-  seedPrestations(); 
-  loadPrestations();
+  seedPrestations(); loadPrestations();
 
-  // PWA SW
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
 
   compute();
@@ -440,186 +400,16 @@ window.addEventListener('load', ()=>{
 
 // Switch mode
 $('#mode').addEventListener('change', e=>{
-  const m = e.target.value;
+  const m=e.target.value;
   $('#blocJardin').classList.toggle('hidden', m!=='jardin');
   $('#blocBricol').classList.toggle('hidden', m!=='bricol');
   if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
   compute();
 });
 
-// ---- Export vers Ogust (via ton proxy Vercel)
-async function exportOgust(){
-  const today = new Date();
-  const ymd = today.toISOString().slice(0,10).replaceAll('-','');
-
-  const s = compute();
-  const mode = document.querySelector('#mode').value;
-  const PROXY_URL = "https://acj-ogust-proxy.vercel.app/api/ogust-devis";
-
-  const payload = {
-    quotation:{
-      method:"setQuotation",
-      create_date: ymd.replaceAll('-',''),
-      id_customer: null,
-      type_taxes: mode==='bricol' ? "TTC" : "HT",
-      amount_HT: Number(s.ht.toFixed(2)),
-      amount_taxes: Number(s.tva.toFixed(2)),
-      amount_TTC: Number(s.ttc.toFixed(2)),
-      customer_service: document.querySelector('#client').value || '',
-      service_address: document.querySelector('#adresse').value || '',
-      company: document.querySelector('#societe').value,
-      siret: document.querySelector('#siret').value,
-      tva_rate: Number((document.querySelector('#tva').value)||0)
-    },
-    lines: [],
-    meta:{ mode, tel: document.querySelector('#tel').value, note: document.querySelector('#notes').value }
-  };
-
-  if(mode==='bricol'){
-    const lib = document.querySelector('#prestations').value || 'Prestation';
-    const q = parseFloat(document.querySelector('#qteBricol').value||'1');
-    const pu = parseFloat(document.querySelector('#puBricol').value||'50');
-    const dist = parseFloat(document.querySelector('#distBricol').value||'0');
-    payload.lines.push({ short_description: lib, quantity: q, unit:"U", price: pu, is_ttc:true });
-    if(dist>0) payload.lines.push({ short_description: "Déplacement", quantity: dist, unit:"KM", price: parseFloat(document.querySelector('#km').value), is_ttc:true });
-  } else {
-    const dist = parseFloat(document.querySelector('#dist').value||'0');
-    const dechets = parseFloat(document.querySelector('#dechets').value||'0');
-    const aq = parseFloat(document.querySelector('#autreQte').value||'0');
-    const ap = parseFloat(document.querySelector('#autrePU').value||'0');
-    const km = parseFloat(document.querySelector('#km').value||'0');
-    const dch = parseFloat(document.querySelector('#dechet').value||'0');
-    const moHT = Number((s.ht - (dist*km) - (dechets*dch) - (aq*ap)).toFixed(2));
-    payload.lines.push({ short_description:"Main d'œuvre (estimation heure + trajet)", quantity:1, unit:"U", price: moHT });
-    if(dist>0) payload.lines.push({ short_description:"Frais déplacement", quantity: dist, unit:"KM", price: km });
-    if(dechets>0) payload.lines.push({ short_description:"Déchetterie", quantity: dechets, unit:"M3", price: dch });
-    if(aq>0&&ap>0) payload.lines.push({ short_description:(document.querySelector('#autreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
-  }
-
-  try {
-    const r = await fetch(PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const out = await r.json();
-    if(out.ok){
-      alert("Devis créé dans Ogust ✅\nID: " + out.id_quotation);
-    } else {
-      alert("Ogust a renvoyé une erreur ❌\nÉtape: " + (out.step||'?') + "\n" + JSON.stringify(out.resp||out, null, 2));
-    }
-  } catch(e){
-    alert("Erreur de connexion au proxy ❌\n" + e.message);
-  }
-}
-// ----- Boutons -----
-$('#shareBtn').addEventListener('click', sharePDF);
-$('#pdfBtn').addEventListener('click', printPDF);
-$('#exportBtn').addEventListener('click', exportOgust);
-
-// ----- Recalcul automatique -----
-document.querySelectorAll('input, select').forEach(el=>{
-  el.addEventListener('input', compute);
-  el.addEventListener('change', compute);
-});
-
-// ----- Calcul principal -----
-function compute(){
-  const taux = parseFloat($('#taux').value||'0');
-  const tva = parseFloat($('#tva').value||'0');
-
-  // Jardin
-  const dist = parseFloat($('#dist').value||'0');
-  const km = parseFloat($('#km').value||'0');
-  const dechets = parseFloat($('#dechets').value||'0');
-  const dechet = parseFloat($('#dechet').value||'0');
-  const autreQte = parseFloat($('#autreQte').value||'0');
-  const autrePU = parseFloat($('#autrePU').value||'0');
-  const ht = dist*km + dechets*dechet + autreQte*autrePU + taux;
-  const montantTva = ht*(tva/100);
-  const ttc = ht + montantTva;
-
-  $('#totalHT').textContent = ht.toFixed(2)+' €';
-  $('#totalTVA').textContent = montantTva.toFixed(2)+' €';
-  $('#totalTTC').textContent = ttc.toFixed(2)+' €';
-
-  return {ht, tva: montantTva, ttc};
-}
-
+// Recalcul auto
+document.addEventListener('input', e=>{ if(e.target.matches('input, textarea, select')) compute(); });
+document.addEventListener('change', e=>{ if(e.target.matches('input, textarea, select')) compute(); });
 </script>
-<script>
-// Helpers
-const $ = sel => document.querySelector(sel);
-
-// Rattacher les boutons (si présents)
-function bindButtons(){
-  $('#shareBtn') && $('#shareBtn').addEventListener('click', e=>{ e.preventDefault(); typeof sharePDF==='function' && sharePDF(); });
-  $('#pdfBtn') && $('#pdfBtn').addEventListener('click', e=>{ e.preventDefault(); typeof printPDF==='function' && printPDF(); });
-  $('#exportBtn') && $('#exportBtn').addEventListener('click', e=>{ e.preventDefault(); typeof exportOgust==='function' && exportOgust(); });
-}
-
-// Calcul robuste (n’écrit que si les éléments existent)
-function compute(){
-  const n = v => parseFloat(v||'0')||0;
-  const taux = n($('#taux')?.value);
-  const tva  = n($('#tva')?.value);
-
-  // Jardin
-  const dist     = n($('#dist')?.value);
-  const km       = n($('#km')?.value);
-  const dechets  = n($('#dechets')?.value);
-  const dechet   = n($('#dechet')?.value);
-  const autreQte = n($('#autreQte')?.value);
-  const autrePU  = n($('#autrePU')?.value);
-
-  const ht = dist*km + dechets*dechet + autreQte*autrePU + taux;
-  const tvaAmt = ht*(tva/100);
-  const ttc = ht + tvaAmt;
-
-  $('#totalHT')  && ($('#totalHT').textContent  = ht.toFixed(2)+' €');
-  $('#totalTVA') && ($('#totalTVA').textContent = tvaAmt.toFixed(2)+' €');
-  $('#totalTTC') && ($('#totalTTC').textContent = ttc.toFixed(2)+' €');
-  return { ht, tva: tvaAmt, ttc };
-}
-
-// Re-bind + recalc sur changements
-function bindRecalc(){
-  document.querySelectorAll('input, select').forEach(el=>{
-    el.addEventListener('input', compute);
-    el.addEventListener('change', compute);
-  });
-}
-
-// Switch mode (si le sélecteur existe)
-$('#mode') && $('#mode').addEventListener('change', e=>{
-  const m = e.target.value;
-  $('#blocJardin') && $('#blocJardin').classList.toggle('hidden', m!=='jardin');
-  $('#blocBricol') && $('#blocBricol').classList.toggle('hidden', m!=='bricol');
-  if($('#taux') && $('#tva')){
-    if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
-  }
-  compute();
-});
-
-// Au chargement
-window.addEventListener('load', ()=>{
-  try{
-    // Valeurs par défaut
-    if($('#mode')){ $('#mode').value='jardin'; }
-    if($('#taux')){ $('#taux').value=45; }
-    if($('#tva')) { $('#tva').value=20; }
-
-    // SW (ok si déjà installé)
-    if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
-
-    bindButtons();
-    bindRecalc();
-    compute();
-  }catch(e){
-    console.error('Init error:', e);
-  }
-});
-</script>
-
 </body>
 </html>
