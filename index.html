@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Devis Jardinage & Bricolage – Express (ACJ)</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0ea5e9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+  :root { --bg:#0b1220; --card:#111827; --muted:#6b7280; --accent:#0ea5e9; --ok:#22c55e; --bad:#ef4444; --text:#e5e7eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: linear-gradient(180deg,#0b1220,#0e1726); color:var(--text); }
+  header { position:sticky; top:0; z-index:10; backdrop-filter: blur(6px); background: #0b1220cc; border-bottom:1px solid #1f2937; }
+  header .wrap { display:flex; gap:.75rem; align-items:center; padding: .9rem 1rem; }
+  h1 { font-size:1.1rem; margin:0; letter-spacing:.3px; }
+  .pill { font-size:.75rem; color:#93c5fd; border:1px solid #1f2937; border-radius:999px; padding:.25rem .6rem; }
+  main { padding: 1rem; }
+  .card { background: radial-gradient(1200px 600px at 80% -20%, #0ea5e90d, transparent 50%), var(--card); border:1px solid #1f2937; border-radius:18px; padding:1rem; margin-bottom:1rem; }
+  .grid { display:grid; gap:.75rem; grid-template-columns:1fr 1fr; }
+  .grid > label { display:flex; flex-direction:column; gap:.3rem; font-size:.9rem; }
+  .grid > label input, .grid > label select, textarea { width:100%; padding:.8rem .9rem; border-radius:12px; border:1px solid #374151; background:#0b1220; color:var(--text); }
+  .grid > label input:focus, textarea:focus, select:focus { outline:2px solid #0ea5e9; outline-offset:2px; }
+  .full { grid-column:1 / -1; }
+  .row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:center; }
+  .btn { appearance:none; padding:.8rem 1rem; border-radius:12px; border:1px solid #1f2937; background:#0b1220; color:var(--text); font-weight:600; }
+  .btn:hover { background:#0f172a; }
+  .btn.primary { background:linear-gradient(180deg,#0284c7,#0369a1); border-color:#075985; }
+  .btn.ghost { background:transparent; border-color:#334155; }
+  .btn.good { background:linear-gradient(180deg,#16a34a,#15803d); border-color:#14532d; }
+  .totals { display:grid; grid-template-columns:1fr auto; gap:.5rem 1rem; align-items:center; }
+  .totals div { padding:.5rem 0; border-bottom:1px dashed #374151; }
+  .totals div.sum { border-bottom:none; font-size:1.25rem; font-weight:800; }
+  small.muted { color:#9ca3af; }
+  footer { padding:1rem; text-align:center; color:#94a3b8; }
+  .chips { display:flex; gap:.5rem; flex-wrap:wrap; }
+  .chip { padding:.35rem .65rem; border:1px dashed #374151; border-radius:999px; font-size:.85rem; color:#9ca3af; }
+  .flex { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Devis • ACJ</h1>
+  <span class="pill">Offline + Mobile</span>
+</div></header>
+
+<main>
+  <section class="card">
+    <div class="grid">
+      <label>
+        Mode
+        <select id="mode">
+          <option value="jardin">Jardinage</option>
+          <option value="bricol">Bricolage</option>
+        </select>
+      </label>
+      <label>
+        Société
+        <select id="societe">
+          <option value="ACJ Services" data-key="acj_services">ACJ Services</option>
+          <option value="ACJ Services Lens" data-key="acj_lens">ACJ Services Lens</option>
+          <option value="Jet Services" data-key="jet_services">Jet Services</option>
+        </select>
+      </label>
+      <label class="full">
+        SIRET de la société
+        <div class="row">
+          <input id="siret" placeholder="Ex: 90514278200010" />
+          <button class="btn" id="saveSiretBtn" title="Sauvegarder ce SIRET pour la société">💾</button>
+        </div>
+        <small class="muted">Chaque société mémorise son SIRET. ACJ Services est pré-rempli.</small>
+      </label>
+
+      <label>
+        TVA (%)
+        <input id="tva" type="number" step="0.1" value="20" />
+      </label>
+      <label>
+        Taux horaire (€ / h)
+        <input id="taux" type="number" step="0.1" value="45" />
+      </label>
+      <label>
+        €/km
+        <input id="km" type="number" step="0.1" value="0.7" />
+      </label>
+      <label>
+        Vitesse (km/h)
+        <input id="speed" type="number" step="1" value="35" />
+      </label>
+      <label>
+        Déchetterie (€/m³)
+        <input id="dechet" type="number" step="0.1" value="25" />
+      </label>
+
+      <label>
+        Client
+        <input id="client" placeholder="Nom / Société" />
+      </label>
+      <label>
+        Téléphone
+        <input id="tel" placeholder="06 xx xx xx xx" />
+      </label>
+      <label class="full">
+        Adresse d'intervention
+        <input id="adresse" placeholder="26 B rue ..., Ville" />
+      </label>
+      <label class="full">
+        Notes / conditions
+        <textarea id="notes" rows="2" placeholder="Validité 30 jours, sans engagement de durée…"></textarea>
+      </label>
+    </div>
+    <div class="chips" style="margin-top:.6rem">
+      <span class="chip">Productivité: Tonte 400 m²/h</span>
+      <span class="chip">Haie 6 ml/h</span>
+      <span class="chip">Débroussaillage 200 m²/h</span>
+    </div>
+  </section>
+
+  <section class="card" id="blocJardin">
+    <div class="grid">
+      <label>
+        Pelouse (m²)
+        <input id="pelouse" type="number" inputmode="numeric" placeholder="m²" />
+      </label>
+      <label>
+        Haies (ml)
+        <input id="haies" type="number" inputmode="numeric" placeholder="ml" />
+      </label>
+      <label>
+        Débroussaillage (m²)
+        <input id="debrouss" type="number" inputmode="numeric" placeholder="m²" />
+      </label>
+      <label>
+        Déchets (m³)
+        <input id="dechets" type="number" inputmode="decimal" placeholder="m³" />
+      </label>
+      <label>
+        Distance A/R (km)
+        <input id="dist" type="number" inputmode="decimal" placeholder="km" />
+      </label>
+      <label class="full">
+        Autre ligne (libellé – ex: Forfait intervention)
+        <input id="autreLib" placeholder="Forfait" />
+      </label>
+      <label>
+        Qté autre
+        <input id="autreQte" type="number" step="0.1" />
+      </label>
+      <label>
+        PU autre (€)
+        <input id="autrePU" type="number" step="0.1" />
+      </label>
+    </div>
+
+    <div class="row" style="margin-top:.6rem">
+      <button class="btn ghost" onclick="preset(300,0,0,0,10)">Tonte <500m²</button>
+      <button class="btn ghost" onclick="preset(800,0,0,0,10)">Tonte 500–1000</button>
+      <button class="btn ghost" onclick="preset(0,20,0,0,10)">Haies 20ml</button>
+      <button class="btn ghost" onclick="preset(0,0,200,0,10)">Débrouss 200m²</button>
+      <button class="btn ghost" onclick="preset(0,0,0,0,0)">Vider</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="blocBricol">
+    <div class="grid">
+      <label class="full">Liste des prestations (modifiable)
+        <div class="row">
+          <select id="prestations"></select>
+          <button class="btn" onclick="ajouterPrestation()">+ Ajouter</button>
+          <button class="btn" onclick="retirerPrestation()">– Retirer</button>
+        </div>
+        <small class="muted">Exemples: Changement de mitigeur, Installation cadre, Installation rideaux</small>
+      </label>
+      <label>Quantité
+        <input id="qteBricol" type="number" step="0.1" value="1" />
+      </label>
+      <label>PU (€ TTC)
+        <input id="puBricol" type="number" step="0.1" placeholder="Ex: 50" />
+      </label>
+      <label class="full">
+        Déplacement A/R (km)
+        <input id="distBricol" type="number" step="0.1" placeholder="Ex: 10" />
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3 style="margin:.2rem 0 1rem 0">Total</h3>
+    <div class="totals" id="totals"></div>
+    <div class="row" style="margin-top:.8rem">
+      <button class="btn primary" onclick="share()">Partager</button>
+      <button class="btn good" onclick="window.print()">Imprimer / PDF</button>
+      <button class="btn" onclick="exportOgust()">Exporter → Ogust (JSON)</button>
+    </div>
+    <small class="muted">Astuce: installe l’appli (Ajouter à l’écran d’accueil) pour un accès 1 clic.</small>
+  </section>
+</main>
+
+<footer>© ACJ — outil devis express</footer>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const LS = k => 'devisACJ_'+k;
+
+// ----- Sociétés + SIRET -----
+const SOC_KEYS = {
+  acj_services: { name:'ACJ Services', defaultSiret:'90514278200010' },
+  acj_lens: { name:'ACJ Services Lens', defaultSiret:'' },
+  jet_services: { name:'Jet Services', defaultSiret:'' }
+};
+function getCurrentSocKey(){ return $('#societe').selectedOptions[0].dataset.key; }
+function loadSiret(){
+  const key = getCurrentSocKey();
+  const saved = localStorage.getItem(LS('siret_'+key));
+  $('#siret').value = saved || SOC_KEYS[key].defaultSiret || '';
+}
+function saveSiret(){
+  const key = getCurrentSocKey();
+  localStorage.setItem(LS('siret_'+key), $('#siret').value.trim());
+  alert('SIRET enregistré pour '+SOC_KEYS[key].name+' ✅');
+}
+
+// ----- Prestations bricolage -----
+const PREST_KEY = LS('prestations');
+function seedPrestations(){
+  if(!localStorage.getItem(PREST_KEY)){
+    localStorage.setItem(PREST_KEY, JSON.stringify([
+      "Changement de mitigeur",
+      "Installation cadre",
+      "Installation rideaux"
+    ]));
+  }
+}
+function loadPrestations(){
+  const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]');
+  const sel = $('#prestations'); sel.innerHTML='';
+  arr.forEach(p=>{
+    const o=document.createElement('option'); o.textContent=p; sel.appendChild(o);
+  });
+}
+function ajouterPrestation(){
+  const name = prompt('Nom de la prestation ?');
+  if(name){
+    const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]');
+    arr.push(name);
+    localStorage.setItem(PREST_KEY, JSON.stringify(arr));
+    loadPrestations();
+  }
+}
+function retirerPrestation(){
+  const sel = $('#prestations');
+  if(!sel.value) return;
+  const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]');
+  const idx = arr.indexOf(sel.value);
+  if(idx>-1){ arr.splice(idx,1); localStorage.setItem(PREST_KEY, JSON.stringify(arr)); loadPrestations(); }
+}
+
+// ----- Calculs -----
+function num(v){ return parseFloat(v||0) || 0; }
+function modeBricol(){ return $('#mode').value==='bricol'; }
+
+function compute(){
+  let rows=[], ht=0, tva=0, ttc=0;
+
+  if(modeBricol()){
+    const tauxTTC = num($('#taux').value); // affiché à 50 TTC par défaut
+    const tvaRate = num($('#tva').value)/100;
+    const puTTC = num($('#puBricol').value||tauxTTC);
+    const qte = num($('#qteBricol').value||1);
+    const dist = num($('#distBricol').value);
+    const km = num($('#km').value);
+
+    const moTTC = puTTC * qte;
+    const fkmTTC = dist * km;
+    const sousTotalTTC = moTTC + fkmTTC;
+
+    // Recalcule HT/TVA à partir du TTC si TVA connue
+    ttc = sousTotalTTC;
+    ht  = ttc / (1 + tvaRate);
+    tva = ttc - ht;
+
+    rows = [
+      ['Prestation', qte.toFixed(2)+' u • '+($('#prestations').value||'Prestation'), moTTC.toFixed(2)+' € TTC'],
+      ['Déplacement', dist.toFixed(1)+' km', fkmTTC.toFixed(2)+' € TTC'],
+      ['Sous-total TTC', '', sousTotalTTC.toFixed(2)+' €'],
+      ['Dont HT', '', ht.toFixed(2)+' €'],
+      ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
+      ['TOTAL TTC', '', ttc.toFixed(2)+' €']
+    ];
+  } else {
+    // Jardinage – reprends les règles v1
+    const prod = { tonte:400, haie:6, deb:200 };
+    const pelouse = num($('#pelouse').value);
+    const haies   = num($('#haies').value);
+    const deb     = num($('#debrouss').value);
+    const dechets = num($('#dechets').value);
+    const dist    = num($('#dist').value);
+
+    const speed = Math.max(1, num($('#speed').value));
+    const taux  = num($('#taux').value);
+    const tvap  = num($('#tva').value)/100;
+    const km    = num($('#km').value);
+    const dechet = num($('#dechet').value);
+
+    const hTonte = pelouse / prod.tonte;
+    const hHaie  = haies   / prod.haie;
+    const hDeb   = deb     / prod.deb;
+    const hTrajet= dist / speed;
+    const hTot   = hTonte + hHaie + hDeb + hTrajet;
+
+    const mo   = hTot * taux;
+    const fkm  = dist * km;
+    const fdec = dechets * dechet;
+    const autreQ = num($('#autreQte').value);
+    const autrePU= num($('#autrePU').value);
+    const autre  = autreQ * autrePU;
+
+    ht = mo + fkm + fdec + autre;
+    tva = ht * tvap;
+    ttc = ht + tva;
+
+    rows = [
+      ['Heures totales', hTot.toFixed(2) + ' h', (mo).toFixed(2) + ' € HT'],
+      ['Déplacement', dist.toFixed(1) + ' km', fkm.toFixed(2) + ' € HT'],
+      ['Déchetterie', dechets.toFixed(1) + ' m³', fdec.toFixed(2) + ' € HT'],
+      [($('#autreLib').value||'Autre'), autreQ.toFixed(2) + ' u', autre.toFixed(2) + ' € HT'],
+      ['Sous-total HT', '', ht.toFixed(2) + ' €'],
+      ['TVA', (num($('#tva').value)).toFixed(1) + ' %', tva.toFixed(2) + ' €'],
+      ['TOTAL TTC', '', ttc.toFixed(2) + ' €']
+    ];
+  }
+
+  const t = $('#totals'); t.innerHTML='';
+  rows.forEach((r,i)=>{
+    const k = document.createElement('div'); k.textContent=r[0]; if(i===rows.length-1) k.className='sum';
+    const v = document.createElement('div'); v.textContent=(r[1]?'• '+r[1]+' – ':'')+r[2]; if(i===rows.length-1) v.className='sum';
+    t.appendChild(k); t.appendChild(v);
+  });
+
+  return { ht,tva,ttc };
+}
+
+// ----- Presets & interactions -----
+function preset(p,h,d,dec,km){ $('#pelouse').value=p||''; $('#haies').value=h||''; $('#debrouss').value=d||''; $('#dechets').value=dec||''; if(km!==undefined) $('#dist').value=km||''; compute(); }
+
+['input','change'].forEach(evt=>{
+  document.addEventListener(evt, e => {
+    if(e.target.matches('input, textarea, select')) compute();
+  });
+});
+
+// ----- Share / Export Ogust -----
+async function share(){
+  const c = $('#client').value||'Client';
+  const s = compute();
+  const soc = $('#societe').value;
+  const text = `Devis ${c} (${soc})
+Total TTC: ${s.ttc.toFixed(2)} €
+HT ${s.ht.toFixed(2)} € – TVA ${s.tva.toFixed(2)} €`;
+  if(navigator.share){
+    try { await navigator.share({ title:'Devis ACJ', text }); } catch(e){}
+  } else { prompt('Copier le devis', text); }
+}
+
+function exportOgust(){
+  const today = new Date(); const ymd = today.toISOString().slice(0,10).replaceAll('-','');
+  const s = compute();
+  const mode = $('#mode').value;
+  const payload = {
+    quotation:{
+      method:"setQuotation",
+      create_date: ymd,
+      id_customer: null,
+      type_taxes: mode==='bricol' ? "TTC" : "HT",
+      amount_HT: Number(s.ht.toFixed(2)),
+      amount_taxes: Number(s.tva.toFixed(2)),
+      amount_TTC: Number(s.ttc.toFixed(2)),
+      customer_service: $('#client').value || '',
+      service_address: $('#adresse').value || '',
+      company: $('#societe').value,
+      siret: $('#siret').value,
+      tva_rate: Number(($('#tva').value)||0)
+    },
+    lines: [],
+    meta:{
+      mode,
+      tel: $('#tel').value,
+      note: $('#notes').value
+    }
+  };
+
+  if(mode==='bricol'){
+    const lib = $('#prestations').value || 'Prestation';
+    const q = parseFloat($('#qteBricol').value||'1');
+    const pu = parseFloat($('#puBricol').value||'50');
+    const dist = parseFloat($('#distBricol').value||'0');
+    payload.lines.push({ short_description: lib, quantity: q, unit:"U", price: pu, is_ttc:true });
+    if(dist>0) payload.lines.push({ short_description: "Déplacement", quantity: dist, unit:"KM", price: parseFloat($('#km').value), is_ttc:true });
+  } else {
+    // Jardinage: regrouper en 3-4 lignes selon les entrées
+    const dist = parseFloat($('#dist').value||'0');
+    const dechets = parseFloat($('#dechets').value||'0');
+    const tv = parseFloat($('#taux').value||'45');
+    // main d'oeuvre = heures totales * taux : récapitulatif textuel
+    payload.lines.push({ short_description:"Main d'œuvre (estimation heure + trajet)", quantity:1, unit:"U", price: Number((s.ht - (dist*parseFloat($('#km').value||'0')) - (dechets*parseFloat($('#dechet').value||'0')) - (parseFloat($('#autreQte').value||'0')*parseFloat($('#autrePU').value||'0'))).toFixed(2)) });
+    if(dist>0) payload.lines.push({ short_description:"Frais déplacement", quantity: dist, unit:"KM", price: parseFloat($('#km').value) });
+    if(dechets>0) payload.lines.push({ short_description:"Déchetterie", quantity: dechets, unit:"M3", price: parseFloat($('#dechet').value) });
+    const aq=parseFloat($('#autreQte').value||'0'), ap=parseFloat($('#autrePU').value||'0'); if(aq>0&&ap>0) payload.lines.push({ short_description:($('#autreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
+  }
+
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a');
+  a.href=url; a.download='ogust_devis_payload.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+// ----- Init -----
+window.addEventListener('load', ()=>{
+  // Mode initial: Jardinage
+  $('#mode').value='jardin';
+  $('#taux').value=45; $('#tva').value=20;
+
+  // Sociétés
+  loadSiret();
+  $('#societe').addEventListener('change', loadSiret);
+  $('#saveSiretBtn').addEventListener('click', saveSiret);
+
+  // Prestations bricolage
+  seedPrestations(); loadPrestations();
+
+  // PWA SW
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+
+  compute();
+});
+
+// Switch mode
+$('#mode').addEventListener('change', e=>{
+  const m = e.target.value;
+  $('#blocJardin').classList.toggle('hidden', m!=='jardin');
+  $('#blocBricol').classList.toggle('hidden', m!=='bricol');
+  if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
+  compute();
+});
+</script>
+</body>
+</html>
