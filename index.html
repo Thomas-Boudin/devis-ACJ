@@ -367,6 +367,7 @@ function exportOgust(){
   const today = new Date(); const ymd = today.toISOString().slice(0,10).replaceAll('-','');
   const s = compute();
   const mode = $('#mode').value;
+  const PROXY_URL = "https://acj-ogust-proxy.vercel.app/api/ogust-devis";
   const payload = {
     quotation:{
       method:"setQuotation",
