@@ -547,5 +547,79 @@ function compute(){
 }
 
 </script>
+<script>
+// Helpers
+const $ = sel => document.querySelector(sel);
+
+// Rattacher les boutons (si présents)
+function bindButtons(){
+  $('#shareBtn') && $('#shareBtn').addEventListener('click', e=>{ e.preventDefault(); typeof sharePDF==='function' && sharePDF(); });
+  $('#pdfBtn') && $('#pdfBtn').addEventListener('click', e=>{ e.preventDefault(); typeof printPDF==='function' && printPDF(); });
+  $('#exportBtn') && $('#exportBtn').addEventListener('click', e=>{ e.preventDefault(); typeof exportOgust==='function' && exportOgust(); });
+}
+
+// Calcul robuste (n’écrit que si les éléments existent)
+function compute(){
+  const n = v => parseFloat(v||'0')||0;
+  const taux = n($('#taux')?.value);
+  const tva  = n($('#tva')?.value);
+
+  // Jardin
+  const dist     = n($('#dist')?.value);
+  const km       = n($('#km')?.value);
+  const dechets  = n($('#dechets')?.value);
+  const dechet   = n($('#dechet')?.value);
+  const autreQte = n($('#autreQte')?.value);
+  const autrePU  = n($('#autrePU')?.value);
+
+  const ht = dist*km + dechets*dechet + autreQte*autrePU + taux;
+  const tvaAmt = ht*(tva/100);
+  const ttc = ht + tvaAmt;
+
+  $('#totalHT')  && ($('#totalHT').textContent  = ht.toFixed(2)+' €');
+  $('#totalTVA') && ($('#totalTVA').textContent = tvaAmt.toFixed(2)+' €');
+  $('#totalTTC') && ($('#totalTTC').textContent = ttc.toFixed(2)+' €');
+  return { ht, tva: tvaAmt, ttc };
+}
+
+// Re-bind + recalc sur changements
+function bindRecalc(){
+  document.querySelectorAll('input, select').forEach(el=>{
+    el.addEventListener('input', compute);
+    el.addEventListener('change', compute);
+  });
+}
+
+// Switch mode (si le sélecteur existe)
+$('#mode') && $('#mode').addEventListener('change', e=>{
+  const m = e.target.value;
+  $('#blocJardin') && $('#blocJardin').classList.toggle('hidden', m!=='jardin');
+  $('#blocBricol') && $('#blocBricol').classList.toggle('hidden', m!=='bricol');
+  if($('#taux') && $('#tva')){
+    if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
+  }
+  compute();
+});
+
+// Au chargement
+window.addEventListener('load', ()=>{
+  try{
+    // Valeurs par défaut
+    if($('#mode')){ $('#mode').value='jardin'; }
+    if($('#taux')){ $('#taux').value=45; }
+    if($('#tva')) { $('#tva').value=20; }
+
+    // SW (ok si déjà installé)
+    if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+
+    bindButtons();
+    bindRecalc();
+    compute();
+  }catch(e){
+    console.error('Init error:', e);
+  }
+});
+</script>
+
 </body>
 </html>
