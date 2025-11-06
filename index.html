@@ -512,6 +512,40 @@ async function exportOgust(){
     alert("Erreur de connexion au proxy ❌\n" + e.message);
   }
 }
+// ----- Boutons -----
+$('#shareBtn').addEventListener('click', sharePDF);
+$('#pdfBtn').addEventListener('click', printPDF);
+$('#exportBtn').addEventListener('click', exportOgust);
+
+// ----- Recalcul automatique -----
+document.querySelectorAll('input, select').forEach(el=>{
+  el.addEventListener('input', compute);
+  el.addEventListener('change', compute);
+});
+
+// ----- Calcul principal -----
+function compute(){
+  const taux = parseFloat($('#taux').value||'0');
+  const tva = parseFloat($('#tva').value||'0');
+
+  // Jardin
+  const dist = parseFloat($('#dist').value||'0');
+  const km = parseFloat($('#km').value||'0');
+  const dechets = parseFloat($('#dechets').value||'0');
+  const dechet = parseFloat($('#dechet').value||'0');
+  const autreQte = parseFloat($('#autreQte').value||'0');
+  const autrePU = parseFloat($('#autrePU').value||'0');
+  const ht = dist*km + dechets*dechet + autreQte*autrePU + taux;
+  const montantTva = ht*(tva/100);
+  const ttc = ht + montantTva;
+
+  $('#totalHT').textContent = ht.toFixed(2)+' €';
+  $('#totalTVA').textContent = montantTva.toFixed(2)+' €';
+  $('#totalTTC').textContent = ttc.toFixed(2)+' €';
+
+  return {ht, tva: montantTva, ttc};
+}
+
 </script>
 </body>
 </html>
