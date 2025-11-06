@@ -416,6 +416,7 @@ function exportOgust(){
   setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
+<script>
 // ----- Init -----
 window.addEventListener('load', ()=>{
   // Mode initial: Jardinage
@@ -428,14 +429,25 @@ window.addEventListener('load', ()=>{
   $('#saveSiretBtn').addEventListener('click', saveSiret);
 
   // Prestations bricolage
-  seedPrestations(); loadPrestations();
+  seedPrestations(); 
+  loadPrestations();
 
   // PWA SW
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
 
   compute();
 });
-<script>
+
+// Switch mode
+$('#mode').addEventListener('change', e=>{
+  const m = e.target.value;
+  $('#blocJardin').classList.toggle('hidden', m!=='jardin');
+  $('#blocBricol').classList.toggle('hidden', m!=='bricol');
+  if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
+  compute();
+});
+
+// ---- Export vers Ogust (via ton proxy Vercel)
 async function exportOgust(){
   const today = new Date();
   const ymd = today.toISOString().slice(0,10).replaceAll('-','');
@@ -500,15 +512,6 @@ async function exportOgust(){
     alert("Erreur de connexion au proxy ❌\n" + e.message);
   }
 }
-</script>
-// Switch mode
-$('#mode').addEventListener('change', e=>{
-  const m = e.target.value;
-  $('#blocJardin').classList.toggle('hidden', m!=='jardin');
-  $('#blocBricol').classList.toggle('hidden', m!=='bricol');
-  if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
-  compute();
-});
 </script>
 </body>
 </html>
