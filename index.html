@@ -435,7 +435,72 @@ window.addEventListener('load', ()=>{
 
   compute();
 });
+<script>
+async function exportOgust(){
+  const today = new Date();
+  const ymd = today.toISOString().slice(0,10).replaceAll('-','');
 
+  const s = compute();
+  const mode = document.querySelector('#mode').value;
+  const PROXY_URL = "https://acj-ogust-proxy.vercel.app/api/ogust-devis";
+
+  const payload = {
+    quotation:{
+      method:"setQuotation",
+      create_date: ymd.replaceAll('-',''),
+      id_customer: null,
+      type_taxes: mode==='bricol' ? "TTC" : "HT",
+      amount_HT: Number(s.ht.toFixed(2)),
+      amount_taxes: Number(s.tva.toFixed(2)),
+      amount_TTC: Number(s.ttc.toFixed(2)),
+      customer_service: document.querySelector('#client').value || '',
+      service_address: document.querySelector('#adresse').value || '',
+      company: document.querySelector('#societe').value,
+      siret: document.querySelector('#siret').value,
+      tva_rate: Number((document.querySelector('#tva').value)||0)
+    },
+    lines: [],
+    meta:{ mode, tel: document.querySelector('#tel').value, note: document.querySelector('#notes').value }
+  };
+
+  if(mode==='bricol'){
+    const lib = document.querySelector('#prestations').value || 'Prestation';
+    const q = parseFloat(document.querySelector('#qteBricol').value||'1');
+    const pu = parseFloat(document.querySelector('#puBricol').value||'50');
+    const dist = parseFloat(document.querySelector('#distBricol').value||'0');
+    payload.lines.push({ short_description: lib, quantity: q, unit:"U", price: pu, is_ttc:true });
+    if(dist>0) payload.lines.push({ short_description: "Déplacement", quantity: dist, unit:"KM", price: parseFloat(document.querySelector('#km').value), is_ttc:true });
+  } else {
+    const dist = parseFloat(document.querySelector('#dist').value||'0');
+    const dechets = parseFloat(document.querySelector('#dechets').value||'0');
+    const aq = parseFloat(document.querySelector('#autreQte').value||'0');
+    const ap = parseFloat(document.querySelector('#autrePU').value||'0');
+    const km = parseFloat(document.querySelector('#km').value||'0');
+    const dch = parseFloat(document.querySelector('#dechet').value||'0');
+    const moHT = Number((s.ht - (dist*km) - (dechets*dch) - (aq*ap)).toFixed(2));
+    payload.lines.push({ short_description:"Main d'œuvre (estimation heure + trajet)", quantity:1, unit:"U", price: moHT });
+    if(dist>0) payload.lines.push({ short_description:"Frais déplacement", quantity: dist, unit:"KM", price: km });
+    if(dechets>0) payload.lines.push({ short_description:"Déchetterie", quantity: dechets, unit:"M3", price: dch });
+    if(aq>0&&ap>0) payload.lines.push({ short_description:(document.querySelector('#autreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
+  }
+
+  try {
+    const r = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const out = await r.json();
+    if(out.ok){
+      alert("Devis créé dans Ogust ✅\nID: " + out.id_quotation);
+    } else {
+      alert("Ogust a renvoyé une erreur ❌\nÉtape: " + (out.step||'?') + "\n" + JSON.stringify(out.resp||out, null, 2));
+    }
+  } catch(e){
+    alert("Erreur de connexion au proxy ❌\n" + e.message);
+  }
+}
+</script>
 // Switch mode
 $('#mode').addEventListener('change', e=>{
   const m = e.target.value;
