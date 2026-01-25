@@ -138,6 +138,13 @@
   <div class="row">
     <button class="btn" type="button" id="btnImportClients">📥 Importer CSV Ogust</button>
     <button class="btn ghost" type="button" id="btnClearClients" title="Effacer la liste clients du téléphone">🧽 Vider</button>
+<!-- Transfert clients (JSON) -->
+<div class="row" style="margin-top:.5rem">
+  <button class="btn ghost" type="button" id="btnExportClientsJson">⬇️ Export clients (JSON)</button>
+  <button class="btn ghost" type="button" id="btnImportClientsJson">⬆️ Import clients (JSON)</button>
+  <input id="fileClientsJson" type="file" accept="application/json,.json" class="hidden" />
+</div>
+<small class="muted">Astuce : export sur Mac → envoie le fichier sur ton téléphone (AirDrop/Drive/WhatsApp) → import.</small>
     <select id="clientsSelect" style="flex:1; min-width:220px"></select>
   </div>
   <input id="fileClients" type="file" accept=".csv,text/csv" class="hidden" />
