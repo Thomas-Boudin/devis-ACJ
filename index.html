@@ -351,6 +351,34 @@
 const $ = s => document.querySelector(s);
 const LS = k => 'devisACJ_'+k;
 const num = v => parseFloat(v||0)||0;
+/* =======================
+   NUMÉRO DE DEVIS AUTO
+======================= */
+const DEVIS_KEY = LS('devis_counter');
+
+function getYear(){
+  return new Date().getFullYear();
+}
+
+function nextDevisNumber(){
+  const year = getYear();
+  const raw = localStorage.getItem(DEVIS_KEY);
+  let data = raw ? JSON.parse(raw) : {};
+
+  if (!data[year]) data[year] = 0;
+  data[year] += 1;
+
+  localStorage.setItem(DEVIS_KEY, JSON.stringify(data));
+
+  return `ACJ-${year}-${String(data[year]).padStart(3,'0')}`;
+}
+
+function initDevisNumber(){
+  if (!$('#numeroDevis').value) {
+    $('#numeroDevis').value = nextDevisNumber();
+  }
+}
+
 const modeBricol = () => $('#mode').value==='bricol';
 const modeNet = () => $('#mode').value==='nettoyage';
 
