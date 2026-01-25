@@ -1225,6 +1225,170 @@ Validité : 30 jours.
 
   await copyToClipboard(msg);
 }
+  /* =======================
+   PDF PRO (HTML print)
+======================= */
+
+// Petite sécurité HTML
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+// Construit des lignes "pro" selon le mode
+function buildLinesForPrint(){
+  const mode = $('#mode').value;
+  const lines = [];
+
+  if(mode==='bricol'){
+    const lib = $('#prestations')?.value || 'Prestation';
+    const q = num($('#qteBricol')?.value||1);
+    const pu = num($('#puBricol')?.value||60);
+    const dist = num($('#distBricol')?.value||0);
+    const km = num($('#km')?.value||0);
+
+    lines.push({ desc: lib, qty: q, unit:'U', pu: pu, total: q*pu, ttc:true });
+    if(dist>0) lines.push({ desc:'Déplacement', qty: dist, unit:'KM', pu: km, total: dist*km, ttc:true });
+  }
+  else if(mode==='nettoyage'){
+    const h = num($('#netHeures')?.value||0);
+    const taux = num($('#netTaux')?.value||35);
+    const machines = num($('#netMachines')?.value||0);
+    const produits = num($('#netProduits')?.value||0);
+    const vitrines = num($('#netVitrines')?.value||0);
+    const puVit = num($('#netPUVitrine')?.value||10);
+    const dist = num($('#netDist')?.value||0);
+    const km = num($('#km')?.value||0);
+    const aq = num($('#netAutreQte')?.value||0);
+    const ap = num($('#netAutrePU')?.value||0);
+    const al = $('#netAutreLib')?.value || 'Autre';
+
+    if(h>0) lines.push({ desc:"Main d’œuvre", qty:h, unit:'H', pu:taux, total:h*taux, ttc:false });
+    if(machines>0) lines.push({ desc:"Machines (forfait)", qty:1, unit:'U', pu:machines, total:machines, ttc:false });
+    if(produits>0) lines.push({ desc:"Produits (forfait)", qty:1, unit:'U', pu:produits, total:produits, ttc:false });
+    if(vitrines>0) lines.push({ desc:"Vitrerie", qty:vitrines, unit:'U', pu:puVit, total:vitrines*puVit, ttc:false });
+    if(dist>0) lines.push({ desc:"Déplacement", qty:dist, unit:'KM', pu:km, total:dist*km, ttc:false });
+    if(aq>0 && ap>0) lines.push({ desc:al, qty:aq, unit:'U', pu:ap, total:aq*ap, ttc:false });
+  }
+  else { // jardin
+    const pelouse=num($('#pelouse').value), haies=num($('#haies').value), deb=num($('#debrouss').value);
+    const dechets=num($('#dechets').value), dist=num($('#dist').value);
+    const speed=Math.max(1,num($('#speed').value)), taux=num($('#taux').value);
+    const km=num($('#km').value), dechet=num($('#dechet').value);
+
+    const prod = { tonte:400, haie:6, deb:200 };
+    const hTonte=pelouse/prod.tonte, hHaie=haies/prod.haie, hDeb=deb/prod.deb, hTrajet=dist/speed;
+    const hTot=hTonte+hHaie+hDeb+hTrajet;
+
+    const mo=hTot*taux, fkm=dist*km, fdec=dechets*dechet;
+    const aq=num($('#autreQte').value), ap=num($('#autrePU').value), al=$('#autreLib').value||'Autre';
+    const autre=aq*ap;
+
+    lines.push({ desc:"Main d’œuvre (estimation heures + trajet)", qty:1, unit:'U', pu:mo, total:mo, ttc:false });
+    if(dist>0) lines.push({ desc:"Frais déplacement", qty:dist, unit:'KM', pu:km, total:fkm, ttc:false });
+    if(dechets>0) lines.push({ desc:"Déchetterie", qty:dechets, unit:'M3', pu:dechet, total:fdec, ttc:false });
+    if(aq>0 && ap>0) lines.push({ desc:al, qty:aq, unit:'U', pu:ap, total:autre, ttc:false });
+  }
+
+  return lines;
+}
+
+function getModeLabel(m){
+  return (m==='jardin')?'Jardinage':(m==='bricol')?'Bricolage':(m==='nettoyage')?'Nettoyage':m;
+}
+
+function buildPrintHTML(){
+  const soc = $('#societe').value || 'ACJ Services';
+  const siret = ($('#siret')?.value||'').trim();
+  const numDevis = ($('#numeroDevis')?.value||'').trim();
+  const mode = getModeLabel($('#mode').value);
+  const client = ($('#client')?.value||'').trim();
+  const tel = ($('#tel')?.value||'').trim();
+  const adr = ($('#adresse')?.value||'').trim();
+  const itv = ($('#intervenants')?.value && $('#intervenants').value !== '— Aucun —') ? $('#intervenants').value : '';
+  const notes = ($('#notes')?.value||'').trim();
+  const today = new Date().toLocaleDateString('fr-FR');
+
+  const totals = compute(); // {ht,tva,ttc}
+  const lines = buildLinesForPrint();
+
+  const rowsHTML = lines.map(l=>`
+    <tr>
+      <td>${esc(l.desc)}</td>
+      <td class="print-right">${esc(l.qty.toFixed( (l.unit==='KM'||l.unit==='H') ? 2 : 0 ))}</td>
+      <td>${esc(l.unit)}</td>
+      <td class="print-right">${esc(l.pu.toFixed(2))} €</td>
+      <td class="print-right">${esc(l.total.toFixed(2))} €</td>
+    </tr>
+  `).join('');
+
+  // Logo : on réutilise l’icône existante du projet (simple et fiable)
+  const logoSrc = "icon-512.png";
+
+  return `
+  <div class="print-wrap">
+    <div class="print-top">
+      <div>
+        <h2 class="print-h1">DEVIS</h2>
+        <div class="print-meta">
+          <div><b>Société :</b> ${esc(soc)}</div>
+          ${siret ? `<div><b>SIRET :</b> ${esc(siret)}</div>` : ``}
+          <div><b>Devis n° :</b> ${esc(numDevis || '—')}</div>
+          <div><b>Date :</b> ${esc(today)}</div>
+          <div><b>Mode :</b> ${esc(mode)}${itv ? ` — <b>Intervenant :</b> ${esc(itv)}` : ''}</div>
+        </div>
+      </div>
+      <div>
+        <img class="print-logo" src="${logoSrc}" alt="ACJ" />
+      </div>
+    </div>
+
+    <div class="print-grid">
+      <div class="print-box">
+        <div><b>Client</b></div>
+        <div>${esc(client || '—')}</div>
+        ${tel ? `<div>${esc(tel)}</div>` : ``}
+      </div>
+      <div class="print-box">
+        <div><b>Adresse d’intervention</b></div>
+        <div>${esc(adr || '—')}</div>
+      </div>
+    </div>
+
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th>Désignation</th>
+          <th class="print-right">Qté</th>
+          <th>Unité</th>
+          <th class="print-right">PU</th>
+          <th class="print-right">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHTML || `<tr><td colspan="5">—</td></tr>`}
+      </tbody>
+    </table>
+
+    <div class="print-total">
+      <div class="print-totals">
+        <div><span>Total HT</span><span>${totals.ht.toFixed(2)} €</span></div>
+        <div><span>TVA</span><span>${totals.tva.toFixed(2)} €</span></div>
+        <div><span>TOTAL TTC</span><span>${totals.ttc.toFixed(2)} €</span></div>
+      </div>
+    </div>
+
+    <div class="print-foot">
+      <div><b>Validité :</b> 30 jours</div>
+      ${notes ? `<div><b>Conditions / notes :</b> ${esc(notes)}</div>` : ``}
+      <div style="margin-top:6px">Merci pour votre confiance — <b>ACJ</b></div>
+    </div>
+  </div>`;
+}
+
+function printPDF(){
+  const area = $('#printArea');
+  area.innerHTML = buildPrintHTML();
+  // petit délai pour laisser le logo se charger avant print
+  setTimeout(()=>window.print(), 150);
+}
 </script>
 </body>
 </html>
