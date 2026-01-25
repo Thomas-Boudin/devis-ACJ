@@ -1297,7 +1297,15 @@ function getModeLabel(m){
 function buildPrintHTML(){
   const soc = $('#societe').value || 'ACJ Services';
   const siret = ($('#siret')?.value||'').trim();
-  const numDevis = ($('#numeroDevis')?.value||'').trim();
+  let numDevis = ($('#numeroDevis')?.value||'').trim();
+if(!numDevis){
+  // fallback direct localStorage si le champ n'est pas présent
+  const year = new Date().getFullYear();
+  const raw = localStorage.getItem(LS('devis_counter'));
+  const data = raw ? JSON.parse(raw) : {};
+  const n = data[year] || 0;
+  if(n>0) numDevis = `ACJ-${year}-${String(n).padStart(3,'0')}`;
+}
   const mode = getModeLabel($('#mode').value);
   const client = ($('#client')?.value||'').trim();
   const tel = ($('#tel')?.value||'').trim();
