@@ -867,10 +867,20 @@ function applyClientToForm(c){
   // Téléphone : priorité mobile puis fixe
   const tel = (c.mobile||'').trim() || (c.fixe||'').trim() || (c.tel||'').trim();
   if (tel) $('#tel').value = tel;
+// Adresse (Ogust met souvent la rue en "Adresse 3")
+const parts = [c.adresse1, c.adresse2, c.adresse3].filter(Boolean).map(s=>String(s).trim()).filter(Boolean);
+let adrBase = parts.join(', ');
 
-  // Adresse
-  const adr = [c.adresse1, [c.cp, c.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-  if (adr) $('#adresse').value = adr;
+// Ajoute CP/Ville si pas déjà présents dans la ligne
+const loc = [c.cp, c.ville].filter(Boolean).join(' ').trim();
+if (loc) {
+  const adrLower = adrBase.toLowerCase();
+  if (!adrLower.includes((c.cp||'').toLowerCase()) && !adrLower.includes((c.ville||'').toLowerCase())) {
+    adrBase = adrBase ? `${adrBase}, ${loc}` : loc;
+  }
+}
+
+if (adrBase) $('#adresse').value = adrBase;
 
   compute();
 }
