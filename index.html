@@ -45,7 +45,52 @@
   <h1>Devis • ACJ</h1>
   <span class="pill">Offline + Mobile</span>
 </div></header>
+<!-- ===== ZONE PDF / IMPRESSION ===== -->
+<section id="printArea" class="hidden">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <h2 style="margin:0">DEVIS</h2>
+      <p style="margin:.2rem 0">
+        <strong id="pSociete"></strong><br>
+        SIRET : <span id="pSiret"></span>
+      </p>
+    </div>
+    <div>
+      <img src="icon-192.png" style="width:80px" />
+    </div>
+  </div>
 
+  <hr>
+
+  <p>
+    <strong>Client :</strong> <span id="pClient"></span><br>
+    <strong>Adresse :</strong> <span id="pAdresse"></span><br>
+    <strong>Intervenant :</strong> <span id="pIntervenant"></span>
+  </p>
+
+  <table width="100%" border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th align="left">Détail</th>
+        <th align="right">Montant</th>
+      </tr>
+    </thead>
+    <tbody id="pLines"></tbody>
+  </table>
+
+  <h3 style="text-align:right;margin-top:1rem">
+    Total TTC : <span id="pTotal"></span> €
+  </h3>
+
+  <p style="margin-top:2rem;font-size:.9rem">
+    <strong>Conditions :</strong><br>
+    <span id="pNotes"></span>
+  </p>
+
+  <p style="margin-top:3rem;font-size:.8rem;text-align:center">
+    Devis valable 30 jours – ACJ Services
+  </p>
+</section>
 <main>
   <section class="card">
     <div class="grid">
