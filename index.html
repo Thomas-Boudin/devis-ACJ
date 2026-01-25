@@ -1383,10 +1383,13 @@ function buildPrintHTML(){
   </div>`;
 }
 
-function printPDF(){
+ function printPDF(){
+  // Assure qu'un numéro existe toujours
+  if (!$('#numeroDevis')?.value) initDevisNumber();
+
   const area = $('#printArea');
   area.innerHTML = buildPrintHTML();
-  // petit délai pour laisser le logo se charger avant print
+
   setTimeout(()=>window.print(), 150);
 }
 </script>
