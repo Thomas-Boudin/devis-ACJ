@@ -1,9 +1,12 @@
 {
+  "id": "devis-acj",
   "name": "Devis ACJ Services",
   "short_name": "Devis ACJ",
-  "start_url": ".",
+  "start_url": "./?source=pwa",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
   "theme_color": "#0ea5e9",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
