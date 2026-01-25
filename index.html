@@ -60,6 +60,36 @@
     header, main, footer { display:none !important; }
     #pdf { display:block !important; }
     #pdf, .pdfBox, table.pdfTable { break-inside: avoid; page-break-inside: avoid; }
+/* =======================
+   PRINT / PDF PRO (ACJ)
+======================= */
+@media print {
+  body { background:#fff !important; color:#111 !important; }
+  header, footer, .btn, .pill, .chips { display:none !important; }
+  main { padding:0 !important; }
+  .card { border:none !important; background:#fff !important; margin:0 !important; padding:0 !important; }
+  #printArea { display:block !important; }
+  #printArea * { color:#111 !important; }
+  @page { size: A4; margin: 12mm; }
+}
+
+#printArea { display:none; }
+.print-wrap { font: 12.5px system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+.print-top { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; }
+.print-logo { width:120px; height:auto; object-fit:contain; }
+.print-h1 { font-size:18px; margin:0; }
+.print-meta { font-size:12px; opacity:.85; line-height:1.35; }
+.print-box { border:1px solid #ddd; border-radius:10px; padding:10px; margin-top:10px; }
+.print-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.print-table { width:100%; border-collapse:collapse; margin-top:12px; }
+.print-table th, .print-table td { border-bottom:1px solid #e5e5e5; padding:8px 6px; text-align:left; vertical-align:top; }
+.print-table th { background:#f6f6f6; font-weight:700; }
+.print-right { text-align:right; }
+.print-total { margin-top:10px; display:flex; justify-content:flex-end; }
+.print-totals { width:320px; }
+.print-totals div { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #ddd; }
+.print-totals div:last-child { border-bottom:none; font-size:16px; font-weight:800; }
+.print-foot { margin-top:12px; font-size:11px; opacity:.85; line-height:1.35; }
   }
 </style>
 </head>
