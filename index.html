@@ -968,6 +968,130 @@ window.addEventListener('load', ()=>{
     });
   }
 });
+  /* =======================
+   PATCH TRANSFERT CLIENTS (JSON)
+   - Export: télécharge un .json
+   - Import: charge un .json sur l'appareil
+======================= */
+
+function downloadText(filename, text, mime="application/json"){
+  const blob = new Blob([text], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 500);
+}
+
+function safeParseJSON(txt){
+  try { return JSON.parse(txt); } catch { return null; }
+}
+
+function sanitizeClientsArray(arr){
+  // On garde uniquement ce qu'on utilise
+  if(!Array.isArray(arr)) return [];
+  const out = [];
+  for(const c of arr){
+    if(!c || typeof c !== 'object') continue;
+    const cleaned = {
+      id: (c.id||'').toString().trim(),
+      nom: (c.nom||'').toString().trim(),
+      prenom: (c.prenom||'').toString().trim(),
+      rs: (c.rs||'').toString().trim(),
+      mobile: (c.mobile||'').toString().trim(),
+      fixe: (c.fixe||'').toString().trim(),
+      tel: (c.tel||'').toString().trim(),
+      email: (c.email||'').toString().trim(),
+      adresse1: (c.adresse1||'').toString().trim(),
+      cp: (c.cp||'').toString().trim(),
+      ville: (c.ville||'').toString().trim(),
+      display: (c.display||'').toString().trim(),
+    };
+
+    // filtre : au moins un identifiant utile
+    if(!(cleaned.nom || cleaned.prenom || cleaned.mobile || cleaned.fixe || cleaned.adresse1 || cleaned.rs)) continue;
+
+    if(!cleaned.display){
+      cleaned.display = (typeof formatClientDisplay === 'function')
+        ? formatClientDisplay(cleaned)
+        : `${cleaned.nom} ${cleaned.prenom}`.trim();
+    }
+    out.push(cleaned);
+  }
+
+  // dédoublonnage simple par display + cp + ville
+  const seen = new Set();
+  const dedup = [];
+  for(const c of out){
+    const key = (c.display+'|'+(c.cp||'')+'|'+(c.ville||'')).toLowerCase();
+    if(seen.has(key)) continue;
+    seen.add(key);
+    dedup.push(c);
+  }
+
+  // tri
+  dedup.sort((a,b)=> (a.display||'').localeCompare(b.display||'', 'fr', {sensitivity:'base'}));
+  return dedup;
+}
+
+async function readFileAsText(file){
+  const buf = await file.arrayBuffer();
+  // JSON = UTF-8
+  const dec = new TextDecoder('utf-8');
+  return dec.decode(buf);
+}
+
+window.addEventListener('load', ()=>{
+  // Export JSON
+  $('#btnExportClientsJson')?.addEventListener('click', ()=>{
+    const clients = (typeof loadClients === 'function') ? loadClients() : [];
+    if(!clients.length){
+      alert("Aucun client à exporter.");
+      return;
+    }
+    const now = new Date();
+    const stamp = now.toISOString().slice(0,10).replaceAll('-','');
+    const payload = {
+      exported_at: now.toISOString(),
+      source: "devis-ACJ",
+      count: clients.length,
+      clients: clients
+    };
+    downloadText(`clients-acj-${stamp}.json`, JSON.stringify(payload, null, 2));
+    alert("Export JSON prêt ✅\nEnvoie le fichier sur ton téléphone puis fais Import JSON.");
+  });
+
+  // Import JSON
+  $('#btnImportClientsJson')?.addEventListener('click', ()=>{
+    $('#fileClientsJson')?.click();
+  });
+
+  $('#fileClientsJson')?.addEventListener('change', async (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    try{
+      const txt = await readFileAsText(file);
+      const parsed = safeParseJSON(txt);
+      if(!parsed) throw new Error("JSON invalide");
+
+      const arr = Array.isArray(parsed) ? parsed : (parsed.clients || parsed.data || []);
+      const cleaned = sanitizeClientsArray(arr);
+
+      if(!cleaned.length) throw new Error("Aucun client exploitable dans ce JSON");
+      if(typeof saveClients === 'function') saveClients(cleaned);
+      if(typeof refreshClientsSelect === 'function') refreshClientsSelect();
+
+      alert(`Import JSON OK ✅\n${cleaned.length} clients chargés.`);
+    }catch(err){
+      alert("Import JSON impossible ❌\n"+(err?.message || err));
+    }finally{
+      e.target.value = '';
+    }
+  });
+});
 </script>
 </body>
 </html>
