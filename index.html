@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Devis Jardinage & Bricolage – Express (ACJ)</title>
+<title>Devis – Express (ACJ)</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0ea5e9">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,6 +28,7 @@
   .btn.primary { background:linear-gradient(180deg,#0284c7,#0369a1); border-color:#075985; }
   .btn.ghost { background:transparent; border-color:#334155; }
   .btn.good { background:linear-gradient(180deg,#16a34a,#15803d); border-color:#14532d; }
+  .btn.bad { background:linear-gradient(180deg,#ef4444,#b91c1c); border-color:#7f1d1d; }
   .totals { display:grid; grid-template-columns:1fr auto; gap:.5rem 1rem; align-items:center; }
   .totals div { padding:.5rem 0; border-bottom:1px dashed #374151; }
   .totals div.sum { border-bottom:none; font-size:1.25rem; font-weight:800; }
@@ -35,8 +36,8 @@
   footer { padding:1rem; text-align:center; color:#94a3b8; }
   .chips { display:flex; gap:.5rem; flex-wrap:wrap; }
   .chip { padding:.35rem .65rem; border:1px dashed #374151; border-radius:999px; font-size:.85rem; color:#9ca3af; }
-  .flex { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
   .hidden { display:none; }
+  .sep { height:1px; background:#1f2937; margin:.75rem 0; }
 </style>
 </head>
 <body>
@@ -50,12 +51,13 @@
     <div class="grid">
       <label>
         Mode
-       <select id="mode">
-  <option value="jardin">Jardinage</option>
-  <option value="bricol">Bricolage</option>
-  <option value="nettoyage">Nettoyage</option>
-</select>
+        <select id="mode">
+          <option value="jardin">Jardinage</option>
+          <option value="bricol">Bricolage</option>
+          <option value="nettoyage">Nettoyage</option>
+        </select>
       </label>
+
       <label>
         Société
         <select id="societe">
@@ -64,6 +66,18 @@
           <option value="Jet Services" data-key="jet_services">Jet Services</option>
         </select>
       </label>
+
+      <!-- Intervenant -->
+      <label class="full">
+        Intervenant (optionnel)
+        <div class="row">
+          <select id="intervenants" style="flex:1"></select>
+          <button class="btn" onclick="ajouterIntervenant()">+ Ajouter</button>
+          <button class="btn" onclick="retirerIntervenant()">– Retirer</button>
+        </div>
+        <small class="muted">La liste est mémorisée sur ton téléphone (localement).</small>
+      </label>
+
       <label class="full">
         SIRET de la société
         <div class="row">
@@ -111,6 +125,7 @@
         <textarea id="notes" rows="2" placeholder="Validité 30 jours, sans engagement de durée…"></textarea>
       </label>
     </div>
+
     <div class="chips" style="margin-top:.6rem">
       <span class="chip">Productivité: Tonte 400 m²/h</span>
       <span class="chip">Haie 6 ml/h</span>
@@ -118,6 +133,7 @@
     </div>
   </section>
 
+  <!-- Jardin -->
   <section class="card" id="blocJardin">
     <div class="grid">
       <label>
@@ -163,65 +179,8 @@
     </div>
   </section>
 
+  <!-- Bricol -->
   <section class="card hidden" id="blocBricol">
-<section class="card hidden" id="blocNettoyage">
-  <div class="grid">
-    <label class="full">
-      Modèle nettoyage
-      <select id="tplNet">
-        <option value="">— Choisir —</option>
-        <option value="inter">Intermédiaire (balai + autolaveuse)</option>
-        <option value="ffc">Fin de chantier (autolaveuse + locaux + vitres)</option>
-        <option value="vitr">Vitrerie seule</option>
-      </select>
-    </label>
-
-    <label>
-      Heures MO
-      <input id="netHeures" type="number" step="0.25" placeholder="Ex: 6" />
-    </label>
-    <label>
-      Taux horaire (€ / h)
-      <input id="netTaux" type="number" step="0.1" value="35" />
-    </label>
-
-    <label>
-      Machines (forfait €)
-      <input id="netMachines" type="number" step="1" placeholder="Ex: 120" />
-    </label>
-    <label>
-      Produits (forfait €)
-      <input id="netProduits" type="number" step="1" placeholder="Ex: 25" />
-    </label>
-
-    <label>
-      Vitrines (nb)
-      <input id="netVitrines" type="number" step="1" placeholder="Ex: 8" />
-    </label>
-    <label>
-      Prix / vitrine (€)
-      <input id="netPUVitrine" type="number" step="1" value="10" />
-    </label>
-
-    <label>
-      Distance A/R (km)
-      <input id="netDist" type="number" step="0.1" placeholder="Ex: 20" />
-    </label>
-
-    <label class="full">
-      Autre ligne (libellé)
-      <input id="netAutreLib" placeholder="Ex: Vitres meubles froid" />
-    </label>
-    <label>
-      Qté autre
-      <input id="netAutreQte" type="number" step="0.1" />
-    </label>
-    <label>
-      PU autre (€ HT)
-      <input id="netAutrePU" type="number" step="0.1" />
-    </label>
-  </div>
-</section>
     <div class="grid">
       <label class="full">Liste des prestations (modifiable)
         <div class="row">
@@ -235,7 +194,7 @@
         <input id="qteBricol" type="number" step="0.1" value="1" />
       </label>
       <label>PU (€ TTC)
-        <input id="puBricol" type="number" step="0.1" placeholder="Ex: 50" />
+        <input id="puBricol" type="number" step="0.1" placeholder="Ex: 60" />
       </label>
       <label class="full">
         Déplacement A/R (km)
@@ -244,6 +203,67 @@
     </div>
   </section>
 
+  <!-- Nettoyage -->
+  <section class="card hidden" id="blocNettoyage">
+    <div class="grid">
+      <label class="full">
+        Modèle nettoyage
+        <select id="tplNet">
+          <option value="">— Choisir —</option>
+          <option value="inter">Intermédiaire (balai + autolaveuse)</option>
+          <option value="ffc">Fin de chantier (autolaveuse + locaux + vitres)</option>
+          <option value="vitr">Vitrerie seule</option>
+        </select>
+      </label>
+
+      <label>
+        Heures MO
+        <input id="netHeures" type="number" step="0.25" placeholder="Ex: 6" />
+      </label>
+      <label>
+        Taux horaire (€ / h)
+        <input id="netTaux" type="number" step="0.1" value="35" />
+      </label>
+
+      <label>
+        Machines (forfait €)
+        <input id="netMachines" type="number" step="1" placeholder="Ex: 120" />
+      </label>
+      <label>
+        Produits (forfait €)
+        <input id="netProduits" type="number" step="1" placeholder="Ex: 25" />
+      </label>
+
+      <label>
+        Vitrines (nb)
+        <input id="netVitrines" type="number" step="1" placeholder="Ex: 8" />
+      </label>
+      <label>
+        Prix / vitrine (€ HT)
+        <input id="netPUVitrine" type="number" step="1" value="10" />
+      </label>
+
+      <label>
+        Distance A/R (km)
+        <input id="netDist" type="number" step="0.1" placeholder="Ex: 20" />
+      </label>
+
+      <label class="full">
+        Autre ligne (libellé)
+        <input id="netAutreLib" placeholder="Ex: Vitres meubles froid" />
+      </label>
+      <label>
+        Qté autre
+        <input id="netAutreQte" type="number" step="0.1" />
+      </label>
+      <label>
+        PU autre (€ HT)
+        <input id="netAutrePU" type="number" step="0.1" />
+      </label>
+    </div>
+  </section>
+
+  <!-- Total -->
   <section class="card">
     <h3 style="margin:.2rem 0 1rem 0">Total</h3>
     <div class="totals" id="totals"></div>
@@ -251,16 +271,22 @@
       <button class="btn primary" onclick="share()">Partager</button>
       <button class="btn good" onclick="window.print()">Imprimer / PDF</button>
       <button class="btn" onclick="exportOgust()">Exporter → Ogust (JSON)</button>
+      <button class="btn bad" onclick="resetDevis()">Nouveau devis</button>
     </div>
     <small class="muted">Astuce: installe l’appli (Ajouter à l’écran d’accueil) pour un accès 1 clic.</small>
   </section>
 </main>
 
 <footer>© ACJ — outil devis express</footer>
+
 <script>
 /* ===== Helpers & stockage ===== */
 const $ = s => document.querySelector(s);
 const LS = k => 'devisACJ_'+k;
+const num = v => parseFloat(v||0)||0;
+
+const modeBricol = () => $('#mode').value==='bricol';
+const modeNet = () => $('#mode').value==='nettoyage';
 
 /* ===== Sociétés / SIRET ===== */
 const SOC_KEYS = {
@@ -278,6 +304,38 @@ function saveSiret(){
   const key = getCurrentSocKey();
   localStorage.setItem(LS('siret_'+key), $('#siret').value.trim());
   alert('SIRET enregistré pour '+SOC_KEYS[key].name+' ✅');
+}
+
+/* ===== Intervenants ===== */
+const INTV_KEY = LS('intervenants');
+function seedIntervenants(){
+  if(!localStorage.getItem(INTV_KEY)){
+    localStorage.setItem(INTV_KEY, JSON.stringify(["— Aucun —"]));
+  }
+}
+function loadIntervenants(){
+  const arr = JSON.parse(localStorage.getItem(INTV_KEY)||'[]');
+  const sel = $('#intervenants'); sel.innerHTML='';
+  arr.forEach(p=>{ const o=document.createElement('option'); o.textContent=p; sel.appendChild(o); });
+}
+function ajouterIntervenant(){
+  const name = prompt("Nom de l'intervenant ?");
+  if(name){
+    const arr = JSON.parse(localStorage.getItem(INTV_KEY)||'[]');
+    arr.push(name.trim());
+    localStorage.setItem(INTV_KEY, JSON.stringify(arr));
+    loadIntervenants();
+  }
+}
+function retirerIntervenant(){
+  const sel = $('#intervenants'); if(!sel.value) return;
+  const arr = JSON.parse(localStorage.getItem(INTV_KEY)||'[]');
+  const i = arr.indexOf(sel.value);
+  if(i>-1){
+    arr.splice(i,1);
+    localStorage.setItem(INTV_KEY, JSON.stringify(arr));
+    loadIntervenants();
+  }
 }
 
 /* ===== Prestations bricolage ===== */
@@ -309,16 +367,13 @@ function retirerPrestation(){
   const i = arr.indexOf(sel.value); if(i>-1){ arr.splice(i,1); localStorage.setItem(PREST_KEY, JSON.stringify(arr)); loadPrestations(); }
 }
 
-/* ===== Calcul (version avec #totals) ===== */
-const num = v => parseFloat(v||0)||0;
-const modeBricol = () => $('#mode').value==='bricol';
-
+/* ===== Calcul ===== */
 function compute(){
   let rows=[], ht=0, tva=0, ttc=0;
 
   if(modeBricol()){
     const tvaRate = num($('#tva').value)/100;
-    const puTTC = num($('#puBricol').value||50);
+    const puTTC = num($('#puBricol').value||60);
     const qte   = num($('#qteBricol').value||1);
     const dist  = num($('#distBricol').value);
     const km    = num($('#km').value);
@@ -339,13 +394,51 @@ function compute(){
       ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
       ['TOTAL TTC', '', ttc.toFixed(2)+' €']
     ];
-  } else {
+  }
+  else if(modeNet()){
+    const tvaRate = num($('#tva').value)/100;
+
+    const h = num($('#netHeures').value);
+    const taux = num($('#netTaux').value||35);
+    const machines = num($('#netMachines').value);
+    const produits = num($('#netProduits').value);
+
+    const vitrines = num($('#netVitrines').value);
+    const puVit = num($('#netPUVitrine').value||10);
+    const vitres = vitrines * puVit;
+
+    const dist = num($('#netDist').value);
+    const km = num($('#km').value);
+    const fkm = dist * km;
+
+    const autre = num($('#netAutreQte').value) * num($('#netAutrePU').value);
+
+    ht = (h*taux) + machines + produits + vitres + fkm + autre;
+    tva = ht * tvaRate;
+    ttc = ht + tva;
+
+    rows = [
+      ['Main d’œuvre', h.toFixed(2)+' h', (h*taux).toFixed(2)+' € HT'],
+      ['Machines', '', machines.toFixed(2)+' € HT'],
+      ['Produits', '', produits.toFixed(2)+' € HT'],
+      ['Vitrerie', vitrines.toFixed(0)+' vitrines', vitres.toFixed(2)+' € HT'],
+      ['Déplacement', dist.toFixed(1)+' km', fkm.toFixed(2)+' € HT'],
+      [($('#netAutreLib').value||'Autre'), (num($('#netAutreQte').value)||0).toFixed(2)+' u', autre.toFixed(2)+' € HT'],
+      ['Sous-total HT', '', ht.toFixed(2)+' €'],
+      ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
+      ['TOTAL TTC', '', ttc.toFixed(2)+' €']
+    ];
+  }
+  else {
+    // Jardin
     const prod = { tonte:400, haie:6, deb:200 };
     const pelouse=num($('#pelouse').value), haies=num($('#haies').value), deb=num($('#debrouss').value);
     const dechets=num($('#dechets').value), dist=num($('#dist').value);
     const speed=Math.max(1,num($('#speed').value)), taux=num($('#taux').value), tvap=num($('#tva').value)/100;
     const km=num($('#km').value), dechet=num($('#dechet').value);
-    const hTonte=pelouse/prod.tonte, hHaie=haies/prod.haie, hDeb=deb/prod.deb, hTrajet=dist/speed, hTot=hTonte+hHaie+hDeb+hTrajet;
+
+    const hTonte=pelouse/prod.tonte, hHaie=haies/prod.haie, hDeb=deb/prod.deb, hTrajet=dist/speed;
+    const hTot=hTonte+hHaie+hDeb+hTrajet;
 
     const mo=hTot*taux, fkm=dist*km, fdec=dechets*dechet;
     const autreQ=num($('#autreQte').value), autrePU=num($('#autrePU').value), autre=autreQ*autrePU;
@@ -364,26 +457,41 @@ function compute(){
   }
 
   const t = $('#totals'); t.innerHTML='';
-  rows.forEach((r,i)=>{ const k=document.createElement('div'); k.textContent=r[0]; if(i===rows.length-1) k.className='sum';
-                        const v=document.createElement('div'); v.textContent=(r[1]?'• '+r[1]+' – ':'')+r[2]; if(i===rows.length-1) v.className='sum';
-                        t.appendChild(k); t.appendChild(v); });
+  rows.forEach((r,i)=>{
+    const k=document.createElement('div'); k.textContent=r[0]; if(i===rows.length-1) k.className='sum';
+    const v=document.createElement('div'); v.textContent=(r[1]?'• '+r[1]+' – ':'')+r[2]; if(i===rows.length-1) v.className='sum';
+    t.appendChild(k); t.appendChild(v);
+  });
 
   return {ht,tva,ttc};
 }
 
-/* ===== Presets ===== */
-function preset(p,h,d,dec,km){ $('#pelouse').value=p||''; $('#haies').value=h||''; $('#debrouss').value=d||''; $('#dechets').value=dec||''; if(km!==undefined) $('#dist').value=km||''; compute(); }
+/* ===== Presets jardin ===== */
+function preset(p,h,d,dec,km){
+  $('#pelouse').value=p||''; $('#haies').value=h||''; $('#debrouss').value=d||''; $('#dechets').value=dec||'';
+  if(km!==undefined) $('#dist').value=km||'';
+  compute();
+}
 
-/* ===== Partage simple ===== */
+/* ===== Partage ===== */
 async function share(){
   const c = $('#client').value||'Client';
   const s = compute();
   const soc = $('#societe').value;
-  const text = `Devis ${c} (${soc})
-Total TTC: ${s.ttc.toFixed(2)} €
-HT ${s.ht.toFixed(2)} € – TVA ${s.tva.toFixed(2)} €`;
-  if(navigator.share){ try{ await navigator.share({ title:'Devis ACJ', text }); }catch(e){} }
-  else { prompt('Copier le devis', text); }
+  const itv = $('#intervenants')?.value && $('#intervenants').value !== '— Aucun —' ? $('#intervenants').value : '';
+  const mode = $('#mode').value;
+
+  const text =
+`Devis ${c} (${soc})
+Mode: ${mode}${itv ? "\nIntervenant: "+itv : ""}
+Total: ${s.ttc.toFixed(2)} € TTC
+(HT ${s.ht.toFixed(2)} € – TVA ${s.tva.toFixed(2)} €)`;
+
+  if(navigator.share){
+    try{ await navigator.share({ title:'Devis ACJ', text }); }catch(e){}
+  } else {
+    prompt('Copier le devis', text);
+  }
 }
 
 /* ===== Export Ogust via proxy Vercel ===== */
@@ -408,17 +516,43 @@ async function exportOgust(){
       tva_rate: Number(($('#tva').value)||0)
     },
     lines: [],
-    meta:{ mode, tel: $('#tel')?.value||'', note: $('#notes')?.value||'' }
+    meta:{
+      mode,
+      tel: $('#tel')?.value||'',
+      note: $('#notes')?.value||'',
+      intervenant: ($('#intervenants')?.value||'')
+    }
   };
 
+  // Lignes selon mode
   if(mode==='bricol'){
     const lib=$('#prestations').value||'Prestation';
     const q=parseFloat($('#qteBricol').value||'1');
-    const pu=parseFloat($('#puBricol').value||'50');
+    const pu=parseFloat($('#puBricol').value||'60');
     const dist=parseFloat($('#distBricol').value||'0');
     payload.lines.push({ short_description:lib, quantity:q, unit:"U", price:pu, is_ttc:true });
     if(dist>0) payload.lines.push({ short_description:"Déplacement", quantity:dist, unit:"KM", price:parseFloat($('#km').value), is_ttc:true });
-  }else{
+  }
+  else if(mode==='nettoyage'){
+    const h=parseFloat($('#netHeures').value||'0');
+    const taux=parseFloat($('#netTaux').value||'35');
+    const machines=parseFloat($('#netMachines').value||'0');
+    const produits=parseFloat($('#netProduits').value||'0');
+    const vitrines=parseFloat($('#netVitrines').value||'0');
+    const puVit=parseFloat($('#netPUVitrine').value||'10');
+    const dist=parseFloat($('#netDist').value||'0');
+    const km=parseFloat($('#km').value||'0');
+    const aq=parseFloat($('#netAutreQte').value||'0');
+    const ap=parseFloat($('#netAutrePU').value||'0');
+
+    if(h>0) payload.lines.push({ short_description:"Main d'œuvre", quantity:h, unit:"H", price:taux });
+    if(machines>0) payload.lines.push({ short_description:"Machines (forfait)", quantity:1, unit:"U", price:machines });
+    if(produits>0) payload.lines.push({ short_description:"Produits (forfait)", quantity:1, unit:"U", price:produits });
+    if(vitrines>0) payload.lines.push({ short_description:"Vitrerie", quantity:vitrines, unit:"U", price:puVit });
+    if(dist>0) payload.lines.push({ short_description:"Déplacement", quantity:dist, unit:"KM", price:km });
+    if(aq>0 && ap>0) payload.lines.push({ short_description:($('#netAutreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
+  }
+  else {
     const dist=parseFloat($('#dist').value||'0');
     const dechets=parseFloat($('#dechets').value||'0');
     const km=parseFloat($('#km').value||'0');
@@ -441,18 +575,82 @@ async function exportOgust(){
   }
 }
 
+/* ===== Reset (nouveau devis) ===== */
+function resetDevis(){
+  if(!confirm("Nouveau devis : vider les champs ?")) return;
+
+  // commun
+  $('#client').value=''; $('#tel').value=''; $('#adresse').value=''; $('#notes').value='';
+
+  // jardin
+  $('#pelouse').value=''; $('#haies').value=''; $('#debrouss').value=''; $('#dechets').value=''; $('#dist').value='';
+  $('#autreLib').value=''; $('#autreQte').value=''; $('#autrePU').value='';
+
+  // bricol
+  $('#qteBricol').value='1'; $('#puBricol').value=''; $('#distBricol').value='';
+
+  // nettoyage
+  $('#tplNet').value=''; $('#netHeures').value=''; $('#netMachines').value=''; $('#netProduits').value='';
+  $('#netVitrines').value=''; $('#netDist').value=''; $('#netAutreLib').value=''; $('#netAutreQte').value=''; $('#netAutrePU').value='';
+
+  compute();
+}
+
+/* ===== Modèles nettoyage ===== */
+function applyNetTemplate(v){
+  if(v==='inter'){
+    $('#netTaux').value=35;
+    $('#netHeures').value=4;
+    $('#netMachines').value=90;
+    $('#netProduits').value=20;
+    $('#netVitrines').value=0;
+    $('#netDist').value=10;
+  }
+  if(v==='ffc'){
+    $('#netTaux').value=35;
+    $('#netHeures').value=8;
+    $('#netMachines').value=120;
+    $('#netProduits').value=30;
+    $('#netVitrines').value=8;
+    $('#netPUVitrine').value=10;
+    $('#netDist').value=20;
+  }
+  if(v==='vitr'){
+    $('#netTaux').value=0;
+    $('#netHeures').value=0;
+    $('#netMachines').value=0;
+    $('#netProduits').value=10;
+    $('#netVitrines').value=10;
+    $('#netPUVitrine').value=10;
+    $('#netDist').value=10;
+  }
+  compute();
+}
+
 /* ===== Init & listeners ===== */
 window.addEventListener('load', ()=>{
   // Valeurs par défaut
-  $('#mode').value='jardin'; $('#taux').value=45; $('#tva').value=20;
+  $('#mode').value='jardin';
+  $('#taux').value=45;
+  $('#tva').value=20;
 
+  // SIRET
   loadSiret();
   $('#societe').addEventListener('change', loadSiret);
   $('#saveSiretBtn').addEventListener('click', saveSiret);
 
-  seedPrestations(); loadPrestations();
+  // Intervenants
+  seedIntervenants();
+  loadIntervenants();
 
-  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+  // Prestations bricol
+  seedPrestations();
+  loadPrestations();
+
+  // PWA
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js');
+  }
 
   compute();
 });
@@ -462,8 +660,21 @@ $('#mode').addEventListener('change', e=>{
   const m=e.target.value;
   $('#blocJardin').classList.toggle('hidden', m!=='jardin');
   $('#blocBricol').classList.toggle('hidden', m!=='bricol');
-  if(m==='bricol'){ $('#taux').value=50; $('#tva').value=10; } else { $('#taux').value=45; $('#tva').value=20; }
+  $('#blocNettoyage').classList.toggle('hidden', m!=='nettoyage');
+
+  // Defaults rapides
+  if(m==='bricol'){ $('#taux').value=50; $('#tva').value=20; }
+  if(m==='jardin'){ $('#taux').value=45; $('#tva').value=20; }
+  if(m==='nettoyage'){ $('#tva').value=20; }
+
   compute();
+});
+
+// Template nettoyage
+document.addEventListener('change', e=>{
+  if(e.target && e.target.id==='tplNet'){
+    applyNetTemplate(e.target.value);
+  }
 });
 
 // Recalcul auto
