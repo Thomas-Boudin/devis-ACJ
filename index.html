@@ -132,6 +132,17 @@
       <label>Téléphone
         <input id="tel" placeholder="06 xx xx xx xx" />
       </label>
+      <!-- Clients Ogust (import CSV) -->
+<label class="full">
+  Clients (import Ogust CSV)
+  <div class="row">
+    <button class="btn" type="button" id="btnImportClients">📥 Importer CSV Ogust</button>
+    <button class="btn ghost" type="button" id="btnClearClients" title="Effacer la liste clients du téléphone">🧽 Vider</button>
+    <select id="clientsSelect" style="flex:1; min-width:220px"></select>
+  </div>
+  <input id="fileClients" type="file" accept=".csv,text/csv" class="hidden" />
+  <small class="muted">Import local (aucun envoi). Séparateur ; (CSV Ogust).</small>
+</label>
       <label class="full">Adresse d'intervention
         <input id="adresse" placeholder="26 B rue ..., Ville" />
       </label>
