@@ -1141,6 +1141,58 @@ window.addEventListener('load', ()=>{
     }
   });
 });
+  /* =======================
+   C) WhatsApp/SMS prêt à envoyer
+======================= */
+function cleanTel(t){
+  return (t||'').toString().replace(/\s+/g,'').trim();
+}
+
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    alert("Message copié ✅\nTu peux le coller dans WhatsApp/SMS.");
+    return true;
+  }catch(e){
+    // fallback
+    const ok = prompt("Copie ce message :", text);
+    return !!ok;
+  }
+}
+
+async function copyForWhatsApp(){
+  const s = compute();
+  const numDevis = ($('#numeroDevis')?.value || '').trim();
+  const soc = ($('#societe')?.value || 'ACJ Services').trim();
+  const mode = ($('#mode')?.value || '').trim();
+  const client = ($('#client')?.value || 'Client').trim();
+  const tel = cleanTel($('#tel')?.value || '');
+  const adr = ($('#adresse')?.value || '').trim();
+  const itv = ($('#intervenants')?.value && $('#intervenants').value !== '— Aucun —') ? $('#intervenants').value : '';
+  const notes = ($('#notes')?.value || '').trim();
+
+  const modeLabel = (mode==='jardin') ? 'Jardinage' : (mode==='bricol') ? 'Bricolage' : (mode==='nettoyage') ? 'Nettoyage' : mode;
+
+  // Message court mais pro
+  let msg =
+`Bonjour ${client},
+
+Voici votre devis ${numDevis ? `n° ${numDevis} ` : ''}(${soc}) :
+• Prestation : ${modeLabel}${itv ? ` (intervenant : ${itv})` : ''}
+• Adresse : ${adr || '—'}
+• Total : ${s.ttc.toFixed(2)} € TTC
+(HT ${s.ht.toFixed(2)} € – TVA ${s.tva.toFixed(2)} €)
+
+Validité : 30 jours.
+`;
+
+  if(tel) msg += `\nTéléphone : ${tel}\n`;
+  if(notes) msg += `\nNote : ${notes}\n`;
+
+  msg += `\nMerci,\nACJ Services`;
+
+  await copyToClipboard(msg);
+}
 </script>
 </body>
 </html>
