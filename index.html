@@ -7,6 +7,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0ea5e9">
 <meta name="apple-mobile-web-app-capable" content="yes">
+
 <style>
   :root { --bg:#0b1220; --card:#111827; --muted:#6b7280; --accent:#0ea5e9; --ok:#22c55e; --bad:#ef4444; --text:#e5e7eb; }
   * { box-sizing: border-box; }
@@ -38,49 +39,31 @@
   .chip { padding:.35rem .65rem; border:1px dashed #374151; border-radius:999px; font-size:.85rem; color:#9ca3af; }
   .hidden { display:none; }
 
-  /* ===== Zone PDF (invisible écran) ===== */
-  #printArea { display:none; background:#fff; color:#000; }
-  #printHeader h2 { margin:0; }
-  .pMeta { font-size:10pt; }
-  .pBox { border:1px solid #111; border-radius:10px; padding:8mm; margin:6mm 0; }
-  .pGrid { display:grid; grid-template-columns:1fr 1fr; gap:6mm; }
-  .pLabel { font-weight:800; margin-bottom:2mm; }
-  table.pTable { width:100%; border-collapse:collapse; margin-top:4mm; }
-  table.pTable th, table.pTable td { border:1px solid #111; padding:3mm; vertical-align:top; }
-  table.pTable th { background:#f3f4f6; text-align:left; }
-  .pTotal { display:flex; justify-content:flex-end; margin-top:5mm; font-size:13pt; font-weight:900; }
-  .pFooter { margin-top:6mm; font-size:9.5pt; color:#111; }
+  /* ===== PDF (zone dédiée, affichée uniquement en impression) ===== */
+  #pdf { display:none; background:#fff; color:#000; padding:7mm; font-size:10.2pt; }
+  #pdf h2 { margin:0; font-size:17pt; letter-spacing:.3px; }
+  #pdfHeader { display:flex; justify-content:space-between; align-items:flex-start; gap:10mm; }
+  #pdfLogo { width:30mm; height:auto; }
+  .pdfMeta { margin-top:3mm; font-size:10pt; }
+  .pdfBox { border:1px solid #111; border-radius:8px; padding:5mm; margin:4mm 0; }
+  .pdfGrid { display:grid; grid-template-columns:1fr 1fr; gap:5mm; }
+  .pdfLabel { font-weight:800; margin-bottom:2mm; }
+  table.pdfTable { width:100%; border-collapse:collapse; margin-top:3mm; }
+  table.pdfTable th, table.pdfTable td { border:1px solid #111; padding:3mm; vertical-align:top; }
+  table.pdfTable th { background:#f3f4f6; text-align:left; }
+  .pdfTotal { display:flex; justify-content:flex-end; margin-top:4mm; font-size:13pt; font-weight:900; }
+  #pdfNotes { min-height:14mm; max-height:28mm; overflow:hidden; } /* 1 page */
+  .pdfFooter { margin-top:5mm; font-size:9.5pt; color:#111; }
 
-  /* ===== PRINT: 1 page A4 ===== */
   @media print{
     body { background:#fff !important; color:#000 !important; }
-
-    header, footer, main { display:none !important; }
-    #printArea { display:block !important; }
-
-    #printArea { padding: 7mm; font-size: 10.2pt; }
-    #printHeader { display:flex; justify-content:space-between; align-items:flex-start; gap:10mm; }
-    #printHeader h2 { margin:0; font-size:17pt; letter-spacing:.3px; }
-    #printLogo { width: 30mm; height:auto; }
-
-    .pMeta { margin-top:3mm; font-size:10pt; }
-    .pBox { border:1px solid #111; border-radius:8px; padding:5mm; margin:4mm 0; }
-    .pGrid { display:grid; grid-template-columns: 1fr 1fr; gap:5mm; }
-
-    table.pTable { margin-top:3mm; }
-    table.pTable th, table.pTable td { padding:3mm; }
-
-    .pTotal { margin-top:4mm; font-size:13pt; }
-
-    /* clé: notes limitées pour éviter page 2 */
-    #pNotes { min-height: 14mm; max-height: 28mm; overflow: hidden; }
-
-    .pFooter { margin-top:5mm; }
-
-    #printArea, .pBox, table.pTable { break-inside: avoid; page-break-inside: avoid; }
+    header, main, footer { display:none !important; }
+    #pdf { display:block !important; }
+    #pdf, .pdfBox, table.pdfTable { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head>
+
 <body>
 <header><div class="wrap">
   <h1>Devis • ACJ</h1>
@@ -108,7 +91,6 @@
         </select>
       </label>
 
-      <!-- Intervenant -->
       <label class="full">
         Intervenant (optionnel)
         <div class="row">
@@ -116,7 +98,7 @@
           <button class="btn" type="button" onclick="ajouterIntervenant()">+ Ajouter</button>
           <button class="btn" type="button" onclick="retirerIntervenant()">– Retirer</button>
         </div>
-        <small class="muted">La liste est mémorisée sur ton téléphone (localement).</small>
+        <small class="muted">Liste mémorisée sur ton téléphone (localStorage).</small>
       </label>
 
       <label class="full">
@@ -128,47 +110,38 @@
         <small class="muted">Chaque société mémorise son SIRET. ACJ Services est pré-rempli.</small>
       </label>
 
-      <label>
-        TVA (%)
+      <label>TVA (%)
         <input id="tva" type="number" step="0.1" value="20" />
       </label>
-      <label>
-        Taux horaire (€ / h)
+      <label>Taux horaire (€ / h)
         <input id="taux" type="number" step="0.1" value="45" />
       </label>
-      <label>
-        €/km
+      <label>€/km
         <input id="km" type="number" step="0.1" value="0.7" />
       </label>
-      <label>
-        Vitesse (km/h)
+      <label>Vitesse (km/h)
         <input id="speed" type="number" step="1" value="35" />
       </label>
-      <label>
-        Déchetterie (€/m³)
+      <label>Déchetterie (€/m³)
         <input id="dechet" type="number" step="0.1" value="25" />
       </label>
 
-      <label>
-        Client
+      <label>Client
         <input id="client" placeholder="Nom / Société" />
       </label>
-      <label>
-        Téléphone
+      <label>Téléphone
         <input id="tel" placeholder="06 xx xx xx xx" />
       </label>
-      <label class="full">
-        Adresse d'intervention
+      <label class="full">Adresse d'intervention
         <input id="adresse" placeholder="26 B rue ..., Ville" />
       </label>
-      <label class="full">
-        Notes / conditions
+      <label class="full">Notes / conditions
         <textarea id="notes" rows="2" placeholder="Validité 30 jours, sans engagement de durée…"></textarea>
       </label>
     </div>
 
     <div class="chips" style="margin-top:.6rem">
-      <span class="chip">Productivité: Tonte 400 m²/h</span>
+      <span class="chip">Tonte 400 m²/h</span>
       <span class="chip">Haie 6 ml/h</span>
       <span class="chip">Débroussaillage 200 m²/h</span>
     </div>
@@ -221,7 +194,6 @@
           <button class="btn" type="button" onclick="ajouterPrestation()">+ Ajouter</button>
           <button class="btn" type="button" onclick="retirerPrestation()">– Retirer</button>
         </div>
-        <small class="muted">Exemples: Changement de mitigeur, Installation cadre, Installation rideaux</small>
       </label>
       <label>Quantité
         <input id="qteBricol" type="number" step="0.1" value="1" />
@@ -291,7 +263,7 @@
     <div class="totals" id="totals"></div>
     <div class="row" style="margin-top:.8rem">
       <button class="btn primary" type="button" onclick="share()">Partager</button>
-      <button class="btn good" type="button" onclick="printDevis()">Imprimer / PDF</button>
+      <button class="btn good" type="button" onclick="printPDF()">Imprimer / PDF</button>
       <button class="btn" type="button" onclick="exportOgust()">Exporter → Ogust (JSON)</button>
       <button class="btn bad" type="button" onclick="resetDevis()">Nouveau devis</button>
     </div>
@@ -301,69 +273,66 @@
 
 <footer>© ACJ — outil devis express</footer>
 
-<!-- ===== TEMPLATE PDF ===== -->
-<section id="printArea" aria-hidden="true">
-  <div id="printHeader">
+<!-- ===== PDF (zone imprimée) ===== -->
+<section id="pdf" aria-hidden="true">
+  <div id="pdfHeader">
     <div>
       <h2>DEVIS</h2>
-      <div class="pMeta">
-        <div><strong id="pSociete">ACJ Services</strong></div>
+      <div class="pdfMeta">
+        <div><strong id="pSoc">ACJ Services</strong></div>
         <div>SIRET : <span id="pSiret">—</span></div>
         <div>Date : <span id="pDate">—</span></div>
         <div>Mode : <span id="pMode">—</span></div>
-        <div>Intervenant : <span id="pIntervenant">—</span></div>
+        <div>Intervenant : <span id="pInt">—</span></div>
       </div>
     </div>
-    <img id="printLogo" src="icon-512.png" alt="ACJ" />
+    <img id="pdfLogo" src="icon-512.png" alt="ACJ">
   </div>
 
-  <div class="pBox">
-    <div class="pGrid">
+  <div class="pdfBox">
+    <div class="pdfGrid">
       <div>
-        <div class="pLabel">Client</div>
+        <div class="pdfLabel">Client</div>
         <div id="pClient">—</div>
         <div style="height:3mm"></div>
-        <div class="pLabel">Téléphone</div>
+        <div class="pdfLabel">Téléphone</div>
         <div id="pTel">—</div>
       </div>
       <div>
-        <div class="pLabel">Adresse d’intervention</div>
-        <div id="pAdresse">—</div>
+        <div class="pdfLabel">Adresse d’intervention</div>
+        <div id="pAdr">—</div>
       </div>
     </div>
   </div>
 
-  <div class="pBox">
-    <div class="pLabel">Détail</div>
-    <table class="pTable">
-      <thead>
-        <tr><th>Détail</th><th style="width:42%">Montant</th></tr>
-      </thead>
-      <tbody id="pTableBody"></tbody>
+  <div class="pdfBox">
+    <div class="pdfLabel">Détail</div>
+    <table class="pdfTable">
+      <thead><tr><th>Détail</th><th style="width:42%">Montant</th></tr></thead>
+      <tbody id="pRows"></tbody>
     </table>
-    <div class="pTotal">Total TTC : <span id="pTotalTTC" style="margin-left:8px">0.00 €</span></div>
+    <div class="pdfTotal">Total TTC : <span id="pTTC" style="margin-left:8px">0.00 €</span></div>
   </div>
 
-  <div class="pBox">
-    <div class="pLabel">Notes / Conditions</div>
-    <div id="pNotes">—</div>
+  <div class="pdfBox">
+    <div class="pdfLabel">Notes / Conditions</div>
+    <div id="pdfNotes">—</div>
   </div>
 
-  <div class="pFooter">
+  <div class="pdfFooter">
     Devis valable 30 jours. Paiement à l’issue de la prestation sauf accord contraire.
   </div>
 </section>
 
 <script>
-/* ===== Helpers & stockage ===== */
+/* ===== Helpers ===== */
 const $ = s => document.querySelector(s);
 const LS = k => 'devisACJ_'+k;
 const num = v => parseFloat(v||0)||0;
-
 const modeBricol = () => $('#mode').value==='bricol';
 const modeNet = () => $('#mode').value==='nettoyage';
 
-/* ===== Sociétés / SIRET ===== */
+/* ===== SIRET par société ===== */
 const SOC_KEYS = {
   acj_services: { name:'ACJ Services', defaultSiret:'90514278200010' },
   acj_lens:     { name:'ACJ Services Lens', defaultSiret:'' },
@@ -406,11 +375,7 @@ function retirerIntervenant(){
   const sel = $('#intervenants'); if(!sel.value) return;
   const arr = JSON.parse(localStorage.getItem(INTV_KEY)||'[]');
   const i = arr.indexOf(sel.value);
-  if(i>-1){
-    arr.splice(i,1);
-    localStorage.setItem(INTV_KEY, JSON.stringify(arr));
-    loadIntervenants();
-  }
+  if(i>-1){ arr.splice(i,1); localStorage.setItem(INTV_KEY, JSON.stringify(arr)); loadIntervenants(); }
 }
 
 /* ===== Prestations bricolage ===== */
@@ -432,7 +397,7 @@ function loadPrestations(){
 function ajouterPrestation(){
   const name = prompt('Nom de la prestation ?');
   if(name){
-    const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]'); arr.push(name);
+    const arr = JSON.parse(localStorage.getItem(PREST_KEY)||'[]'); arr.push(name.trim());
     localStorage.setItem(PREST_KEY, JSON.stringify(arr)); loadPrestations();
   }
 }
@@ -444,6 +409,7 @@ function retirerPrestation(){
 }
 
 /* ===== Calcul ===== */
+let __rows = [];
 function compute(){
   let rows=[], ht=0, tva=0, ttc=0;
 
@@ -463,12 +429,12 @@ function compute(){
     tva = ttc-ht;
 
     rows = [
-      ['Prestation', qte.toFixed(2)+' u • '+($('#prestations').value||'Prestation'), moTTC.toFixed(2)+' € TTC'],
-      ['Déplacement', dist.toFixed(1)+' km', fkmTTC.toFixed(2)+' € TTC'],
-      ['Sous-total TTC', '', sousTotalTTC.toFixed(2)+' €'],
-      ['Dont HT', '', ht.toFixed(2)+' €'],
-      ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
-      ['TOTAL TTC', '', ttc.toFixed(2)+' €']
+      ['Prestation', `${qte.toFixed(2)} u • ${($('#prestations').value||'Prestation')}`, `${moTTC.toFixed(2)} € TTC`],
+      ['Déplacement', `${dist.toFixed(1)} km`, `${fkmTTC.toFixed(2)} € TTC`],
+      ['Sous-total TTC', '', `${sousTotalTTC.toFixed(2)} €`],
+      ['Dont HT', '', `${ht.toFixed(2)} €`],
+      ['TVA', `${(num($('#tva').value)).toFixed(1)} %`, `${tva.toFixed(2)} €`],
+      ['TOTAL TTC', '', `${ttc.toFixed(2)} €`]
     ];
   } else if(modeNet()){
     const tvaRate = num($('#tva').value)/100;
@@ -486,27 +452,24 @@ function compute(){
     const km = num($('#km').value);
     const fkm = dist * km;
 
-    const autreQ = num($('#netAutreQte').value);
-    const autrePU = num($('#netAutrePU').value);
-    const autre = autreQ * autrePU;
+    const autre = num($('#netAutreQte').value) * num($('#netAutrePU').value);
 
     ht = (h*taux) + machines + produits + vitres + fkm + autre;
     tva = ht * tvaRate;
     ttc = ht + tva;
 
     rows = [
-      ['Main d’œuvre', h.toFixed(2)+' h', (h*taux).toFixed(2)+' € HT'],
-      ['Machines', '', machines.toFixed(2)+' € HT'],
-      ['Produits', '', produits.toFixed(2)+' € HT'],
-      ['Vitrerie', vitrines.toFixed(0)+' vitrines', vitres.toFixed(2)+' € HT'],
-      ['Déplacement', dist.toFixed(1)+' km', fkm.toFixed(2)+' € HT'],
-      [($('#netAutreLib').value||'Autre'), autreQ.toFixed(2)+' u', autre.toFixed(2)+' € HT'],
-      ['Sous-total HT', '', ht.toFixed(2)+' €'],
-      ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
-      ['TOTAL TTC', '', ttc.toFixed(2)+' €']
+      ['Main d’œuvre', `${h.toFixed(2)} h`, `${(h*taux).toFixed(2)} € HT`],
+      ['Machines', '', `${machines.toFixed(2)} € HT`],
+      ['Produits', '', `${produits.toFixed(2)} € HT`],
+      ['Vitrerie', `${vitrines.toFixed(0)} vitrines`, `${vitres.toFixed(2)} € HT`],
+      ['Déplacement', `${dist.toFixed(1)} km`, `${fkm.toFixed(2)} € HT`],
+      [($('#netAutreLib').value||'Autre'), `${(num($('#netAutreQte').value)||0).toFixed(2)} u`, `${autre.toFixed(2)} € HT`],
+      ['Sous-total HT', '', `${ht.toFixed(2)} €`],
+      ['TVA', `${(num($('#tva').value)).toFixed(1)} %`, `${tva.toFixed(2)} €`],
+      ['TOTAL TTC', '', `${ttc.toFixed(2)} €`]
     ];
   } else {
-    // Jardin
     const prod = { tonte:400, haie:6, deb:200 };
     const pelouse=num($('#pelouse').value), haies=num($('#haies').value), deb=num($('#debrouss').value);
     const dechets=num($('#dechets').value), dist=num($('#dist').value);
@@ -522,15 +485,17 @@ function compute(){
     ht=mo+fkm+fdec+autre; tva=ht*tvap; ttc=ht+tva;
 
     rows = [
-      ['Heures totales', hTot.toFixed(2)+' h', mo.toFixed(2)+' € HT'],
-      ['Déplacement', dist.toFixed(1)+' km', fkm.toFixed(2)+' € HT'],
-      ['Déchetterie', dechets.toFixed(1)+' m³', fdec.toFixed(2)+' € HT'],
-      [($('#autreLib').value||'Autre'), autreQ.toFixed(2)+' u', autre.toFixed(2)+' € HT'],
-      ['Sous-total HT', '', ht.toFixed(2)+' €'],
-      ['TVA', (num($('#tva').value)).toFixed(1)+' %', tva.toFixed(2)+' €'],
-      ['TOTAL TTC', '', ttc.toFixed(2)+' €']
+      ['Heures totales', `${hTot.toFixed(2)} h`, `${mo.toFixed(2)} € HT`],
+      ['Déplacement', `${dist.toFixed(1)} km`, `${fkm.toFixed(2)} € HT`],
+      ['Déchetterie', `${dechets.toFixed(1)} m³`, `${fdec.toFixed(2)} € HT`],
+      [($('#autreLib').value||'Autre'), `${autreQ.toFixed(2)} u`, `${autre.toFixed(2)} € HT`],
+      ['Sous-total HT', '', `${ht.toFixed(2)} €`],
+      ['TVA', `${(num($('#tva').value)).toFixed(1)} %`, `${tva.toFixed(2)} €`],
+      ['TOTAL TTC', '', `${ttc.toFixed(2)} €`]
     ];
   }
+
+  __rows = rows;
 
   const t = $('#totals'); t.innerHTML='';
   rows.forEach((r,i)=>{
@@ -539,8 +504,6 @@ function compute(){
     t.appendChild(k); t.appendChild(v);
   });
 
-  // stocke aussi le "rows" pour le PDF
-  window.__lastRows = rows;
   return {ht,tva,ttc};
 }
 
@@ -565,14 +528,11 @@ Mode: ${mode}${itv ? "\nIntervenant: "+itv : ""}
 Total: ${s.ttc.toFixed(2)} € TTC
 (HT ${s.ht.toFixed(2)} € – TVA ${s.tva.toFixed(2)} €)`;
 
-  if(navigator.share){
-    try{ await navigator.share({ title:'Devis ACJ', text }); }catch(e){}
-  } else {
-    prompt('Copier le devis', text);
-  }
+  if(navigator.share){ try{ await navigator.share({ title:'Devis ACJ', text }); }catch(e){} }
+  else { prompt('Copier le devis', text); }
 }
 
-/* ===== PDF PRO: remplissage + print ===== */
+/* ===== PDF / Impression (STABLE) ===== */
 function fmtDateFR(d){
   const dd = String(d.getDate()).padStart(2,'0');
   const mm = String(d.getMonth()+1).padStart(2,'0');
@@ -580,47 +540,40 @@ function fmtDateFR(d){
   return `${dd}/${mm}/${yy}`;
 }
 
-function fillPrintTemplate(){
+function fillPDF(){
   const s = compute();
   const now = new Date();
 
-  const soc = $('#societe').value || 'ACJ Services';
-  const siret = $('#siret').value || '—';
-  const mode = $('#mode').value || '—';
-  const client = $('#client').value || '—';
-  const tel = $('#tel').value || '—';
-  const adr = $('#adresse').value || '—';
-  const notes = ($('#notes').value || '').trim() || '—';
-  const itv = ($('#intervenants')?.value && $('#intervenants').value !== '— Aucun —') ? $('#intervenants').value : '—';
-
-  $('#pSociete').textContent = soc;
-  $('#pSiret').textContent = siret;
+  $('#pSoc').textContent = $('#societe').value || 'ACJ Services';
+  $('#pSiret').textContent = $('#siret').value || '—';
   $('#pDate').textContent = fmtDateFR(now);
-  $('#pMode').textContent = mode;
-  $('#pIntervenant').textContent = itv;
+  $('#pMode').textContent = $('#mode').value || '—';
 
-  $('#pClient').textContent = client;
-  $('#pTel').textContent = tel;
-  $('#pAdresse').textContent = adr;
+  const itv = ($('#intervenants').value && $('#intervenants').value !== '— Aucun —') ? $('#intervenants').value : '—';
+  $('#pInt').textContent = itv;
 
-  // tableau détail
-  const body = $('#pTableBody');
+  $('#pClient').textContent = $('#client').value || '—';
+  $('#pTel').textContent = $('#tel').value || '—';
+  $('#pAdr').textContent = $('#adresse').value || '—';
+
+  const notes = ($('#notes').value || '').trim();
+  $('#pdfNotes').textContent = notes ? notes : '—';
+
+  const body = $('#pRows');
   body.innerHTML = '';
-  const rows = window.__lastRows || [];
-  rows.forEach(r=>{
-    const tr=document.createElement('tr');
-    const td1=document.createElement('td'); td1.textContent = r[0];
-    const td2=document.createElement('td'); td2.textContent = (r[1] ? `• ${r[1]} – ` : '') + r[2];
+  (__rows || []).forEach(r=>{
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td'); td1.textContent = r[0];
+    const td2 = document.createElement('td'); td2.textContent = (r[1] ? `• ${r[1]} – ` : '') + r[2];
     tr.appendChild(td1); tr.appendChild(td2);
     body.appendChild(tr);
   });
 
-  $('#pTotalTTC').textContent = `${s.ttc.toFixed(2)} €`;
-  $('#pNotes').textContent = notes;
+  $('#pTTC').textContent = `${s.ttc.toFixed(2)} €`;
 }
 
-function printDevis(){
-  fillPrintTemplate();
+function printPDF(){
+  fillPDF();
   window.print();
 }
 
@@ -661,8 +614,7 @@ async function exportOgust(){
     const dist=parseFloat($('#distBricol').value||'0');
     payload.lines.push({ short_description:lib, quantity:q, unit:"U", price:pu, is_ttc:true });
     if(dist>0) payload.lines.push({ short_description:"Déplacement", quantity:dist, unit:"KM", price:parseFloat($('#km').value), is_ttc:true });
-  }
-  else if(mode==='nettoyage'){
+  } else if(mode==='nettoyage'){
     const h=parseFloat($('#netHeures').value||'0');
     const taux=parseFloat($('#netTaux').value||'35');
     const machines=parseFloat($('#netMachines').value||'0');
@@ -680,14 +632,14 @@ async function exportOgust(){
     if(vitrines>0) payload.lines.push({ short_description:"Vitrerie", quantity:vitrines, unit:"U", price:puVit });
     if(dist>0) payload.lines.push({ short_description:"Déplacement", quantity:dist, unit:"KM", price:km });
     if(aq>0 && ap>0) payload.lines.push({ short_description:($('#netAutreLib').value||'Autre'), quantity:aq, unit:"U", price:ap });
-  }
-  else {
+  } else {
     const dist=parseFloat($('#dist').value||'0');
     const dechets=parseFloat($('#dechets').value||'0');
     const km=parseFloat($('#km').value||'0');
     const dch=parseFloat($('#dechet').value||'0');
     const aq=parseFloat($('#autreQte').value||'0'), ap=parseFloat($('#autrePU').value||'0');
-    const moHT=Number((s.ht - (dist*km) - (dechets*dch) - (aq*ap)).toFixed(2));
+
+    const moHT = Number((s.ht - (dist*km) - (dechets*dch) - (aq*ap)).toFixed(2));
     payload.lines.push({ short_description:"Main d'œuvre (estimation heure + trajet)", quantity:1, unit:"U", price:moHT });
     if(dist>0)   payload.lines.push({ short_description:"Frais déplacement", quantity:dist, unit:"KM", price:km });
     if(dechets>0)payload.lines.push({ short_description:"Déchetterie", quantity:dechets, unit:"M3", price:dch });
@@ -704,24 +656,20 @@ async function exportOgust(){
   }
 }
 
-/* ===== Reset (nouveau devis) ===== */
+/* ===== Reset ===== */
 function resetDevis(){
   if(!confirm("Nouveau devis : vider les champs ?")) return;
 
   $('#client').value=''; $('#tel').value=''; $('#adresse').value=''; $('#notes').value='';
-
   $('#pelouse').value=''; $('#haies').value=''; $('#debrouss').value=''; $('#dechets').value=''; $('#dist').value='';
   $('#autreLib').value=''; $('#autreQte').value=''; $('#autrePU').value='';
-
   $('#qteBricol').value='1'; $('#puBricol').value=''; $('#distBricol').value='';
-
   $('#tplNet').value=''; $('#netHeures').value=''; $('#netMachines').value=''; $('#netProduits').value='';
   $('#netVitrines').value=''; $('#netDist').value=''; $('#netAutreLib').value=''; $('#netAutreQte').value=''; $('#netAutrePU').value='';
-
   compute();
 }
 
-/* ===== Modèles nettoyage ===== */
+/* ===== Templates nettoyage ===== */
 function applyNetTemplate(v){
   if(v==='inter'){
     $('#netTaux').value=35; $('#netHeures').value=4; $('#netMachines').value=90; $('#netProduits').value=20;
@@ -738,7 +686,7 @@ function applyNetTemplate(v){
   compute();
 }
 
-/* ===== Init & listeners ===== */
+/* ===== Init ===== */
 window.addEventListener('load', ()=>{
   $('#mode').value='jardin';
   $('#taux').value=45;
@@ -758,7 +706,7 @@ window.addEventListener('load', ()=>{
   compute();
 });
 
-// Switch mode
+// switch mode
 $('#mode').addEventListener('change', e=>{
   const m=e.target.value;
   $('#blocJardin').classList.toggle('hidden', m!=='jardin');
@@ -772,14 +720,12 @@ $('#mode').addEventListener('change', e=>{
   compute();
 });
 
-// Template nettoyage
+// template nettoyage
 document.addEventListener('change', e=>{
-  if(e.target && e.target.id==='tplNet'){
-    applyNetTemplate(e.target.value);
-  }
+  if(e.target && e.target.id==='tplNet'){ applyNetTemplate(e.target.value); }
 });
 
-// Recalcul auto
+// recalcul
 document.addEventListener('input', e=>{ if(e.target.matches('input, textarea, select')) compute(); });
 document.addEventListener('change', e=>{ if(e.target.matches('input, textarea, select')) compute(); });
 </script>
