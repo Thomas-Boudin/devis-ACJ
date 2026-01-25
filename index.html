@@ -739,6 +739,228 @@ document.addEventListener('change', e=>{
 // recalcul
 document.addEventListener('input', e=>{ if(e.target.matches('input, textarea, select')) compute(); });
 document.addEventListener('change', e=>{ if(e.target.matches('input, textarea, select')) compute(); });
+  /* =======================
+   PATCH IMPORT CLIENTS CSV (Ogust)
+   - Import local
+   - Remplissage auto Client / Tel / Adresse
+======================= */
+const CLIENTS_KEY = LS('clients_ogust_v1');
+
+function normKey(s){
+  return (s||'')
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'') // retire accents
+    .replace(/\s+/g,' ')
+    .replace(/[^a-z0-9 ]/g,'')
+    .trim();
+}
+
+/** Parse CSV robuste (séparateur ;) avec guillemets */
+function parseCSV(text, delimiter=';'){
+  const rows = [];
+  let row = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i=0;i<text.length;i++){
+    const ch = text[i];
+    const next = text[i+1];
+
+    if (ch === '"'){
+      if (inQuotes && next === '"'){ // échappement ""
+        cur += '"'; i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (!inQuotes && ch === delimiter){
+      row.push(cur); cur='';
+      continue;
+    }
+
+    if (!inQuotes && (ch === '\n' || ch === '\r')){
+      // gérer \r\n
+      if (ch === '\r' && next === '\n') i++;
+      row.push(cur); cur='';
+      // ignorer lignes vides
+      if (row.some(c => (c||'').trim() !== '')) rows.push(row);
+      row = [];
+      continue;
+    }
+
+    cur += ch;
+  }
+  // dernière cellule
+  if (cur.length || row.length){
+    row.push(cur);
+    if (row.some(c => (c||'').trim() !== '')) rows.push(row);
+  }
+  return rows;
+}
+
+function pickColIndex(headers, candidates){
+  const map = new Map();
+  headers.forEach((h, idx)=> map.set(normKey(h), idx));
+  for (const c of candidates){
+    const k = normKey(c);
+    if (map.has(k)) return map.get(k);
+  }
+  return -1;
+}
+
+function formatClientDisplay(obj){
+  // Affichage : NOM Prénom — CP Ville
+  const nom = (obj.nom||'').trim();
+  const prenom = (obj.prenom||'').trim();
+  const who = (nom || prenom) ? `${nom}${prenom ? ' '+prenom : ''}` : (obj.rs||'Client');
+  const loc = [obj.cp, obj.ville].filter(Boolean).join(' ');
+  return loc ? `${who} — ${loc}` : who;
+}
+
+function loadClients(){
+  try { return JSON.parse(localStorage.getItem(CLIENTS_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveClients(arr){
+  localStorage.setItem(CLIENTS_KEY, JSON.stringify(arr || []));
+}
+
+function refreshClientsSelect(){
+  const sel = $('#clientsSelect');
+  if(!sel) return;
+  const clients = loadClients();
+
+  sel.innerHTML = '';
+  const opt0 = document.createElement('option');
+  opt0.value = '';
+  opt0.textContent = clients.length ? `— Sélectionner un client (${clients.length}) —` : '— Aucun client importé —';
+  sel.appendChild(opt0);
+
+  clients.forEach((c, idx)=>{
+    const o = document.createElement('option');
+    o.value = String(idx);
+    o.textContent = c.display || formatClientDisplay(c);
+    sel.appendChild(o);
+  });
+}
+
+function applyClientToForm(c){
+  if(!c) return;
+  // Client
+  const nom = (c.nom||'').trim();
+  const prenom = (c.prenom||'').trim();
+  const who = (nom || prenom) ? `${nom}${prenom ? ' '+prenom : ''}` : (c.rs||'');
+  if (who) $('#client').value = who;
+
+  // Téléphone : priorité mobile puis fixe
+  const tel = (c.mobile||'').trim() || (c.fixe||'').trim() || (c.tel||'').trim();
+  if (tel) $('#tel').value = tel;
+
+  // Adresse
+  const adr = [c.adresse1, [c.cp, c.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  if (adr) $('#adresse').value = adr;
+
+  compute();
+}
+
+async function readFileAsLatin1Text(file){
+  // Ogust export en latin1 : on décode proprement
+  const buf = await file.arrayBuffer();
+  const dec = new TextDecoder('iso-8859-1'); // latin1
+  return dec.decode(buf);
+}
+
+async function importClientsCSV(file){
+  const text = await readFileAsLatin1Text(file);
+  const rows = parseCSV(text, ';');
+  if(!rows.length) throw new Error("CSV vide ou illisible");
+
+  const headers = rows[0];
+  const data = rows.slice(1);
+
+  // mapping colonnes (tolérant)
+  const idxNom     = pickColIndex(headers, ['Nom', 'nom']);
+  const idxPrenom  = pickColIndex(headers, ['Prenom', 'Prénom', 'prenom']);
+  const idxMobile  = pickColIndex(headers, ['Mobile', 'portable', 'tel mobile']);
+  const idxFixe    = pickColIndex(headers, ['Fixe', 'telephone', 'téléphone', 'tel fixe']);
+  const idxEmail   = pickColIndex(headers, ['Email', 'E-mail', 'mail']);
+  const idxAdr1    = pickColIndex(headers, ['Adresse 1', 'Adresse', 'Adresse1']);
+  const idxCP      = pickColIndex(headers, ['Code postal', 'CP', 'Postal']);
+  const idxVille   = pickColIndex(headers, ['Ville', 'Commune']);
+  const idxID      = pickColIndex(headers, ['ID client', 'Id client', 'ID']);
+
+  const clients = [];
+  for(const r of data){
+    const get = (i)=> (i>=0 && i<r.length) ? (r[i]||'').trim() : '';
+
+    const c = {
+      id: get(idxID),
+      nom: get(idxNom),
+      prenom: get(idxPrenom),
+      mobile: get(idxMobile),
+      fixe: get(idxFixe),
+      email: get(idxEmail),
+      adresse1: get(idxAdr1),
+      cp: get(idxCP),
+      ville: get(idxVille),
+    };
+
+    // filtre : il faut au moins un nom ou une adresse ou un tel
+    if(!(c.nom || c.prenom || c.mobile || c.fixe || c.adresse1)) continue;
+
+    c.display = formatClientDisplay(c);
+    clients.push(c);
+  }
+
+  // tri alpha
+  clients.sort((a,b)=> (a.display||'').localeCompare(b.display||'', 'fr', {sensitivity:'base'}));
+
+  saveClients(clients);
+  refreshClientsSelect();
+  alert(`Clients importés ✅\n${clients.length} lignes chargées.`);
+}
+
+/* ====== Wiring UI ====== */
+window.addEventListener('load', ()=>{
+  // Si l’UI est présente
+  if($('#clientsSelect')){
+    refreshClientsSelect();
+
+    $('#btnImportClients')?.addEventListener('click', ()=> $('#fileClients').click());
+
+    $('#fileClients')?.addEventListener('change', async (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      try{
+        await importClientsCSV(file);
+      }catch(err){
+        alert("Import impossible ❌\n" + (err?.message || err));
+      }finally{
+        e.target.value = ''; // permet réimport même fichier
+      }
+    });
+
+    $('#clientsSelect')?.addEventListener('change', (e)=>{
+      const idx = e.target.value;
+      if(idx === '') return;
+      const clients = loadClients();
+      const c = clients[Number(idx)];
+      applyClientToForm(c);
+    });
+
+    $('#btnClearClients')?.addEventListener('click', ()=>{
+      if(!confirm("Effacer la liste des clients importés du téléphone ?")) return;
+      localStorage.removeItem(CLIENTS_KEY);
+      refreshClientsSelect();
+      alert("Liste clients effacée ✅");
+    });
+  }
+});
 </script>
 </body>
 </html>
