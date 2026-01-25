@@ -908,16 +908,18 @@ async function importClientsCSV(file){
     const get = (i)=> (i>=0 && i<r.length) ? (r[i]||'').trim() : '';
 
     const c = {
-      id: get(idxID),
-      nom: get(idxNom),
-      prenom: get(idxPrenom),
-      mobile: get(idxMobile),
-      fixe: get(idxFixe),
-      email: get(idxEmail),
-      adresse1: get(idxAdr1),
-      cp: get(idxCP),
-      ville: get(idxVille),
-    };
+  id: get(idxID),
+  nom: get(idxNom),
+  prenom: get(idxPrenom),
+  mobile: get(idxMobile),
+  fixe: get(idxFixe),
+  email: get(idxEmail),
+  adresse1: get(idxAdr1),   // souvent appartement / complément
+  adresse2: get(idxAdr2),
+  adresse3: get(idxAdr3),   // ⭐️ chez Ogust, c’est souvent LA RUE
+  cp: get(idxCP),
+  ville: get(idxVille),
+};
 
     // filtre : il faut au moins un nom ou une adresse ou un tel
     if(!(c.nom || c.prenom || c.mobile || c.fixe || c.adresse1)) continue;
