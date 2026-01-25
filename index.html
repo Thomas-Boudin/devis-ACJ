@@ -897,6 +897,8 @@ async function importClientsCSV(file){
   const idxFixe    = pickColIndex(headers, ['Fixe', 'telephone', 'téléphone', 'tel fixe']);
   const idxEmail   = pickColIndex(headers, ['Email', 'E-mail', 'mail']);
   const idxAdr1    = pickColIndex(headers, ['Adresse 1', 'Adresse', 'Adresse1']);
+  const idxAdr2    = pickColIndex(headers, ['Adresse 2', 'Adresse2']);
+  const idxAdr3    = pickColIndex(headers, ['Adresse 3', 'Adresse3']);
   const idxCP      = pickColIndex(headers, ['Code postal', 'CP', 'Postal']);
   const idxVille   = pickColIndex(headers, ['Ville', 'Commune']);
   const idxID      = pickColIndex(headers, ['ID client', 'Id client', 'ID']);
