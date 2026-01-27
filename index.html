@@ -136,8 +136,15 @@ function share(){
 }
 
 document.addEventListener('input',calc);
-window.addEventListener('load',()=>{ numDevis.value=nextNum(); calc(); });
+function initDevis(){
+  if(!numDevis.value || numDevis.value.trim()===''){
+    numDevis.value = nextNum();
+  }
+  calc();
+}
 
+document.addEventListener('DOMContentLoaded', initDevis);
+setTimeout(initDevis, 300);
 // pour les onclick=""
 window.resetDevis = resetDevis;
 window.share = share;
