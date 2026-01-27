@@ -1484,6 +1484,129 @@ if(!numDevis){
 
   setTimeout(()=>window.print(), 150);
 }
+function buildPrintHTML(){
+  const s = compute();
+
+  const societe = $('#societe')?.value || 'ACJ Services';
+  const siret   = $('#siret')?.value || '—';
+  const date    = new Date().toLocaleDateString('fr-FR');
+  const mode    = $('#mode')?.value || '—';
+
+  const intervenant = ($('#intervenants')?.value && $('#intervenants').value !== '— Aucun —')
+    ? $('#intervenants').value
+    : '—';
+
+  const client  = $('#client')?.value || '—';
+  const tel     = $('#tel')?.value || '—';
+  const adresse = $('#adresse')?.value || '—';
+  const notes   = $('#notes')?.value || '—';
+
+  return `
+  <div class="pdf">
+    <div class="top">
+      <div>
+        <h2>DEVIS</h2>
+        <div class="meta">
+          <div><strong>${societe}</strong></div>
+          <div>SIRET : ${siret}</div>
+          <div>Date : ${date}</div>
+          <div>Mode : ${mode}</div>
+          <div>Intervenant : ${intervenant}</div>
+        </div>
+      </div>
+      <div class="logo">
+        <img src="icon-512.png" alt="ACJ" />
+      </div>
+    </div>
+
+    <div class="boxes">
+      <div class="box">
+        <div class="label">Client</div>
+        <div>${client}</div>
+        <div class="label" style="margin-top:8px;">Téléphone</div>
+        <div>${tel}</div>
+      </div>
+      <div class="box">
+        <div class="label">Adresse d’intervention</div>
+        <div>${adresse}</div>
+      </div>
+    </div>
+
+    <div class="box" style="margin-top:12px;">
+      <div class="label">Détail</div>
+      <table class="t">
+        <tr><th>Détail</th><th>Montant</th></tr>
+        <tr><td>Sous-total HT</td><td>${s.ht.toFixed(2)} €</td></tr>
+        <tr><td>TVA</td><td>${s.tva.toFixed(2)} €</td></tr>
+        <tr><td style="font-weight:800;">TOTAL TTC</td><td style="font-weight:800;">${s.ttc.toFixed(2)} €</td></tr>
+      </table>
+    </div>
+
+    <div class="box" style="margin-top:12px;">
+      <div class="label">Notes / Conditions</div>
+      <div>${notes}</div>
+    </div>
+
+    <div class="foot">
+      Devis valable 30 jours. Paiement à l’issue de la prestation sauf accord contraire.
+    </div>
+  </div>
+  `;
+}
+
+function printPDF(){
+  // injecte le contenu à imprimer
+  const area = document.getElementById('printArea');
+  area.innerHTML = buildPrintHTML();
+
+  // imprime
+  window.print();
+}
+
+/* Styles print pro */
+(function injectPrintCSS(){
+  const css = `
+  @media print {
+    body * { visibility: hidden !important; }
+    #printArea, #printArea * { visibility: visible !important; }
+    #printArea { display:block !important; position: absolute; left:0; top:0; width:100%; }
+
+    @page { size: A4; margin: 12mm; }
+  }
+
+  #printArea .pdf{
+    font-family: Arial, sans-serif;
+    color:#111;
+    padding: 12px;
+  }
+  #printArea .top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    flex-wrap:nowrap;
+  }
+  #printArea h2{ margin:0 0 8px 0; }
+  #printArea .meta{ font-size:12px; line-height:1.45; }
+  #printArea .logo img{ width:120px; height:auto; }
+  #printArea .boxes{ display:flex; gap:12px; margin-top:12px; }
+  #printArea .box{
+    flex:1;
+    border:1px solid #333;
+    border-radius:10px;
+    padding:10px;
+    font-size:12px;
+  }
+  #printArea .label{ font-weight:700; margin-bottom:6px; }
+  #printArea .t{ width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+  #printArea .t th, #printArea .t td{ border:1px solid #333; padding:8px; text-align:left; }
+  #printArea .foot{ margin-top:12px; font-size:10px; color:#333; }
+  `;
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
+})();
+  
 </script>
 </body>
 </html>
