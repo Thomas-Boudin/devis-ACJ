@@ -99,34 +99,48 @@ footer{text-align:center;font-size:12px;color:#94a3b8;padding:10px}
 <script>
 const LSKEY='acj_devis_counter';
 
+const numDevis = document.getElementById('numDevis');
+const taux = document.getElementById('taux');
+const heures = document.getElementById('heures');
+const client = document.getElementById('client');
+const tel = document.getElementById('tel');
+const adresse = document.getElementById('adresse');
+const totalEl = document.getElementById('total');
+
 function nextNum(){
- const y=new Date().getFullYear();
- const data=JSON.parse(localStorage.getItem(LSKEY)||'{}');
- data[y]=(data[y]||0)+1;
- localStorage.setItem(LSKEY,JSON.stringify(data));
- return `ACJ-${y}-${String(data[y]).padStart(3,'0')}`;
+  const y=new Date().getFullYear();
+  const data=JSON.parse(localStorage.getItem(LSKEY)||'{}');
+  data[y]=(data[y]||0)+1;
+  localStorage.setItem(LSKEY,JSON.stringify(data));
+  return `ACJ-${y}-${String(data[y]).padStart(3,'0')}`;
 }
 
 function calc(){
- const t=Number(taux.value||0);
- const h=Number(heures.value||0);
- const total=t*h;
- document.getElementById('total').innerText=total.toFixed(2)+' €';
+  const t=Number(taux.value||0);
+  const h=Number(heures.value||0);
+  const total=t*h;
+  totalEl.innerText=total.toFixed(2)+' €';
 }
 
 function resetDevis(){
- numDevis.value=nextNum();
- client.value='';tel.value='';adresse.value='';
+  numDevis.value=nextNum();
+  client.value=''; tel.value=''; adresse.value='';
+  calc();
 }
 
 function share(){
- const txt=`Devis ${numDevis.value}\nClient: ${client.value}\nTotal: ${document.getElementById('total').innerText}`;
- navigator.clipboard.writeText(txt);
- alert('Message copié');
+  const txt=`Devis ${numDevis.value}\nClient: ${client.value}\nTotal: ${totalEl.innerText}`;
+  navigator.clipboard.writeText(txt);
+  alert('Message copié');
 }
 
 document.addEventListener('input',calc);
-window.onload=()=>{ numDevis.value=nextNum(); calc(); }
+window.addEventListener('load',()=>{ numDevis.value=nextNum(); calc(); });
+
+// pour les onclick=""
+window.resetDevis = resetDevis;
+window.share = share;
+</script>
 </script>
 
 </body>
