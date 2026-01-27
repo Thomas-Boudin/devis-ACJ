@@ -656,6 +656,88 @@ function fillPDF(){
 }
 
 function printPDF(){
+  // Assure que le n° devis existe
+  if(typeof initDevisNumber === 'function') initDevisNumber();
+
+  const numDevis = ($('#numeroDevis')?.value || '').trim();
+  const title = `Devis ${numDevis || 'ACJ'}`;
+
+  // On génère le HTML du devis (zone pro)
+  const content = buildPrintHTML(); // retourne un HTML string
+
+  // On récupère le CSS (celui de la page)
+  const pageStyle = document.querySelector('style')?.innerText || '';
+
+  const html = `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>${title}</title>
+<style>
+${pageStyle}
+
+/* Dans l'onglet preview : on affiche le printArea */
+#printArea{ display:block !important; }
+
+/* Un fond blanc propre */
+body{ background:#fff !important; color:#111 !important; margin:0; padding:0; }
+
+/* On enlève le bruit */
+header, footer, .btn, .pill, .chips { display:none !important; }
+
+/* Petit bandeau action (non imprimé) */
+.actionBar{
+  position:sticky; top:0; z-index:999;
+  display:flex; gap:10px; align-items:center;
+  padding:12px;
+  background:#fff;
+  border-bottom:1px solid #e5e5e5;
+  font:14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.actionBar button{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid #ccc;
+  background:#fff;
+  font-weight:700;
+}
+.actionBar .hint{ opacity:.75; }
+
+@media print {
+  .actionBar{ display:none !important; }
+  @page { size: A4; margin: 12mm; }
+}
+</style>
+</head>
+<body>
+  <div class="actionBar">
+    <button type="button" onclick="window.print()">Imprimer / Enregistrer PDF</button>
+    <span class="hint">Si rien ne se passe : menu ⋮ → Imprimer</span>
+  </div>
+
+  <div id="printArea">${content}</div>
+
+  <script>
+    // Sur certains mobiles, un petit délai aide
+    setTimeout(()=>{ /* rien */ }, 50);
+  <\/script>
+</body>
+</html>`;
+
+  // Ouvre l'aperçu dans un nouvel onglet (FIABLE pour imprimer sur mobile)
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, '_blank');
+
+  if(!w){
+    alert("Impossible d’ouvrir l’aperçu (popup bloquée).\\nAutorise les popups pour ce site puis réessaie.");
+    return;
+  }
+
+  // Nettoyage
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
   fillPDF();
   window.print();
 }
