@@ -146,7 +146,81 @@ document.addEventListener('DOMContentLoaded', initDevis);
 setTimeout(initDevis, 300);
 // pour les onclick=""
 window.resetDevis = resetDevis;
-window.share = share;
+window.share = share
+<script>
+/* ... ton code déjà existant ... */
+
+/* =========================
+   EXPORT → OGUST (JSON)
+========================= */
+function todayISO(){
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function downloadJSON(filename, obj){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 500);
+}
+
+function exportOgustJSON(){
+  // ⚠️ sécurité : si le numéro n'est pas rempli, on le force
+  if(!numDevis.value || !numDevis.value.trim()){
+    numDevis.value = nextNum();
+  }
+
+  const t = Number(taux.value || 0);
+  const h = Number(heures.value || 0);
+  const totalTTC = Number((t*h).toFixed(2));
+
+  // Pour ton niveau 2 : on met HT = TTC (car ton mini devis n’a pas encore TVA)
+  const payload = {
+    societe: (document.getElementById('societe')?.value || 'ACJ Services'),
+    numero_devis: numDevis.value,
+    date: todayISO(),
+    client: {
+      nom: (client.value || '').trim(),
+      telephone: (tel.value || '').trim(),
+      adresse: (adresse.value || '').trim()
+    },
+    mode: (document.getElementById('mode')?.value || '').trim(),
+    lignes: [
+      {
+        designation: "Main d'œuvre",
+        quantite: h,
+        unite: "H",
+        prix_unitaire: t,
+        total: Number((t*h).toFixed(2))
+      }
+    ],
+    totaux: {
+      ht: totalTTC,
+      tva: 0,
+      ttc: totalTTC
+    },
+    notes: "Devis valable 30 jours"
+  };
+
+  const safeNum = (numDevis.value || 'ACJ').replace(/[^a-zA-Z0-9_-]/g,'');
+  const fileName = `devis-${safeNum}.json`;
+  downloadJSON(fileName, payload);
+
+  alert("Export OK ✅\nFichier téléchargé : " + fileName);
+}
+
+// expose pour les onclick=""
+window.exportOgustJSON = exportOgustJSON;
+</script>
 </script>
 
 </body>
