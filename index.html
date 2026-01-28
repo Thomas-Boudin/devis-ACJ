@@ -147,9 +147,24 @@ document.addEventListener('DOMContentLoaded', initDevis);
 setTimeout(initDevis, 300);
 // pour les onclick=""
 window.resetDevis = resetDevis;
-window.share = share
-<script>
-/* ... ton code déjà existant ... */
+window.share = share;
+// ================================
+// EXPORT JSON → NOUVEL ONGLET (Chrome Android)
+// ================================
+function exportClientsJson_NewTab(){
+  const data = {
+    test: "export ok",
+    date: new Date().toISOString()
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(data, null, 2)],
+    { type: "application/json" }
+  );
+
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank");
+}
 
 /* =========================
    EXPORT → OGUST (JSON)
