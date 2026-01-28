@@ -446,6 +446,58 @@ window.resetDevis = resetDevis;
 window.copyForWhatsApp = copyForWhatsApp;
 window.exportOgustJSON = exportOgustJSON;
 window.printPDF = printPDF;
+<script>
+async function sendToOgust() {
+  // sécurité : numéro de devis obligatoire
+  if (!numDevis.value || !numDevis.value.trim()) {
+    alert("Numéro de devis manquant");
+    return;
+  }
+
+  const payload = {
+    quotation: {
+      method: "quotation.create", // ⚠️ méthode Ogust (à confirmer ensuite)
+      numero_devis: numDevis.value,
+      client: {
+        nom: client.value,
+        telephone: tel.value,
+        adresse: adresse.value
+      },
+      lignes: [
+        {
+          designation: "Main d'œuvre",
+          quantite: Number(heures.value || 0),
+          prix_unitaire: Number(taux.value || 0)
+        }
+      ],
+      total_ttc: Number((Number(taux.value) * Number(heures.value)).toFixed(2))
+    }
+  };
+
+  try {
+    const resp = await fetch(
+      "https://acj-ogust-proxy.vercel.app/api/ogust-devis",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const data = await resp.json();
+
+    console.log("Réponse Ogust :", data);
+
+    if (data.ok) {
+      alert("✅ Devis envoyé à Ogust\nRegarde la console pour le retour");
+    } else {
+      alert("❌ Erreur Ogust\n" + JSON.stringify(data, null, 2));
+    }
+  } catch (e) {
+    alert("❌ Erreur réseau : " + e.message);
+  }
+}
+</script>
 </script>
 </body>
 </html>
