@@ -221,7 +221,52 @@ function exportOgustJSON(){
 
 // expose pour les onclick=""
 window.exportOgustJSON = exportOgustJSON;
-</script>
+<script>
+/* ✅ SOLUTION 1 — Forcer un vrai téléchargement sur Chrome Android
+   Principe : on ouvre le fichier dans un nouvel onglet, puis menu ⋮ → Télécharger
+*/
+
+function downloadViaNewTab(filename, mime, contentText){
+  const blob = new Blob([contentText], { type: mime });
+  const url = URL.createObjectURL(blob);
+
+  const w = window.open(url, "_blank");
+  if(!w){
+    alert("Popup bloquée ❌\nAutorise les popups pour ce site (Chrome) puis réessaie.");
+    return;
+  }
+
+  // Petit délai, puis on renomme via title (utile visuellement)
+  setTimeout(()=> {
+    try { w.document.title = filename; } catch(e){}
+  }, 200);
+
+  // Nettoyage
+  setTimeout(()=> URL.revokeObjectURL(url), 8000);
+
+  alert("✅ Onglet ouvert.\nDans l'onglet : menu ⋮ → Télécharger\nLe fichier ira dans Téléchargements.");
+}
+
+/* Export clients JSON → Téléchargements (via nouvel onglet) */
+function exportClientsJson_NewTab(){
+  const clients = JSON.parse(localStorage.getItem("devisACJ_clients_ogust_v1") || "[]");
+  if(!clients.length){
+    alert("Aucun client à exporter.");
+    return;
+  }
+
+  const now = new Date();
+  const stamp = now.toISOString().slice(0,10).replaceAll("-","");
+  const payload = {
+    exported_at: now.toISOString(),
+    source: "devis-ACJ",
+    count: clients.length,
+    clients
+  };
+
+  const text = JSON.stringify(payload, null, 2);
+  downloadViaNewTab(`clients-acj-${stamp}.json`, "application/json;charset=utf-8", text);
+}
 </script>
 
 </body>
