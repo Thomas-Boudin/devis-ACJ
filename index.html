@@ -17,20 +17,44 @@
     input,select,textarea,button{
       width:100%;padding:10px;border-radius:10px;border:1px solid #374151;background:#020617;color:#e5e7eb
     }
-    button{cursor:pointer;font-weight:700}
+    button{cursor:pointer;font-weight:800}
     button.primary{background:#0284c7;border-color:#0284c7}
     button.good{background:#16a34a;border-color:#16a34a}
     button.ghost{background:transparent}
     .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
     .row > *{flex:1}
-    .totals{display:flex;justify-content:space-between;font-size:20px;font-weight:800;margin-top:10px}
+    .totalsGrid{display:grid;grid-template-columns:1fr auto;gap:8px 12px;margin-top:12px}
+    .totalsGrid div{padding:6px 0;border-bottom:1px dashed #334155}
+    .totalsGrid .sum{border-bottom:none;font-size:20px;font-weight:900}
     footer{text-align:center;font-size:12px;color:#94a3b8;padding:10px}
-    small{display:block;opacity:.8;margin-top:8px;line-height:1.35}
+    small{display:block;opacity:.85;margin-top:8px;line-height:1.35}
+
+    /* ======= PRINT / PDF PRO ======= */
+    #printArea{display:none}
     @media print{
-      body{background:#fff;color:#000}
-      header,footer,.row button{display:none}
-      .card{border:0}
+      body{background:#fff;color:#111}
+      header,footer,.noPrint{display:none !important}
+      main{padding:0;max-width:none}
+      .card{border:0;background:#fff}
+      #printArea{display:block}
+      @page{size:A4;margin:12mm}
     }
+    .printWrap{font:12.5px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#111}
+    .printTop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+    .printLogo{width:120px;height:auto;object-fit:contain}
+    .printH1{font-size:18px;margin:0}
+    .printMeta{font-size:12px;opacity:.9;line-height:1.4;margin-top:6px}
+    .printBox{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px}
+    .printGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .printLabel{font-weight:800;margin-bottom:4px}
+    .printTable{width:100%;border-collapse:collapse;margin-top:10px}
+    .printTable th,.printTable td{border-bottom:1px solid #e5e7eb;padding:8px 6px;text-align:left;vertical-align:top}
+    .printTable th{background:#f8fafc;font-weight:800}
+    .right{text-align:right}
+    .printTotals{width:320px;margin-left:auto;margin-top:10px}
+    .printTotals div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
+    .printTotals div:last-child{border-bottom:none;font-size:16px;font-weight:900}
+    .printFoot{margin-top:10px;font-size:11px;opacity:.85;line-height:1.35}
   </style>
 </head>
 
@@ -41,7 +65,7 @@
 
 <main>
 
-  <div class="card">
+  <div class="card noPrint">
     <label>Numéro de devis
       <input id="numDevis" readonly>
     </label>
@@ -65,14 +89,9 @@
     <label>Adresse
       <input id="adresse" placeholder="Rue, Ville">
     </label>
-
-    <small>
-      ✅ Le numéro de devis est auto (localStorage).  
-      Si tu veux repartir à zéro : effacer données du site (Chrome → Paramètres du site → Stockage → Effacer).
-    </small>
   </div>
 
-  <div class="card">
+  <div class="card noPrint">
     <label>Mode
       <select id="mode">
         <option value="jardin">Jardinage</option>
@@ -81,33 +100,63 @@
       </select>
     </label>
 
-    <label>Taux horaire (€)
-      <input id="taux" type="number" value="45" step="0.1">
-    </label>
-
-    <label>Heures
-      <input id="heures" type="number" value="1" step="0.25">
-    </label>
-  </div>
-
-  <div class="card">
-    <div class="totals">
-      <div>Total TTC</div>
-      <div id="total">0.00 €</div>
+    <div class="row">
+      <div>
+        <label>Taux horaire (€ / h)
+          <input id="taux" type="number" value="45" step="0.1">
+        </label>
+      </div>
+      <div>
+        <label>Heures
+          <input id="heures" type="number" value="1" step="0.25">
+        </label>
+      </div>
     </div>
 
     <div class="row">
-      <button class="primary" type="button" onclick="window.print()">Imprimer / PDF</button>
+      <div>
+        <label>TVA (%)
+          <input id="tva" type="number" value="20" step="0.1">
+        </label>
+      </div>
+      <div>
+        <label>Type de prix
+          <select id="typePrix">
+            <option value="HT">HT (recommandé)</option>
+            <option value="TTC">TTC</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <small>
+      ✅ Si tu bosses en HT : total HT → TVA → TTC.  
+      ✅ Si tu saisis en TTC : on recalculera le HT automatiquement.
+    </small>
+  </div>
+
+  <div class="card noPrint">
+    <div class="totalsGrid">
+      <div>Total HT</div><div id="totHT">0.00 €</div>
+      <div>TVA</div><div id="totTVA">0.00 €</div>
+      <div class="sum">TOTAL TTC</div><div class="sum" id="totTTC">0.00 €</div>
+    </div>
+
+    <div class="row">
+      <button class="primary" type="button" onclick="printPDF()">Imprimer / PDF</button>
       <button class="ghost" type="button" onclick="copyForWhatsApp()">WhatsApp</button>
       <button class="good" type="button" onclick="exportOgustJSON()">Exporter → Ogust (JSON)</button>
       <button class="ghost" type="button" onclick="resetDevis()">Nouveau</button>
     </div>
 
     <small>
-      📌 Export Ogust : on télécharge un fichier JSON (compatible “import / API” côté toi).  
-      Sur Android si ça ne va pas dans “Téléchargements”, on bascule en mode nouvel onglet (je te mets aussi l’option).
+      📌 PDF : logo en haut à droite (icon-512.png).  
+      📌 Si tu vois une vieille version : (1) refresh, (2) vider cache, (3) supprimer/réinstaller l’app si “Ajouter à l’écran d’accueil”.
     </small>
   </div>
+
+  <!-- Zone imprimée -->
+  <div id="printArea"></div>
 
 </main>
 
@@ -115,7 +164,7 @@
 
 <script>
 /* =========================
-   ÉLÉMENTS / CONSTANTES
+   DOM
 ========================= */
 const LSKEY = 'acj_devis_counter';
 
@@ -124,14 +173,25 @@ const societe  = document.getElementById('societe');
 const mode     = document.getElementById('mode');
 const taux     = document.getElementById('taux');
 const heures   = document.getElementById('heures');
+const tva      = document.getElementById('tva');
+const typePrix = document.getElementById('typePrix');
 
 const client   = document.getElementById('client');
 const tel      = document.getElementById('tel');
 const adresse  = document.getElementById('adresse');
-const totalEl  = document.getElementById('total');
+
+const totHT = document.getElementById('totHT');
+const totTVA = document.getElementById('totTVA');
+const totTTC = document.getElementById('totTTC');
+
+const printArea = document.getElementById('printArea');
+
+function n(v){ return Number(v||0) || 0; }
+function money(x){ return (Number(x||0)).toFixed(2) + ' €'; }
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
 /* =========================
-   NUMÉRO DE DEVIS AUTO
+   NUM DEVIS
 ========================= */
 function nextNum(){
   const y = new Date().getFullYear();
@@ -140,7 +200,6 @@ function nextNum(){
   localStorage.setItem(LSKEY, JSON.stringify(data));
   return `ACJ-${y}-${String(data[y]).padStart(3,'0')}`;
 }
-
 function ensureNum(){
   if(!numDevis.value || !numDevis.value.trim()){
     numDevis.value = nextNum();
@@ -148,41 +207,57 @@ function ensureNum(){
 }
 
 /* =========================
-   CALCUL TOTAL
+   CALCUL HT/TVA/TTC
 ========================= */
-function calc(){
-  const t = Number(taux.value || 0);
-  const h = Number(heures.value || 0);
-  const total = t * h;
-  totalEl.innerText = total.toFixed(2) + ' €';
-  return total;
+function compute(){
+  const t = n(taux.value);
+  const h = n(heures.value);
+  const rate = n(tva.value) / 100;
+
+  let htVal = 0, tvaVal = 0, ttcVal = 0;
+
+  if(typePrix.value === 'TTC'){
+    ttcVal = t * h;
+    htVal = ttcVal / (1 + rate);
+    tvaVal = ttcVal - htVal;
+  } else {
+    htVal = t * h;
+    tvaVal = htVal * rate;
+    ttcVal = htVal + tvaVal;
+  }
+
+  totHT.textContent = money(htVal);
+  totTVA.textContent = money(tvaVal);
+  totTTC.textContent = money(ttcVal);
+
+  return { ht:htVal, tva:tvaVal, ttc:ttcVal, rate };
 }
 
 /* =========================
-   NOUVEAU DEVIS
+   RESET
 ========================= */
 function resetDevis(){
   numDevis.value = nextNum();
   client.value = '';
   tel.value = '';
   adresse.value = '';
-  calc();
+  heures.value = '1';
+  compute();
 }
 
 /* =========================
-   WHATSAPP / SMS (COPIE)
+   WHATSAPP
 ========================= */
 async function copyForWhatsApp(){
   ensureNum();
-  const total = totalEl.innerText;
-
+  const s = compute();
   const msg =
 `Bonjour ${client.value || ''}
 
-Voici votre devis ${numDevis.value} (${societe.value}) :
+Voici votre devis n° ${numDevis.value} (${societe.value}) :
 • Mode : ${mode.value}
 • Adresse : ${adresse.value || '—'}
-• Total : ${total}
+• Total : ${money(s.ttc)} TTC (HT ${money(s.ht)} / TVA ${money(s.tva)})
 
 Validité : 30 jours.
 
@@ -198,7 +273,97 @@ ACJ Services`;
 }
 
 /* =========================
-   EXPORT JSON → TELECHARGEMENT
+   PRINT PDF PRO
+========================= */
+function buildPrintHTML(){
+  ensureNum();
+  const s = compute();
+  const today = new Date().toLocaleDateString('fr-FR');
+  const logoSrc = "icon-512.png"; // doit exister dans le repo
+
+  const lineQty = n(heures.value);
+  const unitPrice = n(taux.value);
+  const lineTotal = (typePrix.value === 'TTC')
+    ? (unitPrice * lineQty) / (1 + s.rate)
+    : (unitPrice * lineQty);
+
+  return `
+  <div class="printWrap">
+    <div class="printTop">
+      <div>
+        <h2 class="printH1">DEVIS</h2>
+        <div class="printMeta">
+          <div><b>Société :</b> ${esc(societe.value)}</div>
+          <div><b>Devis n° :</b> ${esc(numDevis.value)}</div>
+          <div><b>Date :</b> ${esc(today)}</div>
+          <div><b>Mode :</b> ${esc(mode.value)}</div>
+        </div>
+      </div>
+      <div>
+        <img class="printLogo" src="${logoSrc}" alt="ACJ">
+      </div>
+    </div>
+
+    <div class="printBox">
+      <div class="printGrid">
+        <div>
+          <div class="printLabel">Client</div>
+          <div>${esc(client.value || '—')}</div>
+          <div style="height:8px"></div>
+          <div class="printLabel">Téléphone</div>
+          <div>${esc(tel.value || '—')}</div>
+        </div>
+        <div>
+          <div class="printLabel">Adresse d’intervention</div>
+          <div>${esc(adresse.value || '—')}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="printBox">
+      <div class="printLabel">Détail</div>
+      <table class="printTable">
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th class="right">Qté</th>
+            <th>Unité</th>
+            <th class="right">PU</th>
+            <th class="right">Total (HT)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main d’œuvre</td>
+            <td class="right">${lineQty.toFixed(2)}</td>
+            <td>H</td>
+            <td class="right">${unitPrice.toFixed(2)} €</td>
+            <td class="right">${lineTotal.toFixed(2)} €</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="printTotals">
+        <div><span>Total HT</span><span>${money(s.ht)}</span></div>
+        <div><span>TVA (${(s.rate*100).toFixed(1)}%)</span><span>${money(s.tva)}</span></div>
+        <div><span>Total TTC</span><span>${money(s.ttc)}</span></div>
+      </div>
+    </div>
+
+    <div class="printFoot">
+      Devis valable 30 jours. Paiement à l’issue de la prestation sauf accord contraire.
+    </div>
+  </div>`;
+}
+
+function printPDF(){
+  printArea.innerHTML = buildPrintHTML();
+  // petit délai utile sur mobile
+  setTimeout(()=>window.print(), 120);
+}
+
+/* =========================
+   EXPORT OGUST JSON
 ========================= */
 function todayISO(){
   const d = new Date();
@@ -222,32 +387,11 @@ function downloadJSON(filename, obj){
   setTimeout(()=>URL.revokeObjectURL(url), 800);
 }
 
-/* Option Android si download capricieux : nouvel onglet */
-function downloadViaNewTab(filename, obj){
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const w = window.open(url, "_blank");
-  if(!w){
-    alert("Popup bloquée ❌\nAutorise les popups pour ce site (Chrome) puis réessaie.");
-    return;
-  }
-
-  alert("✅ Onglet ouvert.\nDans l'onglet : menu ⋮ → Télécharger.\nLe fichier ira dans Téléchargements.");
-  setTimeout(()=>URL.revokeObjectURL(url), 8000);
-}
-
-/* =========================
-   EXPORT → OGUST (JSON)
-========================= */
 function exportOgustJSON(){
   ensureNum();
+  const s = compute();
 
-  const t = Number(taux.value || 0);
-  const h = Number(heures.value || 0);
-  const totalTTC = Number((t*h).toFixed(2));
-
-  // Mini payload "propre" (adaptable ensuite à ton proxy/API)
+  // Payload "propre" (on le calera ensuite au format exact Ogust/API quand tu me donnes les clés finales)
   const payload = {
     societe: societe.value,
     numero_devis: numDevis.value,
@@ -258,19 +402,21 @@ function exportOgustJSON(){
       adresse: (adresse.value || '').trim()
     },
     mode: (mode.value || '').trim(),
+    type_prix: typePrix.value, // HT ou TTC
     lignes: [
       {
         designation: "Main d'œuvre",
-        quantite: h,
+        quantite: n(heures.value),
         unite: "H",
-        prix_unitaire: t,
-        total: totalTTC
+        prix_unitaire: n(taux.value),
+        total_ht: Number((s.ht).toFixed(2)) // ici on garde simple (1 ligne)
       }
     ],
     totaux: {
-      ht: totalTTC,
-      tva: 0,
-      ttc: totalTTC
+      ht: Number(s.ht.toFixed(2)),
+      tva: Number(s.tva.toFixed(2)),
+      ttc: Number(s.ttc.toFixed(2)),
+      tva_rate: Number((s.rate*100).toFixed(2))
     },
     notes: "Devis valable 30 jours"
   };
@@ -278,14 +424,8 @@ function exportOgustJSON(){
   const safeNum = (numDevis.value || 'ACJ').replace(/[^a-zA-Z0-9_-]/g,'');
   const fileName = `devis-${safeNum}.json`;
 
-  // Tentative download normal
-  try{
-    downloadJSON(fileName, payload);
-    alert("✅ Export OK.\nSi tu ne le vois pas : regarde Téléchargements ou utilise l’option nouvel onglet.");
-  }catch(e){
-    // fallback
-    downloadViaNewTab(fileName, payload);
-  }
+  downloadJSON(fileName, payload);
+  alert("✅ Export OK : " + fileName);
 }
 
 /* =========================
@@ -293,18 +433,18 @@ function exportOgustJSON(){
 ========================= */
 function init(){
   ensureNum();
-  calc();
+  compute();
 }
-
-document.addEventListener('input', calc);
+document.addEventListener('input', compute);
+document.addEventListener('change', compute);
 document.addEventListener('DOMContentLoaded', init);
-setTimeout(init, 300); // petit filet de sécurité mobile
+setTimeout(init, 300);
 
-// expose pour onclick=""
+// expose onclick
 window.resetDevis = resetDevis;
 window.copyForWhatsApp = copyForWhatsApp;
 window.exportOgustJSON = exportOgustJSON;
+window.printPDF = printPDF;
 </script>
-
 </body>
 </html>
