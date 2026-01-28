@@ -446,7 +446,6 @@ window.resetDevis = resetDevis;
 window.copyForWhatsApp = copyForWhatsApp;
 window.exportOgustJSON = exportOgustJSON;
 window.printPDF = printPDF;
-<script>
 async function sendToOgust() {
   // sécurité : numéro de devis obligatoire
   if (!numDevis.value || !numDevis.value.trim()) {
@@ -497,7 +496,6 @@ async function sendToOgust() {
     alert("❌ Erreur réseau : " + e.message);
   }
 }
-</script>
 </script>
 </body>
 </html>
