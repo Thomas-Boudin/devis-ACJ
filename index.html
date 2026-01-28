@@ -1,173 +1,204 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Devis ACJ Services</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0ea5e9">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Devis ACJ Services</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0ea5e9">
 
-<style>
-body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0b1220;color:#e5e7eb}
-header{padding:14px 18px;background:#020617;position:sticky;top:0;border-bottom:1px solid #1f2937}
-h1{margin:0;font-size:18px}
-main{padding:16px;max-width:900px;margin:auto}
-.card{background:#020617;border:1px solid #1f2937;border-radius:16px;padding:16px;margin-bottom:16px}
-label{display:block;font-size:14px;margin-top:10px}
-input,select,textarea,button{width:100%;padding:10px;border-radius:10px;border:1px solid #374151;background:#020617;color:#e5e7eb}
-button{cursor:pointer;font-weight:600}
-button.primary{background:#0284c7;border-color:#0284c7}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.row > *{flex:1}
-.totals{display:flex;justify-content:space-between;font-size:20px;font-weight:800;margin-top:10px}
-footer{text-align:center;font-size:12px;color:#94a3b8;padding:10px}
-@media print{
- body{background:#fff;color:#000}
- header,footer,button{display:none}
-}
-</style>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0b1220;color:#e5e7eb}
+    header{padding:14px 18px;background:#020617;position:sticky;top:0;border-bottom:1px solid #1f2937}
+    h1{margin:0;font-size:18px}
+    main{padding:16px;max-width:900px;margin:auto}
+    .card{background:#020617;border:1px solid #1f2937;border-radius:16px;padding:16px;margin-bottom:16px}
+    label{display:block;font-size:14px;margin-top:10px}
+    input,select,textarea,button{
+      width:100%;padding:10px;border-radius:10px;border:1px solid #374151;background:#020617;color:#e5e7eb
+    }
+    button{cursor:pointer;font-weight:700}
+    button.primary{background:#0284c7;border-color:#0284c7}
+    button.good{background:#16a34a;border-color:#16a34a}
+    button.ghost{background:transparent}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .row > *{flex:1}
+    .totals{display:flex;justify-content:space-between;font-size:20px;font-weight:800;margin-top:10px}
+    footer{text-align:center;font-size:12px;color:#94a3b8;padding:10px}
+    small{display:block;opacity:.8;margin-top:8px;line-height:1.35}
+    @media print{
+      body{background:#fff;color:#000}
+      header,footer,.row button{display:none}
+      .card{border:0}
+    }
+  </style>
 </head>
 
 <body>
 <header>
-<h1>Devis – ACJ Services</h1>
+  <h1>Devis – ACJ Services</h1>
 </header>
 
 <main>
 
-<div class="card">
-<label>Numéro de devis
-<input id="numDevis" readonly>
-</label>
+  <div class="card">
+    <label>Numéro de devis
+      <input id="numDevis" readonly>
+    </label>
 
-<label>Société
-<select id="societe">
-<option>ACJ Services</option>
-<option>ACJ Services Lens</option>
-<option>Jet Services</option>
-</select>
-</label>
+    <label>Société
+      <select id="societe">
+        <option>ACJ Services</option>
+        <option>ACJ Services Lens</option>
+        <option>Jet Services</option>
+      </select>
+    </label>
 
-<label>Client
-<input id="client">
-</label>
+    <label>Client
+      <input id="client" placeholder="Nom / Société">
+    </label>
 
-<label>Téléphone
-<input id="tel">
-</label>
+    <label>Téléphone
+      <input id="tel" placeholder="06...">
+    </label>
 
-<label>Adresse
-<input id="adresse">
-</label>
-</div>
+    <label>Adresse
+      <input id="adresse" placeholder="Rue, Ville">
+    </label>
 
-<div class="card">
-<label>Mode
-<select id="mode">
-<option value="jardin">Jardinage</option>
-<option value="bricol">Bricolage</option>
-<option value="nettoyage">Nettoyage</option>
-</select>
-</label>
+    <small>
+      ✅ Le numéro de devis est auto (localStorage).  
+      Si tu veux repartir à zéro : effacer données du site (Chrome → Paramètres du site → Stockage → Effacer).
+    </small>
+  </div>
 
-<label>Taux horaire (€)
-<input id="taux" type="number" value="45">
-</label>
+  <div class="card">
+    <label>Mode
+      <select id="mode">
+        <option value="jardin">Jardinage</option>
+        <option value="bricol">Bricolage</option>
+        <option value="nettoyage">Nettoyage</option>
+      </select>
+    </label>
 
-<label>Heures
-<input id="heures" type="number" value="1">
-</label>
-</div>
+    <label>Taux horaire (€)
+      <input id="taux" type="number" value="45" step="0.1">
+    </label>
 
-<div class="card">
-<div class="totals">
-<div>Total TTC</div>
-<div id="total">0.00 €</div>
-</div>
+    <label>Heures
+      <input id="heures" type="number" value="1" step="0.25">
+    </label>
+  </div>
 
-<div class="row" style="margin-top:12px">
-  <button class="primary" onclick="window.print()">Imprimer / PDF</button>
-  <button onclick="share()">WhatsApp</button>
-  <button onclick="exportOgustJSON()">Exporter → Ogust (JSON)</button>
-  <button onclick="resetDevis()">Nouveau</button>
-</div>
-</div>
+  <div class="card">
+    <div class="totals">
+      <div>Total TTC</div>
+      <div id="total">0.00 €</div>
+    </div>
+
+    <div class="row">
+      <button class="primary" type="button" onclick="window.print()">Imprimer / PDF</button>
+      <button class="ghost" type="button" onclick="copyForWhatsApp()">WhatsApp</button>
+      <button class="good" type="button" onclick="exportOgustJSON()">Exporter → Ogust (JSON)</button>
+      <button class="ghost" type="button" onclick="resetDevis()">Nouveau</button>
+    </div>
+
+    <small>
+      📌 Export Ogust : on télécharge un fichier JSON (compatible “import / API” côté toi).  
+      Sur Android si ça ne va pas dans “Téléchargements”, on bascule en mode nouvel onglet (je te mets aussi l’option).
+    </small>
+  </div>
 
 </main>
 
 <footer>© ACJ Services</footer>
 
 <script>
-const LSKEY='acj_devis_counter';
+/* =========================
+   ÉLÉMENTS / CONSTANTES
+========================= */
+const LSKEY = 'acj_devis_counter';
 
-const numDevis =document.getElementById('numDevis');
-const taux = document.getElementById('taux');
-const heures = document.getElementById('heures');
-const client = document.getElementById('client');
-const tel = document.getElementById('tel');
-const adresse = document.getElementById('adresse');
-const totalEl = document.getElementById('total');
+const numDevis = document.getElementById('numDevis');
+const societe  = document.getElementById('societe');
+const mode     = document.getElementById('mode');
+const taux     = document.getElementById('taux');
+const heures   = document.getElementById('heures');
 
+const client   = document.getElementById('client');
+const tel      = document.getElementById('tel');
+const adresse  = document.getElementById('adresse');
+const totalEl  = document.getElementById('total');
+
+/* =========================
+   NUMÉRO DE DEVIS AUTO
+========================= */
 function nextNum(){
-  const y=new Date().getFullYear();
-  const data=JSON.parse(localStorage.getItem(LSKEY)||'{}');
-  data[y]=(data[y]||0)+1;
-  localStorage.setItem(LSKEY,JSON.stringify(data));
+  const y = new Date().getFullYear();
+  const data = JSON.parse(localStorage.getItem(LSKEY) || '{}');
+  data[y] = (data[y] || 0) + 1;
+  localStorage.setItem(LSKEY, JSON.stringify(data));
   return `ACJ-${y}-${String(data[y]).padStart(3,'0')}`;
 }
 
-function calc(){
-  const t=Number(taux.value||0);
-  const h=Number(heures.value||0);
-  const total=t*h;
-  totalEl.innerText=total.toFixed(2)+' €';
-}
-
-function resetDevis(){
-  numDevis.value=nextNum();
-  client.value=''; tel.value=''; adresse.value='';
-  calc();
-}
-
-function share(){
-  const txt=`Devis ${numDevis.value}\nClient: ${client.value}\nTotal: ${totalEl.innerText}`;
-  navigator.clipboard.writeText(txt);
-  alert('Message copié');
-}
-
-document.addEventListener('input',calc);
-function initDevis(){
-  if(!numDevis.value || numDevis.value.trim()===''){
+function ensureNum(){
+  if(!numDevis.value || !numDevis.value.trim()){
     numDevis.value = nextNum();
   }
-  calc();
-}
-
-document.addEventListener('DOMContentLoaded', initDevis);
-setTimeout(initDevis, 300);
-// pour les onclick=""
-window.resetDevis = resetDevis;
-window.share = share;
-// ================================
-// EXPORT JSON → NOUVEL ONGLET (Chrome Android)
-// ================================
-function exportClientsJson_NewTab(){
-  const data = {
-    test: "export ok",
-    date: new Date().toISOString()
-  };
-
-  const blob = new Blob(
-    [JSON.stringify(data, null, 2)],
-    { type: "application/json" }
-  );
-
-  const url = URL.createObjectURL(blob);
-  window.open(url, "_blank");
 }
 
 /* =========================
-   EXPORT → OGUST (JSON)
+   CALCUL TOTAL
+========================= */
+function calc(){
+  const t = Number(taux.value || 0);
+  const h = Number(heures.value || 0);
+  const total = t * h;
+  totalEl.innerText = total.toFixed(2) + ' €';
+  return total;
+}
+
+/* =========================
+   NOUVEAU DEVIS
+========================= */
+function resetDevis(){
+  numDevis.value = nextNum();
+  client.value = '';
+  tel.value = '';
+  adresse.value = '';
+  calc();
+}
+
+/* =========================
+   WHATSAPP / SMS (COPIE)
+========================= */
+async function copyForWhatsApp(){
+  ensureNum();
+  const total = totalEl.innerText;
+
+  const msg =
+`Bonjour ${client.value || ''}
+
+Voici votre devis ${numDevis.value} (${societe.value}) :
+• Mode : ${mode.value}
+• Adresse : ${adresse.value || '—'}
+• Total : ${total}
+
+Validité : 30 jours.
+
+Merci,
+ACJ Services`;
+
+  try{
+    await navigator.clipboard.writeText(msg);
+    alert("✅ Message copié. Colle-le dans WhatsApp.");
+  }catch(e){
+    prompt("Copie ce message :", msg);
+  }
+}
+
+/* =========================
+   EXPORT JSON → TELECHARGEMENT
 ========================= */
 function todayISO(){
   const d = new Date();
@@ -178,30 +209,47 @@ function todayISO(){
 }
 
 function downloadJSON(filename, obj){
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url), 500);
+
+  setTimeout(()=>URL.revokeObjectURL(url), 800);
 }
 
-function exportOgustJSON(){
-  // ⚠️ sécurité : si le numéro n'est pas rempli, on le force
-  if(!numDevis.value || !numDevis.value.trim()){
-    numDevis.value = nextNum();
+/* Option Android si download capricieux : nouvel onglet */
+function downloadViaNewTab(filename, obj){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+
+  const w = window.open(url, "_blank");
+  if(!w){
+    alert("Popup bloquée ❌\nAutorise les popups pour ce site (Chrome) puis réessaie.");
+    return;
   }
+
+  alert("✅ Onglet ouvert.\nDans l'onglet : menu ⋮ → Télécharger.\nLe fichier ira dans Téléchargements.");
+  setTimeout(()=>URL.revokeObjectURL(url), 8000);
+}
+
+/* =========================
+   EXPORT → OGUST (JSON)
+========================= */
+function exportOgustJSON(){
+  ensureNum();
 
   const t = Number(taux.value || 0);
   const h = Number(heures.value || 0);
   const totalTTC = Number((t*h).toFixed(2));
 
-  // Pour ton niveau 2 : on met HT = TTC (car ton mini devis n’a pas encore TVA)
+  // Mini payload "propre" (adaptable ensuite à ton proxy/API)
   const payload = {
-    societe: (document.getElementById('societe')?.value || 'ACJ Services'),
+    societe: societe.value,
     numero_devis: numDevis.value,
     date: todayISO(),
     client: {
@@ -209,14 +257,14 @@ function exportOgustJSON(){
       telephone: (tel.value || '').trim(),
       adresse: (adresse.value || '').trim()
     },
-    mode: (document.getElementById('mode')?.value || '').trim(),
+    mode: (mode.value || '').trim(),
     lignes: [
       {
         designation: "Main d'œuvre",
         quantite: h,
         unite: "H",
         prix_unitaire: t,
-        total: Number((t*h).toFixed(2))
+        total: totalTTC
       }
     ],
     totaux: {
@@ -229,59 +277,33 @@ function exportOgustJSON(){
 
   const safeNum = (numDevis.value || 'ACJ').replace(/[^a-zA-Z0-9_-]/g,'');
   const fileName = `devis-${safeNum}.json`;
-  downloadJSON(fileName, payload);
 
-  alert("Export OK ✅\nFichier téléchargé : " + fileName);
+  // Tentative download normal
+  try{
+    downloadJSON(fileName, payload);
+    alert("✅ Export OK.\nSi tu ne le vois pas : regarde Téléchargements ou utilise l’option nouvel onglet.");
+  }catch(e){
+    // fallback
+    downloadViaNewTab(fileName, payload);
+  }
 }
 
-// expose pour les onclick=""
+/* =========================
+   INIT
+========================= */
+function init(){
+  ensureNum();
+  calc();
+}
+
+document.addEventListener('input', calc);
+document.addEventListener('DOMContentLoaded', init);
+setTimeout(init, 300); // petit filet de sécurité mobile
+
+// expose pour onclick=""
+window.resetDevis = resetDevis;
+window.copyForWhatsApp = copyForWhatsApp;
 window.exportOgustJSON = exportOgustJSON;
-<script>
-/* ✅ SOLUTION 1 — Forcer un vrai téléchargement sur Chrome Android
-   Principe : on ouvre le fichier dans un nouvel onglet, puis menu ⋮ → Télécharger
-*/
-
-function downloadViaNewTab(filename, mime, contentText){
-  const blob = new Blob([contentText], { type: mime });
-  const url = URL.createObjectURL(blob);
-
-  const w = window.open(url, "_blank");
-  if(!w){
-    alert("Popup bloquée ❌\nAutorise les popups pour ce site (Chrome) puis réessaie.");
-    return;
-  }
-
-  // Petit délai, puis on renomme via title (utile visuellement)
-  setTimeout(()=> {
-    try { w.document.title = filename; } catch(e){}
-  }, 200);
-
-  // Nettoyage
-  setTimeout(()=> URL.revokeObjectURL(url), 8000);
-
-  alert("✅ Onglet ouvert.\nDans l'onglet : menu ⋮ → Télécharger\nLe fichier ira dans Téléchargements.");
-}
-
-/* Export clients JSON → Téléchargements (via nouvel onglet) */
-function exportClientsJson_NewTab(){
-  const clients = JSON.parse(localStorage.getItem("devisACJ_clients_ogust_v1") || "[]");
-  if(!clients.length){
-    alert("Aucun client à exporter.");
-    return;
-  }
-
-  const now = new Date();
-  const stamp = now.toISOString().slice(0,10).replaceAll("-","");
-  const payload = {
-    exported_at: now.toISOString(),
-    source: "devis-ACJ",
-    count: clients.length,
-    clients
-  };
-
-  const text = JSON.stringify(payload, null, 2);
-  downloadViaNewTab(`clients-acj-${stamp}.json`, "application/json;charset=utf-8", text);
-}
 </script>
 
 </body>
