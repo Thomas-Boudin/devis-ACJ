@@ -1,13 +1,14 @@
 {
   "id": "devis-acj",
-  "name": "Devis ACJ Services",
+  "name": "Devis ACJ",
   "short_name": "Devis ACJ",
+  "description": "Création rapide de devis ACJ Services",
   "start_url": "./?source=pwa",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0b1220",
-  "theme_color": "#0ea5e9",
+  "background_color": "#07111f",
+  "theme_color": "#0f172a",
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
