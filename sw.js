@@ -1,36 +1,51 @@
-
-const CACHE = 'devis-acj-v3';
+const CACHE = 'devis-acj-v4';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png',
-  './sw.js'
+  './icon-512.png'
 ];
 
-self.addEventListener('install', (evt) => {
+self.addEventListener('install', (event) => {
   self.skipWaiting();
-  evt.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(ASSETS))
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('activate', (evt) => {
-  evt.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => (k !== CACHE ? caches.delete(k) : null)))
-    ).then(() => self.clients.claim())
-  );
-});
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
 
-self.addEventListener('fetch', (evt) => {
-  if (evt.request.method !== 'GET') return;
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
 
-  evt.respondWith(
-    caches.match(evt.request).then((cached) => {
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
       if (cached) return cached;
-      return fetch(evt.request);
+      return fetch(event.request).then((response) => {
+        if (response && response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        }
+        return response;
+      });
     })
   );
 });

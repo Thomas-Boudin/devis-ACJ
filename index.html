@@ -2,500 +2,797 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Devis ACJ Services</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Création rapide de devis ACJ Services">
+  <title>Devis ACJ</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0ea5e9">
-
   <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;background:#0b1220;color:#e5e7eb}
-    header{padding:14px 18px;background:#020617;position:sticky;top:0;border-bottom:1px solid #1f2937}
-    h1{margin:0;font-size:18px}
-    main{padding:16px;max-width:900px;margin:auto}
-    .card{background:#020617;border:1px solid #1f2937;border-radius:16px;padding:16px;margin-bottom:16px}
-    label{display:block;font-size:14px;margin-top:10px}
-    input,select,textarea,button{
-      width:100%;padding:10px;border-radius:10px;border:1px solid #374151;background:#020617;color:#e5e7eb
+    :root{
+      --bg:#07111f;
+      --panel:#0d1728;
+      --panel-2:#111e32;
+      --line:#22324a;
+      --text:#f8fafc;
+      --muted:#94a3b8;
+      --accent:#38bdf8;
+      --accent-2:#0ea5e9;
+      --good:#22c55e;
+      --danger:#ef4444;
+      --shadow:0 18px 50px rgba(0,0,0,.26);
+      --radius:20px;
     }
-    button{cursor:pointer;font-weight:800}
-    button.primary{background:#0284c7;border-color:#0284c7}
-    button.good{background:#16a34a;border-color:#16a34a}
-    button.ghost{background:transparent}
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-    .row > *{flex:1}
-    .totalsGrid{display:grid;grid-template-columns:1fr auto;gap:8px 12px;margin-top:12px}
-    .totalsGrid div{padding:6px 0;border-bottom:1px dashed #334155}
-    .totalsGrid .sum{border-bottom:none;font-size:20px;font-weight:900}
-    footer{text-align:center;font-size:12px;color:#94a3b8;padding:10px}
-    small{display:block;opacity:.85;margin-top:8px;line-height:1.35}
-
-    /* ======= PRINT / PDF PRO ======= */
+    *{box-sizing:border-box}
+    html{background:var(--bg)}
+    body{
+      margin:0;
+      min-height:100vh;
+      color:var(--text);
+      background:
+        radial-gradient(circle at top right, rgba(14,165,233,.14), transparent 28rem),
+        var(--bg);
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .appShell{max-width:760px;margin:0 auto;padding-bottom:calc(28px + env(safe-area-inset-bottom))}
+    .topbar{
+      position:sticky;top:0;z-index:20;
+      padding:calc(14px + env(safe-area-inset-top)) 18px 14px;
+      background:rgba(7,17,31,.92);
+      backdrop-filter:blur(18px);
+      border-bottom:1px solid rgba(148,163,184,.14)
+    }
+    .toprow{display:flex;align-items:center;justify-content:space-between;gap:14px}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0}
+    .brandMark{
+      width:40px;height:40px;border-radius:13px;display:grid;place-items:center;
+      background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      color:#00111a;font-weight:950;letter-spacing:-1px;box-shadow:0 8px 20px rgba(14,165,233,.24)
+    }
+    .brandText{min-width:0}
+    .brandText strong{display:block;font-size:18px;line-height:1.1}
+    .brandText span{display:block;color:var(--muted);font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .numPill{border:1px solid var(--line);background:var(--panel);padding:8px 10px;border-radius:999px;font-size:12px;color:#cbd5e1;white-space:nowrap}
+    .progress{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:14px}
+    .progress span{height:5px;border-radius:999px;background:#17243a;transition:.2s ease}
+    .progress span.done{background:linear-gradient(90deg,var(--accent),#7dd3fc)}
+    main{padding:18px}
+    .step{display:none;animation:fade .18s ease}
+    .step.active{display:block}
+    @keyframes fade{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+    .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);font-weight:850}
+    h1{font-size:28px;line-height:1.12;margin:7px 0 8px;letter-spacing:-.03em}
+    .lead{color:#b8c4d4;line-height:1.48;margin:0 0 18px;font-size:15px}
+    .card{
+      background:linear-gradient(180deg,rgba(17,30,50,.96),rgba(13,23,40,.96));
+      border:1px solid var(--line);border-radius:var(--radius);padding:17px;box-shadow:var(--shadow);margin-bottom:14px
+    }
+    .cardTitle{font-weight:850;font-size:15px;margin-bottom:12px}
+    .field{margin-bottom:13px}
+    .field:last-child{margin-bottom:0}
+    label{display:block;color:#dbe5f1;font-size:13px;font-weight:720;margin-bottom:7px}
+    input,select,textarea{
+      width:100%;border:1px solid #30435f;background:#081321;color:var(--text);border-radius:14px;padding:13px 14px;outline:none;min-height:48px
+    }
+    textarea{min-height:92px;resize:vertical}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.12)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .companyGrid,.modeGrid,.presetGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .choice{
+      border:1px solid #2b3d58;background:#0a1525;color:#e2e8f0;border-radius:15px;padding:13px;text-align:left;min-height:64px;transition:.16s ease
+    }
+    .choice strong{display:block;font-size:14px}
+    .choice small{display:block;color:var(--muted);font-size:11px;margin-top:3px;line-height:1.3}
+    .choice.active{border-color:var(--accent);background:rgba(14,165,233,.11);box-shadow:inset 0 0 0 1px rgba(56,189,248,.15)}
+    .choice:active{transform:scale(.985)}
+    .notice{padding:12px 13px;border-radius:14px;background:#091c29;border:1px solid #17435a;color:#b8dff1;font-size:12px;line-height:1.45;margin-top:12px}
+    .actions{display:flex;gap:10px;margin-top:16px}
+    .btn{
+      border:1px solid #33455f;background:#0a1525;color:var(--text);padding:13px 15px;border-radius:14px;font-weight:850;min-height:50px
+    }
+    .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#02121b}
+    .btn.good{background:linear-gradient(135deg,#22c55e,#16a34a);border-color:transparent;color:#04140a}
+    .btn.danger{border-color:#5d2930;color:#fecaca;background:#1c1015}
+    .btn.flex{flex:1}
+    .btn.small{min-height:40px;padding:9px 11px;font-size:12px;border-radius:12px}
+    .btn:disabled{opacity:.42;cursor:not-allowed}
+    .serviceBuilder{display:none;margin-top:13px}
+    .serviceBuilder.show{display:block}
+    .serviceHead{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px}
+    .serviceHead strong{font-size:16px}
+    .serviceHead span{font-size:12px;color:var(--muted)}
+    .metricHint{font-size:12px;color:#9fdcf6;margin-top:7px}
+    .quoteLine{border:1px solid #263a56;background:#081321;border-radius:16px;padding:13px;margin-bottom:10px}
+    .quoteLineTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .quoteLineTitle{font-weight:820;font-size:14px}
+    .quoteLineMeta{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.35}
+    .lineTotal{font-weight:900;white-space:nowrap}
+    .lineEdit{display:grid;grid-template-columns:1.1fr .8fr .8fr;gap:8px;margin-top:11px}
+    .lineEdit label{font-size:10px;color:var(--muted);margin-bottom:4px}
+    .lineEdit input,.lineEdit select{min-height:40px;padding:9px 10px;border-radius:11px;font-size:13px}
+    .lineButtons{display:flex;gap:8px;margin-top:9px}
+    .quickCosts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+    .summaryBox{border:1px solid #28415e;background:#071522;border-radius:18px;padding:15px;margin-top:14px}
+    .totalRow{display:flex;justify-content:space-between;gap:12px;padding:7px 0;color:#cbd5e1}
+    .totalRow.final{font-size:23px;font-weight:950;color:white;border-top:1px solid #29415b;margin-top:6px;padding-top:13px}
+    .clientSummary{display:grid;gap:5px;font-size:13px;color:#cbd5e1;line-height:1.4}
+    .reviewLine{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #20314a;padding:10px 0}
+    .reviewLine:last-child{border-bottom:0}
+    .reviewLine .name{font-weight:760;font-size:13px}
+    .reviewLine .meta{font-size:11px;color:var(--muted);margin-top:3px}
+    .reviewLine .price{font-weight:850;white-space:nowrap}
+    details{border:1px solid #263a56;border-radius:15px;background:#091522;margin-top:12px;overflow:hidden}
+    summary{padding:13px 14px;cursor:pointer;font-weight:800;font-size:13px;color:#dbeafe}
+    .settings{padding:0 14px 14px}
+    .settings .grid2{margin-top:7px}
+    .status{margin-top:10px;padding:11px 12px;border-radius:12px;font-size:12px;display:none;line-height:1.4}
+    .status.show{display:block}
+    .status.ok{background:#0b2717;border:1px solid #1e6b39;color:#bbf7d0}
+    .status.err{background:#2b1115;border:1px solid #7f1d1d;color:#fecaca}
+    .status.info{background:#0b2030;border:1px solid #155e75;color:#bae6fd}
+    .hidden{display:none!important}
+    .empty{padding:18px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed #334a67;border-radius:15px}
+    .finalActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .finalActions .wide{grid-column:1/-1}
+    .tiny{font-size:11px;color:var(--muted);line-height:1.45;margin-top:10px}
     #printArea{display:none}
+    @media(max-width:520px){
+      main{padding:14px}
+      .topbar{padding-left:14px;padding-right:14px}
+      .numPill{font-size:10px;padding:7px 8px}
+      .grid2{grid-template-columns:1fr}
+      .companyGrid,.modeGrid{grid-template-columns:1fr 1fr}
+      .presetGrid{grid-template-columns:1fr 1fr}
+      .lineEdit{grid-template-columns:1fr 1fr}
+      .lineEdit > div:first-child{grid-column:1/-1}
+      .quickCosts{grid-template-columns:1fr}
+      h1{font-size:25px}
+    }
     @media print{
       body{background:#fff;color:#111}
-      header,footer,.noPrint{display:none !important}
-      main{padding:0;max-width:none}
-      .card{border:0;background:#fff}
-      #printArea{display:block}
+      .topbar,main>section,.noPrint{display:none!important}
+      #printArea{display:block!important;padding:0}
       @page{size:A4;margin:12mm}
+      .printWrap{font:12px Arial,sans-serif;color:#111}
+      .printTop{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+      .printLogo{width:115px;height:auto}
+      .printTitle{font-size:22px;font-weight:800;margin:0 0 8px}
+      .printMeta{line-height:1.55}
+      .printBox{border:1px solid #ddd;border-radius:10px;padding:10px;margin-top:12px}
+      .printGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+      .printTable{width:100%;border-collapse:collapse;margin-top:8px}
+      .printTable th,.printTable td{padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:left;vertical-align:top}
+      .printTable th{background:#f8fafc}
+      .printTable .right{text-align:right}
+      .printTotals{width:300px;margin-left:auto;margin-top:12px}
+      .printTotals div{display:flex;justify-content:space-between;padding:5px 0}
+      .printTotals div:last-child{font-weight:800;font-size:15px;border-top:1px solid #ddd;margin-top:4px;padding-top:8px}
+      .printFoot{font-size:10px;margin-top:12px;line-height:1.5;color:#444}
     }
-    .printWrap{font:12.5px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#111}
-    .printTop{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
-    .printLogo{width:120px;height:auto;object-fit:contain}
-    .printH1{font-size:18px;margin:0}
-    .printMeta{font-size:12px;opacity:.9;line-height:1.4;margin-top:6px}
-    .printBox{border:1px solid #e5e7eb;border-radius:10px;padding:10px;margin-top:10px}
-    .printGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .printLabel{font-weight:800;margin-bottom:4px}
-    .printTable{width:100%;border-collapse:collapse;margin-top:10px}
-    .printTable th,.printTable td{border-bottom:1px solid #e5e7eb;padding:8px 6px;text-align:left;vertical-align:top}
-    .printTable th{background:#f8fafc;font-weight:800}
-    .right{text-align:right}
-    .printTotals{width:320px;margin-left:auto;margin-top:10px}
-    .printTotals div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #e5e7eb}
-    .printTotals div:last-child{border-bottom:none;font-size:16px;font-weight:900}
-    .printFoot{margin-top:10px;font-size:11px;opacity:.85;line-height:1.35}
   </style>
 </head>
-
 <body>
-<header>
-  <h1>Devis – ACJ Services</h1>
-</header>
-
-<main>
-
-  <div class="card noPrint">
-    <label>Numéro de devis
-      <input id="numDevis" readonly>
-    </label>
-
-    <label>Société
-      <select id="societe">
-        <option>ACJ Services</option>
-        <option>ACJ Services Lens</option>
-        <option>Jet Services</option>
-      </select>
-    </label>
-
-    <label>Client
-      <input id="client" placeholder="Nom / Société">
-    </label>
-
-    <label>Téléphone
-      <input id="tel" placeholder="06...">
-    </label>
-
-    <label>Adresse
-      <input id="adresse" placeholder="Rue, Ville">
-    </label>
-  </div>
-
-  <div class="card noPrint">
-    <label>Mode
-      <select id="mode">
-        <option value="jardin">Jardinage</option>
-        <option value="bricol">Bricolage</option>
-        <option value="nettoyage">Nettoyage</option>
-      </select>
-    </label>
-
-    <div class="row">
-      <div>
-        <label>Taux horaire (€ / h)
-          <input id="taux" type="number" value="45" step="0.1">
-        </label>
+<div class="appShell">
+  <header class="topbar">
+    <div class="toprow">
+      <div class="brand">
+        <div class="brandMark">ACJ</div>
+        <div class="brandText">
+          <strong>Devis ACJ</strong>
+          <span id="stepLabel">1. Client</span>
+        </div>
       </div>
-      <div>
-        <label>Heures
-          <input id="heures" type="number" value="1" step="0.25">
-        </label>
+      <div class="numPill" id="quoteNumberTop">—</div>
+    </div>
+    <div class="progress" aria-label="Progression">
+      <span id="p1"></span><span id="p2"></span><span id="p3"></span><span id="p4"></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="step active" data-step="1">
+      <div class="eyebrow">Étape 1 sur 4</div>
+      <h1>Pour qui est le devis ?</h1>
+      <p class="lead">Les informations utiles uniquement. L’adresse correspond au lieu d’intervention.</p>
+
+      <div class="card">
+        <div class="cardTitle">Société émettrice</div>
+        <div class="companyGrid" id="companyChoices"></div>
       </div>
-    </div>
 
-    <div class="row">
-      <div>
-        <label>TVA (%)
-          <input id="tva" type="number" value="20" step="0.1">
-        </label>
+      <div class="card">
+        <div class="field">
+          <label for="client">Client / société</label>
+          <input id="client" autocomplete="name" placeholder="Nom du client">
+        </div>
+        <div class="field">
+          <label for="tel">Téléphone</label>
+          <input id="tel" type="tel" autocomplete="tel" placeholder="06…">
+        </div>
+        <div class="field">
+          <label for="adresse">Adresse d’intervention</label>
+          <input id="adresse" autocomplete="street-address" placeholder="Rue, ville">
+        </div>
       </div>
-      <div>
-        <label>Type de prix
-          <select id="typePrix">
-            <option value="HT">HT (recommandé)</option>
-            <option value="TTC">TTC</option>
-          </select>
-        </label>
+
+      <div class="actions">
+        <button class="btn primary flex" type="button" onclick="goStep(2)">Choisir la prestation</button>
       </div>
-    </div>
+    </section>
 
-    <small>
-      ✅ Si tu bosses en HT : total HT → TVA → TTC.  
-      ✅ Si tu saisis en TTC : on recalculera le HT automatiquement.
-    </small>
-  </div>
+    <section class="step" data-step="2">
+      <div class="eyebrow">Étape 2 sur 4</div>
+      <h1>Que faut-il faire ?</h1>
+      <p class="lead">Choisis un métier puis une prestation. Les temps standards restent modifiables.</p>
 
-  <div class="card noPrint">
-    <div class="totalsGrid">
-      <div>Total HT</div><div id="totHT">0.00 €</div>
-      <div>TVA</div><div id="totTVA">0.00 €</div>
-      <div class="sum">TOTAL TTC</div><div class="sum" id="totTTC">0.00 €</div>
-    </div>
+      <div class="card">
+        <div class="cardTitle">Métier</div>
+        <div class="modeGrid" id="modeChoices"></div>
+      </div>
 
-    <div class="row">
-      <button class="primary" type="button" onclick="printPDF()">Imprimer / PDF</button>
-      <button class="ghost" type="button" onclick="copyForWhatsApp()">WhatsApp</button>
-      <button class="good" type="button" onclick="exportOgustJSON()">Exporter → Ogust (JSON)</button>
-<button onclick="sendToOgust()">Envoyer vers Ogust</button>
-      <button class="ghost" type="button" onclick="resetDevis()">Nouveau</button>
-    </div>
+      <div class="card">
+        <div class="cardTitle">Prestations</div>
+        <div class="presetGrid" id="presetChoices"></div>
+        <div class="serviceBuilder" id="serviceBuilder"></div>
+      </div>
 
-    <small>
-      📌 PDF : logo en haut à droite (icon-512.png).  
-      📌 Si tu vois une vieille version : (1) refresh, (2) vider cache, (3) supprimer/réinstaller l’app si “Ajouter à l’écran d’accueil”.
-    </small>
-  </div>
+      <div class="notice">Tu peux ajouter plusieurs prestations au même devis. Les tarifs, TVA et règles de productivité sont réglés automatiquement puis restent modifiables au chiffrage.</div>
 
-  <!-- Zone imprimée -->
-  <div id="printArea"></div>
+      <div class="actions">
+        <button class="btn flex" type="button" onclick="goStep(1)">Retour</button>
+        <button class="btn primary flex" type="button" onclick="goStep(3)">Chiffrer</button>
+      </div>
+    </section>
 
-</main>
+    <section class="step" data-step="3">
+      <div class="eyebrow">Étape 3 sur 4</div>
+      <h1>Chiffrage</h1>
+      <p class="lead">Contrôle les heures et les montants. Rien n’est figé.</p>
 
-<footer>© ACJ Services</footer>
+      <div class="card">
+        <div class="cardTitle">Lignes du devis</div>
+        <div id="quoteLines"></div>
+        <div class="quickCosts">
+          <button class="btn small" type="button" onclick="addQuickCost('fournitures')">+ Fournitures</button>
+          <button class="btn small" type="button" onclick="addQuickCost('dechets')">+ Déchets</button>
+          <button class="btn small" type="button" onclick="addQuickCost('deplacement')">+ Déplacement</button>
+        </div>
+      </div>
+
+      <div class="summaryBox">
+        <div class="totalRow"><span>Total HT</span><strong id="sumHT">0,00 €</strong></div>
+        <div class="totalRow"><span>TVA</span><strong id="sumTVA">0,00 €</strong></div>
+        <div class="totalRow final"><span>Total TTC</span><span id="sumTTC">0,00 €</span></div>
+      </div>
+
+      <details>
+        <summary>Paramètres métier</summary>
+        <div class="settings">
+          <div class="grid2">
+            <div class="field">
+              <label for="kmRate">Déplacement €/km</label>
+              <input id="kmRate" type="number" step="0.01" min="0">
+            </div>
+            <div class="field">
+              <label for="wasteRate">Déchetterie €/m³</label>
+              <input id="wasteRate" type="number" step="0.01" min="0">
+            </div>
+          </div>
+          <div class="tiny">Productivités : tonte 400 m²/h · haie 6 ml/h · débroussaillage 200 m²/h. Ces règles servent uniquement à préremplir les heures.</div>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button class="btn flex" type="button" onclick="goStep(2)">Ajouter / modifier</button>
+        <button class="btn primary flex" type="button" onclick="goStep(4)">Voir le devis</button>
+      </div>
+    </section>
+
+    <section class="step" data-step="4">
+      <div class="eyebrow">Étape 4 sur 4</div>
+      <h1>Devis prêt</h1>
+      <p class="lead">Dernier contrôle avant PDF, partage ou envoi Ogust.</p>
+
+      <div class="card">
+        <div class="cardTitle">Client</div>
+        <div class="clientSummary" id="clientSummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="cardTitle">Prestations</div>
+        <div id="reviewLines"></div>
+        <div class="summaryBox">
+          <div class="totalRow"><span>Total HT</span><strong id="reviewHT">0,00 €</strong></div>
+          <div class="totalRow"><span>TVA</span><strong id="reviewTVA">0,00 €</strong></div>
+          <div class="totalRow final"><span>Total TTC</span><span id="reviewTTC">0,00 €</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field">
+          <label for="notes">Note au devis</label>
+          <textarea id="notes" placeholder="Ex. évacuation comprise, accès à prévoir…"></textarea>
+        </div>
+        <div class="finalActions">
+          <button class="btn" type="button" onclick="saveQuote()">Enregistrer</button>
+          <button class="btn primary" type="button" onclick="printPDF()">PDF</button>
+          <button class="btn" type="button" onclick="copyForWhatsApp()">WhatsApp</button>
+          <button class="btn good" type="button" onclick="sendToOgust()">Envoyer dans Ogust</button>
+          <button class="btn wide" type="button" onclick="newQuote()">Nouveau devis</button>
+        </div>
+        <div id="finalStatus" class="status"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn flex" type="button" onclick="goStep(3)">Retour au chiffrage</button>
+      </div>
+    </section>
+
+    <div id="printArea"></div>
+  </main>
+</div>
 
 <script>
-/* =========================
-   DOM
-========================= */
-const LSKEY = 'acj_devis_counter';
+const LS_COUNTER = 'acj_devis_counter';
+const LS_SAVED = 'acj_devis_saved_v4';
+const LS_SETTINGS = 'acj_devis_settings_v4';
 
-const numDevis = document.getElementById('numDevis');
-const societe  = document.getElementById('societe');
-const mode     = document.getElementById('mode');
-const taux     = document.getElementById('taux');
-const heures   = document.getElementById('heures');
-const tva      = document.getElementById('tva');
-const typePrix = document.getElementById('typePrix');
+const COMPANIES = [
+  'ACJ Services',
+  'ACJ Services Lens',
+  'Jet Services'
+];
 
-const client   = document.getElementById('client');
-const tel      = document.getElementById('tel');
-const adresse  = document.getElementById('adresse');
+const MODES = {
+  jardin: {
+    label:'Jardinage',
+    subtitle:'Extérieurs et espaces verts',
+    rate:47,
+    vat:20,
+    presets:[
+      {id:'tonte',label:'Tonte',hint:'Surface en m²',kind:'surface',productivity:400,unitLabel:'m²'},
+      {id:'haie',label:'Taille de haie',hint:'Longueur en ml',kind:'surface',productivity:6,unitLabel:'ml'},
+      {id:'debroussaillage',label:'Débroussaillage',hint:'Surface en m²',kind:'surface',productivity:200,unitLabel:'m²'},
+      {id:'desherbage',label:'Désherbage',hint:'Temps de travail',kind:'hours'},
+      {id:'nettoyage_hp',label:'Nettoyage HP',hint:'Temps de travail',kind:'hours'},
+      {id:'autre_jardin',label:'Autre',hint:'Prestation libre',kind:'custom'}
+    ]
+  },
+  menage: {
+    label:'Ménage',
+    subtitle:'Services à domicile',
+    rate:32,
+    vat:10,
+    presets:[
+      {id:'entretien',label:'Entretien',hint:'Heures prévues',kind:'hours'},
+      {id:'grand_menage',label:'Grand ménage',hint:'Heures prévues',kind:'hours'},
+      {id:'vitres',label:'Vitres',hint:'Heures prévues',kind:'hours'},
+      {id:'repassage',label:'Repassage',hint:'Heures prévues',kind:'hours'},
+      {id:'autre_menage',label:'Autre',hint:'Prestation libre',kind:'custom'}
+    ]
+  },
+  bricol: {
+    label:'Bricolage',
+    subtitle:'Petits travaux',
+    rate:52,
+    vat:10,
+    presets:[
+      {id:'bricolage',label:'Petit bricolage',hint:'Heures prévues',kind:'hours'},
+      {id:'montage',label:'Montage',hint:'Heures prévues',kind:'hours'},
+      {id:'fixation',label:'Fixation / pose',hint:'Heures prévues',kind:'hours'},
+      {id:'maintenance',label:'Maintenance',hint:'Heures prévues',kind:'hours'},
+      {id:'autre_bricol',label:'Autre',hint:'Prestation libre',kind:'custom'}
+    ]
+  },
+  nettoyagePro: {
+    label:'Nettoyage pro',
+    subtitle:'Locaux et remises en état',
+    rate:32,
+    vat:20,
+    presets:[
+      {id:'locaux',label:'Entretien locaux',hint:'Heures prévues',kind:'hours'},
+      {id:'vitrerie_pro',label:'Vitrerie',hint:'Heures prévues',kind:'hours'},
+      {id:'remise_etat',label:'Remise en état',hint:'Heures prévues',kind:'hours'},
+      {id:'hp_pro',label:'Nettoyage HP',hint:'Heures prévues',kind:'hours'},
+      {id:'autre_pro',label:'Autre',hint:'Prestation libre',kind:'custom'}
+    ]
+  }
+};
 
-const totHT = document.getElementById('totHT');
-const totTVA = document.getElementById('totTVA');
-const totTTC = document.getElementById('totTTC');
+let settings = loadSettings();
+let state = {
+  step:1,
+  number:'',
+  company:'ACJ Services',
+  client:'',
+  tel:'',
+  address:'',
+  mode:'jardin',
+  activePreset:null,
+  lines:[],
+  notes:''
+};
 
-const printArea = document.getElementById('printArea');
+function el(id){ return document.getElementById(id); }
+function num(v){ const x=Number(String(v ?? '').replace(',','.')); return Number.isFinite(x)?x:0; }
+function money(v){ return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(num(v)); }
+function esc(v){ return String(v ?? '').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function uid(){ return 'l_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
 
-function n(v){ return Number(v||0) || 0; }
-function money(x){ return (Number(x||0)).toFixed(2) + ' €'; }
-function esc(s){ return (s||'').toString().replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+function loadSettings(){
+  try{
+    return Object.assign({kmRate:.70,wasteRate:25},JSON.parse(localStorage.getItem(LS_SETTINGS)||'{}'));
+  }catch(e){ return {kmRate:.70,wasteRate:25}; }
+}
+function persistSettings(){
+  settings.kmRate=num(el('kmRate').value);
+  settings.wasteRate=num(el('wasteRate').value);
+  localStorage.setItem(LS_SETTINGS,JSON.stringify(settings));
+}
 
-/* =========================
-   NUM DEVIS
-========================= */
-function nextNum(){
-  const y = new Date().getFullYear();
-  const data = JSON.parse(localStorage.getItem(LSKEY) || '{}');
-  data[y] = (data[y] || 0) + 1;
-  localStorage.setItem(LSKEY, JSON.stringify(data));
+function nextQuoteNumber(){
+  const y=new Date().getFullYear();
+  let data={};
+  try{ data=JSON.parse(localStorage.getItem(LS_COUNTER)||'{}'); }catch(e){}
+  data[y]=(data[y]||0)+1;
+  localStorage.setItem(LS_COUNTER,JSON.stringify(data));
   return `ACJ-${y}-${String(data[y]).padStart(3,'0')}`;
 }
-function ensureNum(){
-  if(!numDevis.value || !numDevis.value.trim()){
-    numDevis.value = nextNum();
+
+function initQuoteNumber(){
+  if(!state.number) state.number=nextQuoteNumber();
+  el('quoteNumberTop').textContent=state.number;
+}
+
+function renderCompanies(){
+  el('companyChoices').innerHTML=COMPANIES.map(name=>`
+    <button type="button" class="choice ${state.company===name?'active':''}" onclick="setCompany(${JSON.stringify(name)})">
+      <strong>${esc(name)}</strong>
+      <small>${name==='Jet Services'?'Prestations professionnelles':'Services à la personne'}</small>
+    </button>`).join('');
+}
+function setCompany(name){ state.company=name; renderCompanies(); }
+
+function renderModes(){
+  el('modeChoices').innerHTML=Object.entries(MODES).map(([key,m])=>`
+    <button type="button" class="choice ${state.mode===key?'active':''}" onclick="setMode('${key}')">
+      <strong>${esc(m.label)}</strong><small>${esc(m.subtitle)}</small>
+    </button>`).join('');
+  renderPresets();
+}
+function setMode(key){
+  state.mode=key;
+  state.activePreset=null;
+  renderModes();
+  el('serviceBuilder').classList.remove('show');
+  el('serviceBuilder').innerHTML='';
+}
+
+function renderPresets(){
+  const mode=MODES[state.mode];
+  el('presetChoices').innerHTML=mode.presets.map(p=>`
+    <button type="button" class="choice ${state.activePreset===p.id?'active':''}" onclick="choosePreset('${p.id}')">
+      <strong>${esc(p.label)}</strong><small>${esc(p.hint)}</small>
+    </button>`).join('');
+}
+
+function findPreset(id){
+  return MODES[state.mode].presets.find(p=>p.id===id);
+}
+function choosePreset(id){
+  state.activePreset=id;
+  renderPresets();
+  renderServiceBuilder(findPreset(id));
+}
+
+function renderServiceBuilder(p){
+  const mode=MODES[state.mode];
+  const builder=el('serviceBuilder');
+  let fields='';
+  if(p.kind==='surface'){
+    fields=`
+      <div class="grid2">
+        <div class="field"><label>${esc(p.hint)}</label><input id="builderMetric" type="number" min="0" step="0.1" placeholder="0" oninput="updateEstimate()"></div>
+        <div class="field"><label>Heures estimées</label><input id="builderHours" type="number" min="0" step="0.25" placeholder="0"></div>
+      </div>
+      <div class="metricHint">Base actuelle : ${p.productivity} ${esc(p.unitLabel)}/h. L’estimation est modifiable.</div>`;
+  }else if(p.kind==='custom'){
+    fields=`
+      <div class="field"><label>Désignation</label><input id="builderDesignation" placeholder="Ex. remise en état terrasse"></div>
+      <div class="grid2">
+        <div class="field"><label>Heures</label><input id="builderHours" type="number" min="0" step="0.25" value="1"></div>
+        <div class="field"><label>Tarif TTC / h</label><input id="builderRate" type="number" min="0" step="0.01" value="${mode.rate}"></div>
+      </div>`;
+  }else{
+    fields=`
+      <div class="grid2">
+        <div class="field"><label>Heures prévues</label><input id="builderHours" type="number" min="0" step="0.25" value="1"></div>
+        <div class="field"><label>Tarif TTC / h</label><input id="builderRate" type="number" min="0" step="0.01" value="${mode.rate}"></div>
+      </div>`;
   }
+  builder.innerHTML=`
+    <div class="card" style="margin:13px 0 0;box-shadow:none;background:#081522">
+      <div class="serviceHead"><div><strong>${esc(p.label)}</strong><br><span>${esc(mode.label)}</span></div><span>TVA ${mode.vat}%</span></div>
+      ${fields}
+      <button class="btn primary" type="button" onclick="addBuiltService()">Ajouter au devis</button>
+    </div>`;
+  builder.classList.add('show');
+  updateEstimate();
 }
 
-/* =========================
-   CALCUL HT/TVA/TTC
-========================= */
-function compute(){
-  const t = n(taux.value);
-  const h = n(heures.value);
-  const rate = n(tva.value) / 100;
+function updateEstimate(){
+  const p=findPreset(state.activePreset);
+  if(!p || p.kind!=='surface' || !el('builderMetric') || !el('builderHours')) return;
+  const metric=num(el('builderMetric').value);
+  const hours=metric>0 ? metric/p.productivity : 0;
+  el('builderHours').value=hours ? Math.ceil(hours*4)/4 : '';
+}
 
-  let htVal = 0, tvaVal = 0, ttcVal = 0;
-
-  if(typePrix.value === 'TTC'){
-    ttcVal = t * h;
-    htVal = ttcVal / (1 + rate);
-    tvaVal = ttcVal - htVal;
-  } else {
-    htVal = t * h;
-    tvaVal = htVal * rate;
-    ttcVal = htVal + tvaVal;
+function addBuiltService(){
+  const p=findPreset(state.activePreset);
+  if(!p) return;
+  const mode=MODES[state.mode];
+  let designation=p.label;
+  let meta='';
+  let hours=num(el('builderHours')?.value);
+  let rate=num(el('builderRate')?.value || mode.rate);
+  if(p.kind==='surface'){
+    const metric=num(el('builderMetric')?.value);
+    if(metric<=0 || hours<=0){ alert('Renseigne une quantité pour cette prestation.'); return; }
+    meta=`${metric} ${p.unitLabel}`;
   }
-
-  totHT.textContent = money(htVal);
-  totTVA.textContent = money(tvaVal);
-  totTTC.textContent = money(ttcVal);
-
-  return { ht:htVal, tva:tvaVal, ttc:ttcVal, rate };
-}
-
-/* =========================
-   RESET
-========================= */
-function resetDevis(){
-  numDevis.value = nextNum();
-  client.value = '';
-  tel.value = '';
-  adresse.value = '';
-  heures.value = '1';
-  compute();
-}
-
-/* =========================
-   WHATSAPP
-========================= */
-async function copyForWhatsApp(){
-  ensureNum();
-  const s = compute();
-  const msg =
-`Bonjour ${client.value || ''}
-
-Voici votre devis n° ${numDevis.value} (${societe.value}) :
-• Mode : ${mode.value}
-• Adresse : ${adresse.value || '—'}
-• Total : ${money(s.ttc)} TTC (HT ${money(s.ht)} / TVA ${money(s.tva)})
-
-Validité : 30 jours.
-
-Merci,
-ACJ Services`;
-
-  try{
-    await navigator.clipboard.writeText(msg);
-    alert("✅ Message copié. Colle-le dans WhatsApp.");
-  }catch(e){
-    prompt("Copie ce message :", msg);
+  if(p.kind==='custom'){
+    designation=(el('builderDesignation')?.value||'Autre prestation').trim();
   }
+  if(hours<=0) hours=1;
+  state.lines.push({
+    id:uid(),type:'service',designation,meta,qty:hours,unit:'h',unitPriceTTC:rate,vat:mode.vat
+  });
+  state.activePreset=null;
+  renderPresets();
+  el('serviceBuilder').classList.remove('show');
+  el('serviceBuilder').innerHTML='';
+  renderQuoteLines();
 }
 
-/* =========================
-   PRINT PDF PRO
-========================= */
-function buildPrintHTML(){
-  ensureNum();
-  const s = compute();
-  const today = new Date().toLocaleDateString('fr-FR');
-  const logoSrc = "icon-512.png"; // doit exister dans le repo
+function addQuickCost(type){
+  persistSettings();
+  const mode=MODES[state.mode];
+  if(type==='fournitures'){
+    state.lines.push({id:uid(),type:'cost',designation:'Fournitures',meta:'',qty:1,unit:'forfait',unitPriceTTC:0,vat:mode.vat});
+  }else if(type==='dechets'){
+    state.lines.push({id:uid(),type:'cost',designation:'Évacuation / déchetterie',meta:'',qty:1,unit:'m³',unitPriceTTC:settings.wasteRate,vat:mode.vat});
+  }else if(type==='deplacement'){
+    state.lines.push({id:uid(),type:'cost',designation:'Déplacement',meta:'aller-retour',qty:1,unit:'km',unitPriceTTC:settings.kmRate,vat:mode.vat});
+  }
+  renderQuoteLines();
+}
 
-  const lineQty = n(heures.value);
-  const unitPrice = n(taux.value);
-  const lineTotal = (typePrix.value === 'TTC')
-    ? (unitPrice * lineQty) / (1 + s.rate)
-    : (unitPrice * lineQty);
+function lineAmounts(line){
+  const ttc=num(line.qty)*num(line.unitPriceTTC);
+  const ht=line.vat ? ttc/(1+num(line.vat)/100) : ttc;
+  return {ttc,ht,tva:ttc-ht};
+}
+function totals(){
+  return state.lines.reduce((acc,l)=>{
+    const a=lineAmounts(l); acc.ht+=a.ht;acc.tva+=a.tva;acc.ttc+=a.ttc;return acc;
+  },{ht:0,tva:0,ttc:0});
+}
 
-  return `
-  <div class="printWrap">
-    <div class="printTop">
-      <div>
-        <h2 class="printH1">DEVIS</h2>
-        <div class="printMeta">
-          <div><b>Société :</b> ${esc(societe.value)}</div>
-          <div><b>Devis n° :</b> ${esc(numDevis.value)}</div>
-          <div><b>Date :</b> ${esc(today)}</div>
-          <div><b>Mode :</b> ${esc(mode.value)}</div>
+function renderQuoteLines(){
+  const target=el('quoteLines');
+  if(!state.lines.length){
+    target.innerHTML='<div class="empty">Aucune prestation ajoutée. Reviens à l’étape 2 pour commencer.</div>';
+  }else{
+    target.innerHTML=state.lines.map(line=>{
+      const a=lineAmounts(line);
+      return `<div class="quoteLine">
+        <div class="quoteLineTop">
+          <div><div class="quoteLineTitle">${esc(line.designation)}</div><div class="quoteLineMeta">${esc(line.meta || `${line.qty} ${line.unit}`)}</div></div>
+          <div class="lineTotal">${money(a.ttc)}</div>
         </div>
-      </div>
-      <div>
-        <img class="printLogo" src="${logoSrc}" alt="ACJ">
-      </div>
-    </div>
-
-    <div class="printBox">
-      <div class="printGrid">
-        <div>
-          <div class="printLabel">Client</div>
-          <div>${esc(client.value || '—')}</div>
-          <div style="height:8px"></div>
-          <div class="printLabel">Téléphone</div>
-          <div>${esc(tel.value || '—')}</div>
+        <div class="lineEdit">
+          <div><label>Désignation</label><input value="${esc(line.designation)}" onchange="patchLine('${line.id}','designation',this.value)"></div>
+          <div><label>Quantité</label><input type="number" min="0" step="0.01" value="${line.qty}" onchange="patchLine('${line.id}','qty',this.value)"></div>
+          <div><label>Unité</label><input value="${esc(line.unit)}" onchange="patchLine('${line.id}','unit',this.value)"></div>
+          <div><label>PU TTC</label><input type="number" min="0" step="0.01" value="${line.unitPriceTTC}" onchange="patchLine('${line.id}','unitPriceTTC',this.value)"></div>
+          <div><label>TVA %</label><input type="number" min="0" step="0.1" value="${line.vat}" onchange="patchLine('${line.id}','vat',this.value)"></div>
         </div>
-        <div>
-          <div class="printLabel">Adresse d’intervention</div>
-          <div>${esc(adresse.value || '—')}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="printBox">
-      <div class="printLabel">Détail</div>
-      <table class="printTable">
-        <thead>
-          <tr>
-            <th>Désignation</th>
-            <th class="right">Qté</th>
-            <th>Unité</th>
-            <th class="right">PU</th>
-            <th class="right">Total (HT)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Main d’œuvre</td>
-            <td class="right">${lineQty.toFixed(2)}</td>
-            <td>H</td>
-            <td class="right">${unitPrice.toFixed(2)} €</td>
-            <td class="right">${lineTotal.toFixed(2)} €</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="printTotals">
-        <div><span>Total HT</span><span>${money(s.ht)}</span></div>
-        <div><span>TVA (${(s.rate*100).toFixed(1)}%)</span><span>${money(s.tva)}</span></div>
-        <div><span>Total TTC</span><span>${money(s.ttc)}</span></div>
-      </div>
-    </div>
-
-    <div class="printFoot">
-      Devis valable 30 jours. Paiement à l’issue de la prestation sauf accord contraire.
-    </div>
-  </div>`;
+        <div class="lineButtons"><button class="btn small danger" type="button" onclick="removeLine('${line.id}')">Supprimer</button></div>
+      </div>`;
+    }).join('');
+  }
+  renderTotals();
+}
+function patchLine(id,key,value){
+  const line=state.lines.find(x=>x.id===id);if(!line)return;
+  line[key]=['qty','unitPriceTTC','vat'].includes(key)?num(value):value;
+  renderQuoteLines();
+}
+function removeLine(id){ state.lines=state.lines.filter(x=>x.id!==id);renderQuoteLines(); }
+function renderTotals(){
+  const t=totals();
+  el('sumHT').textContent=money(t.ht);el('sumTVA').textContent=money(t.tva);el('sumTTC').textContent=money(t.ttc);
+  el('reviewHT').textContent=money(t.ht);el('reviewTVA').textContent=money(t.tva);el('reviewTTC').textContent=money(t.ttc);
 }
 
-function printPDF(){
-  printArea.innerHTML = buildPrintHTML();
-  // petit délai utile sur mobile
-  setTimeout(()=>window.print(), 120);
+function syncClientFromInputs(){
+  state.client=el('client').value.trim();
+  state.tel=el('tel').value.trim();
+  state.address=el('adresse').value.trim();
+}
+function syncNotes(){ state.notes=el('notes').value.trim(); }
+
+function validateStep(step){
+  if(step===2){
+    syncClientFromInputs();
+    if(!state.client){ el('client').focus(); return false; }
+  }
+  if(step===4 && !state.lines.length){ return false; }
+  return true;
 }
 
-/* =========================
-   EXPORT OGUST JSON
-========================= */
-function todayISO(){
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function downloadJSON(filename, obj){
-  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-
-  setTimeout(()=>URL.revokeObjectURL(url), 800);
-}
-
-function exportOgustJSON(){
-  ensureNum();
-  const s = compute();
-
-  // Payload "propre" (on le calera ensuite au format exact Ogust/API quand tu me donnes les clés finales)
-  const payload = {
-    societe: societe.value,
-    numero_devis: numDevis.value,
-    date: todayISO(),
-    client: {
-      nom: (client.value || '').trim(),
-      telephone: (tel.value || '').trim(),
-      adresse: (adresse.value || '').trim()
-    },
-    mode: (mode.value || '').trim(),
-    type_prix: typePrix.value, // HT ou TTC
-    lignes: [
-      {
-        designation: "Main d'œuvre",
-        quantite: n(heures.value),
-        unite: "H",
-        prix_unitaire: n(taux.value),
-        total_ht: Number((s.ht).toFixed(2)) // ici on garde simple (1 ligne)
-      }
-    ],
-    totaux: {
-      ht: Number(s.ht.toFixed(2)),
-      tva: Number(s.tva.toFixed(2)),
-      ttc: Number(s.ttc.toFixed(2)),
-      tva_rate: Number((s.rate*100).toFixed(2))
-    },
-    notes: "Devis valable 30 jours"
-  };
-
-  const safeNum = (numDevis.value || 'ACJ').replace(/[^a-zA-Z0-9_-]/g,'');
-  const fileName = `devis-${safeNum}.json`;
-
-  downloadJSON(fileName, payload);
-  alert("✅ Export OK : " + fileName);
-}
-
-/* =========================
-   INIT
-========================= */
-function init(){
-  ensureNum();
-  compute();
-}
-document.addEventListener('input', compute);
-document.addEventListener('change', compute);
-document.addEventListener('DOMContentLoaded', init);
-setTimeout(init, 300);
-
-// expose onclick
-window.resetDevis = resetDevis;
-window.copyForWhatsApp = copyForWhatsApp;
-window.exportOgustJSON = exportOgustJSON;
-window.printPDF = printPDF;
-async function sendToOgust() {
-  // sécurité : numéro de devis obligatoire
-  if (!numDevis.value || !numDevis.value.trim()) {
-    alert("Numéro de devis manquant");
+function goStep(step){
+  if(step>state.step && !validateStep(step)){
+    if(step===4) alert('Ajoute au moins une prestation avant de finaliser le devis.');
     return;
   }
+  syncClientFromInputs();
+  if(el('notes')) syncNotes();
+  state.step=step;
+  document.querySelectorAll('.step').forEach(s=>s.classList.toggle('active',Number(s.dataset.step)===step));
+  const labels=['','1. Client','2. Prestations','3. Chiffrage','4. Devis prêt'];
+  el('stepLabel').textContent=labels[step];
+  for(let i=1;i<=4;i++) el('p'+i).classList.toggle('done',i<=step);
+  if(step===3){ renderQuoteLines();el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate; }
+  if(step===4) renderReview();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 
-  const payload = {
-    quotation: {
-      method: "quotation.create", // ⚠️ méthode Ogust (à confirmer ensuite)
-      numero_devis: numDevis.value,
-      client: {
-        nom: client.value,
-        telephone: tel.value,
-        adresse: adresse.value
-      },
-      lignes: [
-        {
-          designation: "Main d'œuvre",
-          quantite: Number(heures.value || 0),
-          prix_unitaire: Number(taux.value || 0)
-        }
-      ],
-      total_ttc: Number((Number(taux.value) * Number(heures.value)).toFixed(2))
-    }
+function renderReview(){
+  syncClientFromInputs();syncNotes();
+  el('clientSummary').innerHTML=`
+    <strong>${esc(state.client||'—')}</strong>
+    <span>${esc(state.tel||'Téléphone non renseigné')}</span>
+    <span>${esc(state.address||'Adresse non renseignée')}</span>
+    <span>${esc(state.company)} · ${esc(state.number)}</span>`;
+  el('reviewLines').innerHTML=state.lines.map(line=>{
+    const a=lineAmounts(line);
+    return `<div class="reviewLine"><div><div class="name">${esc(line.designation)}</div><div class="meta">${esc(line.meta || `${line.qty} ${line.unit}`)} · TVA ${line.vat}%</div></div><div class="price">${money(a.ttc)}</div></div>`;
+  }).join('') || '<div class="empty">Aucune ligne</div>';
+  renderTotals();
+}
+
+function quotePayload(){
+  syncClientFromInputs();syncNotes();
+  const t=totals();
+  return {
+    version:4,
+    societe:state.company,
+    numero_devis:state.number,
+    date:new Date().toISOString().slice(0,10),
+    client:{nom:state.client,telephone:state.tel,adresse:state.address},
+    mode:state.mode,
+    lignes:state.lines.map(l=>{
+      const a=lineAmounts(l);
+      return {
+        designation:l.designation,
+        detail:l.meta,
+        quantite:num(l.qty),
+        unite:l.unit,
+        prix_unitaire_ttc:num(l.unitPriceTTC),
+        tva_rate:num(l.vat),
+        total_ht:Number(a.ht.toFixed(2)),
+        total_ttc:Number(a.ttc.toFixed(2))
+      };
+    }),
+    totaux:{ht:Number(t.ht.toFixed(2)),tva:Number(t.tva.toFixed(2)),ttc:Number(t.ttc.toFixed(2))},
+    notes:state.notes
   };
+}
 
-  try {
-    const resp = await fetch(
-      "https://acj-ogust-proxy.vercel.app/api/ogust-devis",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }
-    );
+function saveQuote(){
+  const payload=quotePayload();
+  let saved=[];
+  try{saved=JSON.parse(localStorage.getItem(LS_SAVED)||'[]');}catch(e){}
+  saved.unshift(payload);
+  saved=saved.slice(0,50);
+  localStorage.setItem(LS_SAVED,JSON.stringify(saved));
+  showStatus('finalStatus',`Devis ${state.number} enregistré sur cet appareil.`,'ok');
+}
 
-    const data = await resp.json();
-
-    console.log("Réponse Ogust :", data);
-
-    if (data.ok) {
-      alert("✅ Devis envoyé à Ogust\nRegarde la console pour le retour");
-    } else {
-      alert("❌ Erreur Ogust\n" + JSON.stringify(data, null, 2));
-    }
-  } catch (e) {
-    alert("❌ Erreur réseau : " + e.message);
+async function copyForWhatsApp(){
+  const p=quotePayload();
+  const lines=p.lignes.map(l=>`• ${l.designation} : ${money(l.total_ttc)}`).join('\n');
+  const msg=`Bonjour ${p.client.nom || ''},\n\nVoici votre devis ${p.numero_devis} :\n${lines}\n\nTotal : ${money(p.totaux.ttc)} TTC.\nDevis valable 30 jours.\n\n${p.societe}`;
+  try{
+    await navigator.clipboard.writeText(msg);
+    showStatus('finalStatus','Message WhatsApp copié.','ok');
+  }catch(e){
+    prompt('Copie ce message :',msg);
   }
 }
+
+function buildPrintHTML(){
+  const p=quotePayload();
+  const date=new Date().toLocaleDateString('fr-FR');
+  return `<div class="printWrap">
+    <div class="printTop">
+      <div><div class="printTitle">DEVIS</div><div class="printMeta"><b>${esc(p.societe)}</b><br>Devis n° ${esc(p.numero_devis)}<br>Date : ${esc(date)}</div></div>
+      <img class="printLogo" src="icon-512.png" alt="ACJ">
+    </div>
+    <div class="printBox printGrid">
+      <div><b>Client</b><br>${esc(p.client.nom||'—')}<br>${esc(p.client.telephone||'')}</div>
+      <div><b>Adresse d’intervention</b><br>${esc(p.client.adresse||'—')}</div>
+    </div>
+    <div class="printBox">
+      <table class="printTable"><thead><tr><th>Désignation</th><th>Qté</th><th>Unité</th><th class="right">PU TTC</th><th class="right">Total TTC</th></tr></thead><tbody>
+        ${p.lignes.map(l=>`<tr><td>${esc(l.designation)}${l.detail?`<br><small>${esc(l.detail)}</small>`:''}</td><td>${l.quantite}</td><td>${esc(l.unite)}</td><td class="right">${money(l.prix_unitaire_ttc)}</td><td class="right">${money(l.total_ttc)}</td></tr>`).join('')}
+      </tbody></table>
+      <div class="printTotals"><div><span>Total HT</span><span>${money(p.totaux.ht)}</span></div><div><span>TVA</span><span>${money(p.totaux.tva)}</span></div><div><span>Total TTC</span><span>${money(p.totaux.ttc)}</span></div></div>
+    </div>
+    ${p.notes?`<div class="printBox"><b>Note</b><br>${esc(p.notes)}</div>`:''}
+    <div class="printFoot">Devis valable 30 jours. Paiement à l’issue de la prestation sauf accord contraire.</div>
+  </div>`;
+}
+function printPDF(){ el('printArea').innerHTML=buildPrintHTML();setTimeout(()=>window.print(),120); }
+
+async function sendToOgust(){
+  const p=quotePayload();
+  if(!p.client.nom || !p.lignes.length){ showStatus('finalStatus','Client ou prestation manquante.','err');return; }
+  showStatus('finalStatus','Envoi vers Ogust…','info');
+  const payload={quotation:{
+    method:'quotation.create',
+    numero_devis:p.numero_devis,
+    societe:p.societe,
+    client:p.client,
+    lignes:p.lignes.map(l=>({designation:l.designation,quantite:l.quantite,unite:l.unite,prix_unitaire:l.prix_unitaire_ttc,tva:l.tva_rate})),
+    total_ttc:p.totaux.ttc,
+    notes:p.notes
+  }};
+  try{
+    const resp=await fetch('https://acj-ogust-proxy.vercel.app/api/ogust-devis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    let data={};
+    try{data=await resp.json();}catch(e){}
+    if(resp.ok && data.ok){
+      saveQuote();
+      showStatus('finalStatus','Devis envoyé à Ogust.','ok');
+    }else{
+      showStatus('finalStatus','Ogust n’a pas confirmé la création du devis. Le devis reste enregistré localement.','err');
+      console.error('Ogust response',data);
+    }
+  }catch(e){
+    showStatus('finalStatus','Connexion Ogust impossible. Le devis n’a pas été perdu.','err');
+    console.error(e);
+  }
+}
+
+function showStatus(id,msg,type='info'){
+  const box=el(id);if(!box)return;
+  box.textContent=msg;box.className=`status show ${type}`;
+}
+
+function newQuote(){
+  state={step:1,number:nextQuoteNumber(),company:state.company,client:'',tel:'',address:'',mode:'jardin',activePreset:null,lines:[],notes:''};
+  el('client').value='';el('tel').value='';el('adresse').value='';el('notes').value='';
+  el('quoteNumberTop').textContent=state.number;
+  renderCompanies();renderModes();renderQuoteLines();
+  el('finalStatus').className='status';el('finalStatus').textContent='';
+  goStep(1);
+}
+
+function init(){
+  initQuoteNumber();
+  renderCompanies();renderModes();renderQuoteLines();
+  el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate;
+  el('kmRate').addEventListener('change',persistSettings);
+  el('wasteRate').addEventListener('change',persistSettings);
+  goStep(1);
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('./sw.js').catch(console.error); }
+}
+
+document.addEventListener('DOMContentLoaded',init);
 </script>
 </body>
 </html>
