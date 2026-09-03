@@ -1,0 +1,1 @@
+Fix Android PDF v9: print from an isolated iframe containing only the printable quote, so application backgrounds cannot leak into the PDF preview.
