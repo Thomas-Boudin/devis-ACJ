@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v9';
+const CACHE = 'devis-acj-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,8 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './sap-v7.js',
-  './print-v9.js'
+  './print-v9.js',
+  './details-v10.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -22,7 +23,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-async function withV9(response) {
+async function withV10(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -30,6 +31,7 @@ async function withV9(response) {
   let html = text;
   if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js"></script></body>');
   if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js"></script></body>');
+  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, {
@@ -48,10 +50,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV9(response);
+        return await withV10(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV9(cached);
+        return withV10(cached);
       }
     })());
     return;
