@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v7';
+const CACHE = 'devis-acj-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -21,7 +21,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-async function withSapV7(response) {
+async function withSapV8(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -47,10 +47,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withSapV7(response);
+        return await withSapV8(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withSapV7(cached);
+        return withSapV8(cached);
       }
     })());
     return;
