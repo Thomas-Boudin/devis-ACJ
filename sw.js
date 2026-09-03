@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v18';
+const CACHE = 'devis-acj-v19';
 const ASSETS = [
   './',
   './index.html',
@@ -10,7 +10,8 @@ const ASSETS = [
   './details-v10.js',
   './print-v11.js',
   './ai-v17.js',
-  './ai-policy-v18.js'
+  './ai-policy-v18.js',
+  './ogust-write-v19.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -30,7 +31,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV18(response) {
+async function withV19(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -42,6 +43,7 @@ async function withV18(response) {
   if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js"></script></body>');
   if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js"></script></body>');
   if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js"></script></body>');
+  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
@@ -55,10 +57,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV18(response);
+        return await withV19(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV18(cached);
+        return withV19(cached);
       }
     })());
     return;
