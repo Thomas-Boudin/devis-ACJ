@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v5';
+const CACHE = 'devis-acj-v6';
 const ASSETS = [
   './',
   './index.html',
