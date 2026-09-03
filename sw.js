@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v14';
+const CACHE = 'devis-acj-v15';
 const ASSETS = [
   './',
   './index.html',
@@ -9,7 +9,7 @@ const ASSETS = [
   './print-v9.js',
   './details-v10.js',
   './print-v11.js',
-  './ai-v14.js'
+  './ai-v15.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -29,7 +29,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV14(response) {
+async function withV15(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -39,7 +39,7 @@ async function withV14(response) {
   if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js"></script></body>');
   if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js"></script></body>');
   if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js"></script></body>');
-  if (!html.includes('ai-v14.js')) html = html.replace('</body>', '<script src="./ai-v14.js"></script></body>');
+  if (!html.includes('ai-v15.js')) html = html.replace('</body>', '<script src="./ai-v15.js"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
@@ -53,10 +53,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV14(response);
+        return await withV15(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV14(cached);
+        return withV15(cached);
       }
     })());
     return;
