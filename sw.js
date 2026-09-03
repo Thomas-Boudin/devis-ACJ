@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v12';
+const CACHE = 'devis-acj-v13';
 const ASSETS = [
   './',
   './index.html',
@@ -18,14 +18,27 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
+    await self.clients.claim();
+
+    // Une ancienne version de la PWA peut rester affichée même après l'activation
+    // du nouveau service worker. On recharge alors les fenêtres ouvertes une fois,
+    // afin que les nouveaux modules injectés (notamment l'assistant IA) soient pris
+    // en compte immédiatement.
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    await Promise.all(clients.map(async (client) => {
+      try {
+        await client.navigate(client.url);
+      } catch (e) {
+        // Le prochain lancement utilisera de toute façon ce service worker.
+      }
+    }));
+  })());
 });
 
-async function withV12(response) {
+async function withV13(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -54,10 +67,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV12(response);
+        return await withV13(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV12(cached);
+        return withV13(cached);
       }
     })());
     return;
