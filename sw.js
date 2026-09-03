@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v19';
+const CACHE = 'devis-acj-v20';
 const ASSETS = [
   './',
   './index.html',
@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV19(response) {
+async function withV20(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -57,10 +57,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV19(response);
+        return await withV20(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV19(cached);
+        return withV20(cached);
       }
     })());
     return;
