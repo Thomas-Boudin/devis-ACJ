@@ -1,4 +1,4 @@
-// PDF / affichage SAP v7 — calcul du crédit d'impôt uniquement sur la main-d'œuvre éligible.
+// PDF / affichage SAP v8 — crédit d'impôt sur la main-d'œuvre éligible et impression propre.
 (function(){
   function sapEligibleLabor(p){
     const company=COMPANY_PRINT[p.societe];
@@ -29,12 +29,31 @@
       .sapScreenRow.after{font-size:16px;font-weight:950;border-top:1px solid #155e75;margin-top:6px;padding-top:9px;color:#fff}
       .sapScreenNote{font-size:10px;color:#9fdcf6;line-height:1.4;margin-top:7px}
       @media print{
-        .printSapCalc{margin-top:13px;border:1px solid #93c5fd;background:#eff6ff;border-radius:12px;padding:11px 13px;color:#1e3a8a}
-        .printSapCalcTitle{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:900;margin-bottom:6px}
-        .printSapCalcRow{display:flex;justify-content:space-between;gap:16px;padding:3px 0;font-size:10.5px}
+        @page{size:A4;margin:8mm 10mm}
+        html,body,#printArea,.printWrap{background:#fff!important}
+        #sapCreditScreen,.sapScreenBox{display:none!important}
+        .printWrap{min-height:0!important;padding-bottom:0!important;font-size:11px!important;line-height:1.35!important;overflow:visible!important}
+        .printHeader{padding-bottom:10px!important}
+        .printLogo{width:90px!important}
+        .printTitle{font-size:27px!important}
+        .printPartyGrid{margin-top:10px!important}
+        .printParty{min-height:64px!important;padding:10px 12px!important}
+        .printSectionTitle{margin:12px 0 6px!important}
+        .printTable th{padding:7px 7px!important}
+        .printTable td{padding:8px 7px!important}
+        .printAfterTable{margin-top:9px!important;gap:12px!important;grid-template-columns:1fr 225px!important}
+        .printNotes{min-height:0!important;padding:6px 0 6px 9px!important}
+        .printTotals{padding:8px 11px!important}
+        .printTotalsRow.grand{font-size:16px!important;padding-top:7px!important;margin-top:4px!important}
+        .printSapCalc{margin-top:9px;border:1px solid #93c5fd;background:#eff6ff!important;border-radius:10px;padding:8px 11px;color:#1e3a8a;break-inside:avoid;page-break-inside:avoid}
+        .printSapCalcTitle{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:900;margin-bottom:4px}
+        .printSapCalcRow{display:flex;justify-content:space-between;gap:16px;padding:2px 0;font-size:10px}
         .printSapCalcRow.credit{font-weight:800;color:#166534}
-        .printSapCalcRow.after{margin-top:6px;padding-top:8px;border-top:1px solid #93c5fd;font-size:15px;font-weight:900;color:#0f172a}
-        .printSapCalcNote{font-size:8.8px;line-height:1.4;color:#475569;margin-top:7px}
+        .printSapCalcRow.after{margin-top:4px;padding-top:6px;border-top:1px solid #93c5fd;font-size:14px;font-weight:900;color:#0f172a}
+        .printSapCalcNote{font-size:8px;line-height:1.3;color:#475569;margin-top:5px}
+        .printAgreement{margin-top:11px!important;padding-top:9px!important;gap:16px!important;break-inside:avoid;page-break-inside:avoid}
+        .printAgreementBox{min-height:58px!important;padding:8px 10px!important}
+        .printFooter{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;margin-top:10px!important;padding-top:7px!important;font-size:8.5px!important;break-inside:avoid;page-break-inside:avoid}
       }
     `;
     document.head.appendChild(style);
