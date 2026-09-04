@@ -1,0 +1,31 @@
+@import url('./styles.css');
+
+/* V2 — Google history + exceptional manual customer */
+.bottom-nav{grid-template-columns:repeat(5,1fr)}
+.nav-item{font-size:10px;padding:4px 3px}
+.history-head select{max-width:190px}
+.history-controls{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}
+.history-list{display:grid;gap:14px;margin-top:12px}
+.history-month{display:grid;gap:8px}
+.history-month-title{position:sticky;top:68px;z-index:8;padding:8px 2px 5px;background:linear-gradient(180deg,var(--bg) 70%,transparent);font-size:13px;font-weight:900;color:#dbeafe;text-transform:capitalize}
+.history-row{display:grid;grid-template-columns:72px 1fr;gap:10px;border:1px solid var(--line);background:#0a1525;border-radius:15px;padding:11px}
+.history-date{font-size:11px;color:var(--muted);line-height:1.35}.history-date strong{display:block;color:var(--text);font-size:15px;margin-top:2px}
+.history-main strong{font-size:14px}.history-main p{font-size:11px;color:#b8c4d4;margin-top:4px;line-height:1.35;white-space:pre-line}.history-meta{font-size:10px;color:var(--muted);margin-top:5px}
+.history-count{font-size:11px;color:var(--muted);margin:9px 1px 0}
+.source-badge{display:inline-flex;align-items:center;border:1px solid #17435a;background:#091c29;color:#9fdcf6;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:800;margin-left:6px;vertical-align:middle}
+.source-badge.manual{border-color:#714b16;background:#241b0d;color:#fde68a}
+.last-resort-btn{width:100%;border:0;background:transparent;color:#fbbf24;text-align:left;padding:10px 2px 2px;font-size:11px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.manual-panel{display:grid;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #3d341f}
+.warning-box{border:1px solid #714b16;background:#241b0d;border-radius:13px;padding:11px;color:#fde68a}.warning-box strong{display:block;font-size:12px}.warning-box span{display:block;font-size:10px;line-height:1.4;margin-top:4px}
+.manual-fields{padding:0!important;background:none!important;border:0!important;box-shadow:none!important}
+.secondary-btn.full{width:100%;margin-top:2px}
+.notice.compact{margin-bottom:10px;padding:9px 11px}
+.notice.warn{border-color:#714b16;background:#241b0d;color:#fde68a}
+.notice.good{border-color:#1e6b39;background:#0b2717;color:#bbf7d0}
+.empty-state{padding:22px 14px;text-align:center;border:1px dashed #334a67;border-radius:15px;color:var(--muted);font-size:12px;line-height:1.5}
+.event-source-line{font-size:10px;color:var(--muted);margin-top:7px}
+@media(max-width:560px){
+  .bottom-nav{grid-template-columns:repeat(5,1fr);padding-left:5px;padding-right:5px}
+  .nav-item{font-size:9px}.history-controls{grid-template-columns:1fr}.history-controls .secondary-btn{width:100%}
+  .history-row{grid-template-columns:62px 1fr}.history-head{display:grid}.history-head select{max-width:none}
+}
