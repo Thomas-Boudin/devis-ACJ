@@ -9,7 +9,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles-v2.css">
 </head>
 <body>
   <div class="app-shell">
@@ -18,7 +18,7 @@
         <div class="brand-mark">ACJ</div>
         <div>
           <strong>ACJ Terrain</strong>
-          <span id="userLabel">Julien · Terrain</span>
+          <span id="userLabel">Planning JB · Terrain</span>
         </div>
       </div>
       <button class="icon-btn" id="installBtn" hidden title="Installer l'application">＋</button>
@@ -32,18 +32,18 @@
             <h1 id="todayTitle">Votre journée</h1>
             <p id="todaySubtitle">Planning terrain</p>
           </div>
-          <div class="status-dot">En ligne</div>
+          <div class="status-dot" id="todaySource">Google</div>
         </div>
 
         <div class="stats-grid">
           <div class="stat-card"><span>Interventions</span><strong id="statCount">0</strong></div>
           <div class="stat-card"><span>Heures prévues</span><strong id="statHours">0 h</strong></div>
-          <div class="stat-card"><span>Km prévus</span><strong id="statKm">0 km</strong></div>
+          <div class="stat-card"><span>Km saisis</span><strong id="statKm">0 km</strong></div>
         </div>
 
         <div class="section-head">
           <h2>Planning du jour</h2>
-          <button class="text-btn" data-nav="planning">Voir la semaine</button>
+          <button class="text-btn" data-nav="planning">Voir le planning</button>
         </div>
         <div id="todayList" class="stack"></div>
       </section>
@@ -52,10 +52,11 @@
         <div class="page-head">
           <div>
             <div class="eyebrow">Planning</div>
-            <h1>Semaine</h1>
+            <h1>Jour par jour</h1>
           </div>
           <select id="employeeFilter" aria-label="Intervenant"></select>
         </div>
+        <div id="calendarNotice" class="notice compact" hidden></div>
         <div id="weekDays" class="week-strip"></div>
         <div id="planningList" class="stack"></div>
       </section>
@@ -70,19 +71,31 @@
 
         <form id="newInterventionForm" class="form-stack">
           <div class="card">
-            <label>Client Ogust</label>
+            <label>Client</label>
             <div class="search-wrap">
-              <input id="customerSearch" type="search" autocomplete="off" placeholder="Rechercher un nom, téléphone…" required>
+              <input id="customerSearch" type="search" autocomplete="off" placeholder="Rechercher dans Ogust…">
               <div id="customerResults" class="search-results" hidden></div>
             </div>
             <input type="hidden" id="customerId">
+            <input type="hidden" id="clientSource" value="">
             <div id="selectedCustomer" class="selected-customer" hidden></div>
-            <p class="helper">Le client doit être sélectionné dans Ogust. Aucun nom libre n'est enregistré.</p>
+            <button type="button" class="last-resort-btn" id="manualCustomerBtn" hidden>Client introuvable dans Ogust — saisie exceptionnelle</button>
+            <div id="manualCustomerPanel" class="manual-panel" hidden>
+              <div class="warning-box"><strong>Dernier recours</strong><span>Ce client ne sera pas relié automatiquement à Ogust tant qu'il n'aura pas été créé ou rapproché.</span></div>
+              <div class="two-col manual-fields">
+                <div><label for="manualName">Nom du client</label><input id="manualName" autocomplete="name" placeholder="Nom / société"></div>
+                <div><label for="manualPhone">Téléphone</label><input id="manualPhone" type="tel" autocomplete="tel" placeholder="06…"></div>
+              </div>
+              <div><label for="manualAddress">Adresse</label><input id="manualAddress" autocomplete="street-address" placeholder="Adresse d'intervention"></div>
+              <div><label for="manualCity">Ville</label><input id="manualCity" autocomplete="address-level2" placeholder="Ville"></div>
+              <button type="button" class="secondary-btn full" id="useManualCustomerBtn">Utiliser exceptionnellement ce client</button>
+            </div>
+            <p class="helper">Priorité à la liste Ogust. La saisie manuelle reste disponible uniquement si le client n'existe pas encore.</p>
           </div>
 
           <div class="card two-col">
             <div>
-              <label for="employeeSelect">Intervenant</label>
+              <label for="employeeSelect">Intervenant / agenda</label>
               <select id="employeeSelect" required></select>
             </div>
             <div>
@@ -95,6 +108,7 @@
                 <option>Taille de haies</option>
                 <option>Désherbage</option>
                 <option>Débroussaillage</option>
+                <option>Nettoyage extérieur</option>
                 <option>Autre</option>
               </select>
             </div>
@@ -102,7 +116,7 @@
 
           <div class="card">
             <label for="serviceAddress">Adresse d'intervention</label>
-            <select id="serviceAddress" required></select>
+            <input id="serviceAddress" autocomplete="street-address" placeholder="Adresse" required>
           </div>
 
           <div class="card two-col">
@@ -111,14 +125,8 @@
               <input id="serviceDate" type="date" required>
             </div>
             <div class="time-row">
-              <div>
-                <label for="startTime">Début</label>
-                <input id="startTime" type="time" required>
-              </div>
-              <div>
-                <label for="endTime">Fin</label>
-                <input id="endTime" type="time" required>
-              </div>
+              <div><label for="startTime">Début</label><input id="startTime" type="time" required></div>
+              <div><label for="endTime">Fin</label><input id="endTime" type="time" required></div>
             </div>
           </div>
 
@@ -130,6 +138,23 @@
           <button class="primary-btn" type="submit">Créer l'intervention</button>
           <div id="createStatus" class="notice" hidden></div>
         </form>
+      </section>
+
+      <section class="screen" id="screen-history">
+        <div class="page-head history-head">
+          <div>
+            <div class="eyebrow">Historique</div>
+            <h1>Interventions Google</h1>
+          </div>
+          <select id="historyEmployeeFilter" aria-label="Intervenant"></select>
+        </div>
+        <div class="history-controls">
+          <input id="historySearch" type="search" placeholder="Rechercher client, adresse, consigne…">
+          <button class="secondary-btn" id="refreshHistoryBtn" type="button">Actualiser</button>
+        </div>
+        <div id="historySyncStatus" class="notice compact"></div>
+        <div id="historyCount" class="history-count"></div>
+        <div id="historyList" class="history-list"></div>
       </section>
 
       <section class="screen" id="screen-tools">
@@ -154,6 +179,7 @@
       <button class="nav-item active" data-nav="today"><span>Jour</span></button>
       <button class="nav-item" data-nav="planning"><span>Planning</span></button>
       <button class="nav-item nav-main" data-nav="new"><span>＋</span><small>Nouvelle</small></button>
+      <button class="nav-item" data-nav="history"><span>Historique</span></button>
       <button class="nav-item" data-nav="tools"><span>Outils</span></button>
     </nav>
   </div>
@@ -171,6 +197,6 @@
     </div>
   </dialog>
 
-  <script src="app.js" defer></script>
+  <script src="app-v2.js" defer></script>
 </body>
 </html>
