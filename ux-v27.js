@@ -20,7 +20,6 @@
       .brand strong{color:#f8fbfe!important}.brand span{color:#b4c6d8!important}
       .pill{background:#152a3d!important;border-color:#355675!important;color:#e8f1f8!important;box-shadow:none!important}
 
-      /* Stepper compact : plus de gros pavés sombres */
       .progress{position:relative!important;gap:4px!important;margin-top:10px!important;overflow:visible!important}
       .progress:before{content:'';position:absolute;left:10%;right:10%;top:16px;height:1px;background:#41627e;z-index:0}
       .progress>span{height:34px!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;color:#a9bccd!important;padding:0 2px!important;position:relative!important;z-index:1!important;gap:4px!important;overflow:visible!important}
@@ -49,7 +48,6 @@
       .status.ok,.ogwGood,.ogcChosen{background:#173c2b!important;border-color:#3a815b!important;color:#d6f8e2!important}
       .status.err,.ogwError{background:#452229!important;border-color:#91505b!important;color:#ffe0e4!important}
 
-      /* Boutons : contraste garanti, y compris disabled */
       .btn,.ogcTab,.ogwClose{min-height:52px!important;border-radius:15px!important;font-size:14px!important;font-weight:760!important;background:#1b3349!important;border:1px solid #45627d!important;color:#f4f8fc!important;text-shadow:none!important;box-shadow:none!important;opacity:1!important}
       .btn.primary{background:#55c5f2!important;border-color:#55c5f2!important;color:#062033!important}
       .btn.good,.uxActionStrong{background:linear-gradient(135deg,#55df90,#35c779)!important;border-color:#4ade80!important;color:#062415!important;box-shadow:0 6px 16px rgba(45,190,111,.16)!important}
@@ -59,7 +57,6 @@
       .uxActionPdf:disabled,.uxActionNew:disabled{color:#9fb4c7!important;background:#243b50!important}
       .btn:hover:not(:disabled){filter:none!important}.btn:active:not(:disabled){transform:scale(.985)}
 
-      /* Écran final : une action forte, puis 2x2 actions utiles */
       .step[data-step="4"] .finalActions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin-top:14px!important}
       .step[data-step="4"] .finalActions .btn{width:100%!important;min-height:54px!important;margin:0!important;grid-column:auto!important}
       .step[data-step="4"] .finalActions .uxFinalPrimary{grid-column:1/-1!important;order:1!important;min-height:58px!important;font-size:15px!important}
@@ -92,17 +89,22 @@
 
   function text(btn){return String(btn?.textContent||'').trim().toLowerCase()}
 
+  function setOnlyClass(btn,wanted){
+    const names=['uxFinalPrimary','uxFinalPdf','uxFinalWhatsapp','uxFinalSave','uxFinalNew'];
+    names.forEach(name=>btn.classList.toggle(name,name===wanted));
+  }
+
   function orderFinalActions(){
     const box=document.querySelector('.step[data-step="4"] .finalActions');
     if(!box)return;
     [...box.querySelectorAll('button,.btn')].forEach(btn=>{
-      btn.classList.remove('uxFinalPrimary','uxFinalPdf','uxFinalWhatsapp','uxFinalSave','uxFinalNew');
-      const t=text(btn);
-      if(/créer.*ogust|creer.*ogust/.test(t))btn.classList.add('uxFinalPrimary','good');
-      else if(/pdf|imprimer/.test(t))btn.classList.add('uxFinalPdf');
-      else if(/whatsapp/.test(t))btn.classList.add('uxFinalWhatsapp');
-      else if(/enregistrer/.test(t))btn.classList.add('uxFinalSave');
-      else if(/nouveau devis/.test(t))btn.classList.add('uxFinalNew');
+      const t=text(btn);let wanted='';
+      if(/créer.*ogust|creer.*ogust/.test(t)){wanted='uxFinalPrimary';if(!btn.classList.contains('good'))btn.classList.add('good')}
+      else if(/pdf|imprimer/.test(t))wanted='uxFinalPdf';
+      else if(/whatsapp/.test(t))wanted='uxFinalWhatsapp';
+      else if(/enregistrer/.test(t))wanted='uxFinalSave';
+      else if(/nouveau devis/.test(t))wanted='uxFinalNew';
+      setOnlyClass(btn,wanted);
     });
   }
 
@@ -112,15 +114,15 @@
     for(let i=1;i<=4;i++){
       const p=document.getElementById(`p${i}`);if(!p)continue;
       const no=p.querySelector('.uxStepNo'),label=p.querySelector('.uxStepText');
-      if(label)label.textContent=STEP_LABELS[i-1];
-      if(no)no.textContent=i<current?'✓':String(i);
+      if(label&&label.textContent!==STEP_LABELS[i-1])label.textContent=STEP_LABELS[i-1];
+      const wanted=i<current?'✓':String(i);
+      if(no&&no.textContent!==wanted)no.textContent=wanted;
     }
   }
 
   function enforceReadableButtons(){
     document.querySelectorAll('button,.btn').forEach(btn=>{
-      if(!String(btn.textContent||'').trim())return;
-      btn.style.removeProperty('color');
+      if(String(btn.textContent||'').trim()&&btn.style.color)btn.style.removeProperty('color');
     });
   }
 
@@ -135,7 +137,7 @@
 
   function init(){
     addStyles();wrapGoStep();refresh();
-    const observer=new MutationObserver(()=>{clearTimeout(observer._t);observer._t=setTimeout(refresh,40)});
+    const observer=new MutationObserver(()=>{clearTimeout(observer._t);observer._t=setTimeout(refresh,50)});
     observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','disabled']});
   }
 
