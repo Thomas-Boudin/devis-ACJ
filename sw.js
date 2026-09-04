@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v21';
+const CACHE = 'devis-acj-v22';
 const ASSETS = [
   './',
   './index.html',
@@ -12,7 +12,8 @@ const ASSETS = [
   './ai-v17.js',
   './ai-policy-v18.js',
   './ogust-write-v19.js',
-  './client-step-v21.js'
+  './client-step-v21.js',
+  './navigation-v22.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,7 +33,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV21(response) {
+async function withV22(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -46,6 +47,7 @@ async function withV21(response) {
   if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js"></script></body>');
   if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js"></script></body>');
   if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js"></script></body>');
+  if (!html.includes('navigation-v22.js')) html = html.replace('</body>', '<script src="./navigation-v22.js"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
@@ -59,10 +61,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV21(response);
+        return await withV22(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV21(cached);
+        return withV22(cached);
       }
     })());
     return;
