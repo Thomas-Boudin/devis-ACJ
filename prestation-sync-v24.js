@@ -1,12 +1,13 @@
-// Devis ACJ v24 — synchronisation légère des prestations principales avec Ogust.
+// Devis ACJ v24/v28 — synchronisation légère des prestations avec le bon compte Ogust.
 (function(){
-  const ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-history?catalog=1';
-  const LS='acj_ogust_prestations_v24';
+  const BASE_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-history';
+  const LS_PREFIX='acj_ogust_prestations_v28_';
   const TTL=24*60*60*1000;
   let catalog=[];
   let loaded=false;
+  let catalogCompany='';
 
-  const MAP={
+  const MAP_ACJ={
     jardin:{
       tonte:{hourly:{title:"Tonte de Pelouse à l'heure",rename:true},auto:{title:"Tonte de Pelouse à l'heure",rename:true},flat:{title:'Tonte de Pelouse',rename:true}},
       haie:{hourly:{title:"Taille de Haies à l'Heure",rename:true},auto:{title:"Taille de Haies à l'Heure",rename:true},flat:{title:'Taille de Haies',rename:true}},
@@ -30,11 +31,45 @@
       vitrerie_pro:{hourly:{title:'Nettoyage de vitres',rename:true},flat:{title:'Nettoyage de vitres',rename:true}}
     }
   };
-  const COST_MAP={
+
+  // Le catalogue Lens est plus compact : on rattache uniquement les correspondances sûres.
+  const MAP_LENS={
+    jardin:{
+      tonte:{hourly:{title:"Jardinage à l'heure",rename:false},auto:{title:"Jardinage à l'heure",rename:false},flat:{title:'Forfait Jardinage',rename:false}},
+      haie:{hourly:{title:"Jardinage à l'heure",rename:false},auto:{title:"Jardinage à l'heure",rename:false},flat:{title:'Forfait Jardinage',rename:false}},
+      debroussaillage:{hourly:{title:"Jardinage à l'heure",rename:false},auto:{title:"Jardinage à l'heure",rename:false},flat:{title:'Forfait Jardinage',rename:false}},
+      desherbage:{hourly:{title:"Jardinage à l'heure",rename:false},flat:{title:'Forfait Jardinage',rename:false}}
+    },
+    menage:{
+      entretien:{hourly:{title:'Entretien régulier du logement',rename:true}},
+      grand_menage:{flat:{title:'Forfait gros nettoyage',rename:true}}
+    },
+    bricol:{
+      bricolage:{hourly:{title:'Petit Bricolage',rename:true},flat:{title:'Petit Bricolage',rename:false}},
+      montage:{hourly:{title:'Petit Bricolage',rename:false},flat:{title:'Petit Bricolage',rename:false}},
+      fixation:{hourly:{title:'Petit Bricolage',rename:false},flat:{title:'Petit Bricolage',rename:false}},
+      maintenance:{hourly:{title:'Petit Bricolage',rename:false},flat:{title:'Petit Bricolage',rename:false}}
+    },
+    nettoyagePro:{
+      locaux:{hourly:{title:'Ménage professionnel',rename:false},flat:{title:'Entretien des locaux',rename:false}}
+    }
+  };
+
+  const COST_ACJ={
     fournitures:{title:'fourniture et matériel',rename:true},
     deplacement:{title:'Frais de déplacements',rename:true}
   };
+  const COST_LENS={
+    fournitures:{title:'Fourniture/Matériel',rename:true}
+  };
 
+  function companyName(){try{return String(state?.company||'ACJ Services')}catch{return 'ACJ Services'}}
+  function isLens(company=companyName()){return company==='ACJ Services Lens'}
+  function sourceMap(){return isLens()?MAP_LENS:MAP_ACJ}
+  function costMap(){return isLens()?COST_LENS:COST_ACJ}
+  function cacheKey(company=companyName()){return `${LS_PREFIX}${norm(company)||'acj'}`}
+  function endpoint(company=companyName()){return `${BASE_ENDPOINT}?catalog=1&company=${encodeURIComponent(company)}`}
+  function ogustLabel(){return isLens()?'Ogust Lens':'Ogust'}
   function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
   function escHtml(v){
     if(typeof window.esc==='function')return window.esc(v);
@@ -49,7 +84,7 @@
     return null;
   }
   function specFor(mode,preset,method){
-    const byPreset=MAP?.[mode]?.[preset];if(!byPreset)return null;
+    const byPreset=sourceMap()?.[mode]?.[preset];if(!byPreset)return null;
     return byPreset[method]||byPreset.hourly||byPreset.flat||null;
   }
   function matchFor(mode,preset,method){
@@ -58,7 +93,7 @@
     return {...product,rename:!!spec.rename};
   }
   function costMatch(type){
-    const spec=COST_MAP[type];if(!spec)return null;
+    const spec=costMap()[type];if(!spec)return null;
     const product=findTitle(spec.title);if(!product)return null;
     return {...product,rename:!!spec.rename};
   }
@@ -66,10 +101,18 @@
     if(!line||!match)return;
     line.ogustProductLevelId=String(match.id||'');
     line.ogustProductLevelTitle=String(match.title||'');
+    line.ogustProductCompany=companyName();
     if(match.rename&&match.title)line.designation=match.title;
     if(!match.rename&&originalDesignation&&line.meta&&!line.meta.includes('Ogust')){
-      line.meta=`${line.meta} · Ogust : ${match.title}`;
+      line.meta=`${line.meta} · ${ogustLabel()} : ${match.title}`;
     }
+  }
+  function clearCrossCompanyMetadata(){
+    for(const line of state?.lines||[]){
+      delete line.ogustProductLevelId;delete line.ogustProductLevelTitle;delete line.ogustProductCompany;
+      if(typeof line.meta==='string')line.meta=line.meta.replace(/ · Ogust(?: Lens)? : [^·]+$/,'').trim();
+    }
+    if(typeof renderQuoteLines==='function')renderQuoteLines();
   }
 
   function addStyles(){
@@ -86,26 +129,32 @@
     const card=b.querySelector('.builderCard');if(!card)return;
     const badge=document.createElement('div');
     badge.className=`ogpsBadge${match?'':' ogpsDim'}`;
-    badge.innerHTML=match?`Lié à Ogust : <strong>${escHtml(match.title)}</strong>`:'Aucune correspondance Ogust automatique pour cette prestation : le libellé ACJ sera conservé.';
+    badge.innerHTML=match?`Lié à ${ogustLabel()} : <strong>${escHtml(match.title)}</strong>`:`Aucune correspondance ${ogustLabel()} automatique pour cette prestation : le libellé ACJ sera conservé.`;
     const head=card.querySelector('.serviceHead');
     if(head)head.insertAdjacentElement('afterend',badge);
   }
 
-  function loadCache(){
+  function loadCache(company=companyName()){
     try{
-      const saved=JSON.parse(localStorage.getItem(LS)||'null');
-      if(saved?.prestations?.length){catalog=saved.prestations;loaded=true;return Date.now()-Number(saved.at||0)<TTL}
+      const saved=JSON.parse(localStorage.getItem(cacheKey(company))||'null');
+      if(saved?.prestations?.length&&saved?.company===company){catalog=saved.prestations;loaded=true;catalogCompany=company;return Date.now()-Number(saved.at||0)<TTL}
     }catch(e){}
     return false;
   }
   async function refreshCatalog(){
+    const company=companyName();
     try{
-      const r=await fetch(ENDPOINT,{cache:'no-store'});const data=await r.json().catch(()=>null);
+      const r=await fetch(endpoint(company),{cache:'no-store'});const data=await r.json().catch(()=>null);
+      if(company!==companyName())return;
       if(!r.ok||!data?.ok||!Array.isArray(data.prestations))return;
-      catalog=data.prestations;loaded=true;
-      localStorage.setItem(LS,JSON.stringify({at:Date.now(),prestations:catalog}));
+      catalog=data.prestations;loaded=true;catalogCompany=company;
+      localStorage.setItem(cacheKey(company),JSON.stringify({at:Date.now(),company,prestations:catalog}));
       enhanceBuilder();
     }catch(e){}
+  }
+  function reloadForCompany(){
+    catalog=[];loaded=false;catalogCompany='';clearCrossCompanyMetadata();
+    const fresh=loadCache();if(!fresh)refreshCatalog();else enhanceBuilder();
   }
 
   function wrapBuilder(){
@@ -147,7 +196,7 @@
       const payload=original.apply(this,arguments);
       (payload?.lignes||[]).forEach((line,i)=>{
         const source=state.lines?.[i];
-        if(source?.ogustProductLevelId){
+        if(source?.ogustProductLevelId&&source?.ogustProductCompany===state.company){
           line.ogust_product_level_id=String(source.ogustProductLevelId);
           line.ogust_product_level_title=String(source.ogustProductLevelTitle||'');
         }
@@ -167,6 +216,7 @@
     addStyles();
     const fresh=loadCache();
     wrapBuilder();wrapAddService();wrapQuickCosts();wrapPayload();wrapNewQuote();
+    window.addEventListener('acj:company-changed',reloadForCompany);
     if(!fresh)refreshCatalog();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();

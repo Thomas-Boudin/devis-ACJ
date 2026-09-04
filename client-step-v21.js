@@ -1,4 +1,4 @@
-// Devis ACJ v21 — choix client Ogust dès l'étape 1.
+// Devis ACJ v21/v28 — choix client Ogust dès l'étape 1, isolé par société.
 (function(){
   const CUSTOMER_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-customer';
   let mode='existing';
@@ -7,6 +7,9 @@
   let timer=null;
   let requestSeq=0;
 
+  function companyName(){try{return String(state?.company||'ACJ Services')}catch{return 'ACJ Services'}}
+  function ogustName(){return companyName()==='ACJ Services Lens'?'Ogust Lens':'Ogust'}
+  function searchHint(){return `Tape au moins 2 lettres du nom, du prénom ou du téléphone dans ${ogustName()}.`}
   function esc(v){
     if(typeof window.esc==='function')return window.esc(v);
     return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -35,7 +38,7 @@
     if(selected){
       const meta=[selected.code?`Code ${selected.code}`:'',selected.phone||'',selected.city||''].filter(Boolean).join(' · ');
       box.innerHTML=`<div class="ogcChosen"><strong>${esc(selected.label)}</strong>${meta?`<small>${esc(meta)}</small>`:''}<button class="ogcChange" type="button" id="ogcChangeBtn">Changer de client</button></div>`;
-      document.getElementById('ogcChangeBtn')?.addEventListener('click',()=>{selected=null;clearClientInputs();box.innerHTML='';const q=document.getElementById('ogcSearch');if(q){q.value='';q.focus()}status('Tape au moins 2 lettres du nom, du prénom ou du téléphone.');});
+      document.getElementById('ogcChangeBtn')?.addEventListener('click',()=>{selected=null;clearClientInputs();box.innerHTML='';const q=document.getElementById('ogcSearch');if(q){q.value='';q.focus()}status(searchHint());});
       return;
     }
     box.innerHTML=results.map((c,i)=>{
@@ -44,20 +47,20 @@
     }).join('');
     box.querySelectorAll('.ogcResult').forEach(btn=>btn.addEventListener('click',()=>{
       const c=results[Number(btn.dataset.i)];if(!c)return;
-      selected=c;setClientInputs(c);renderResults();status('Client Ogust sélectionné.');
+      selected=c;setClientInputs(c);renderResults();status(`Client ${ogustName()} sélectionné.`);
     }));
   }
   async function searchNow(query){
     const q=String(query||'').trim();
-    if(q.length<2){results=[];renderResults();status('Tape au moins 2 lettres du nom, du prénom ou du téléphone.');return}
-    const seq=++requestSeq;status('Recherche dans Ogust…');
+    if(q.length<2){results=[];renderResults();status(searchHint());return}
+    const company=companyName();const seq=++requestSeq;status(`Recherche dans ${ogustName()}…`);
     try{
-      const r=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'search',query:q})});
+      const r=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'search',query:q,company})});
       const data=await r.json().catch(()=>null);if(seq!==requestSeq)return;
       if(!r.ok||!data?.ok)throw new Error(data?.detail||data?.error||'Recherche impossible');
       results=data.customer_candidates||[];renderResults();
-      status(results.length?`${results.length} client${results.length>1?'s':''} trouvé${results.length>1?'s':''}.`:'Aucun client trouvé. Vérifie l’orthographe ou choisis « Nouveau client ».');
-    }catch(e){if(seq!==requestSeq)return;results=[];renderResults();status(`Ogust : ${e?.message||'recherche impossible'}.`,true)}
+      status(results.length?`${results.length} client${results.length>1?'s':''} trouvé${results.length>1?'s':''} dans ${ogustName()}.`:`Aucun client trouvé dans ${ogustName()}. Vérifie l’orthographe ou choisis « Nouveau client ».`);
+    }catch(e){if(seq!==requestSeq)return;results=[];renderResults();status(`${ogustName()} : ${e?.message||'recherche impossible'}.`,true)}
   }
   function queueSearch(value){clearTimeout(timer);timer=setTimeout(()=>searchNow(value),280)}
   function applyMode(next,clear=true){
@@ -67,9 +70,17 @@
     const panel=document.getElementById('ogcExistingPanel');if(panel)panel.style.display=mode==='existing'?'block':'none';
     const card=formCard();if(card)card.style.display=mode==='new'?'block':'none';
     if(clear){selected=null;results=[];clearClientInputs();renderResults()}
-    if(mode==='existing')status('Tape au moins 2 lettres du nom, du prénom ou du téléphone.');
+    if(mode==='existing')status(searchHint());
     else status('');
-    window.ogustClientChoiceV21={mode,get selected(){return selected}};
+    window.ogustClientChoiceV21={mode,get selected(){return selected},get company(){return companyName()}};
+  }
+  function resetAfterCompanyChange(company){
+    clearTimeout(timer);requestSeq++;selected=null;results=[];
+    const q=document.getElementById('ogcSearch');if(q)q.value='';
+    if(mode==='existing')clearClientInputs();
+    renderResults();if(mode==='existing')status(searchHint());
+    window.ogustClientChoiceV21={mode,get selected(){return selected},get company(){return companyName()}};
+    window.dispatchEvent(new CustomEvent('acj:company-changed',{detail:{company}}));
   }
   function inject(){
     if(document.getElementById('ogcClientCard'))return;
@@ -79,17 +90,23 @@
     const card=document.createElement('div');card.className='card';card.id='ogcClientCard';
     card.innerHTML=`<div class="cardTitle">Client</div>
       <div class="ogcTabs"><button id="ogcExistingBtn" class="ogcTab active" type="button">Existant dans Ogust</button><button id="ogcNewBtn" class="ogcTab" type="button">Nouveau client</button></div>
-      <div id="ogcExistingPanel"><div class="field"><label>Rechercher dans Ogust</label><input id="ogcSearch" autocomplete="off" placeholder="Nom, prénom ou téléphone"></div><div id="ogcResults" class="ogcResults"></div><div id="ogcStatus" class="ogcStatus">Tape au moins 2 lettres du nom, du prénom ou du téléphone.</div></div>
-      <div class="ogcHint">Choisir le client ici évite de le ressaisir et réduit le risque de doublons dans Ogust.</div>`;
+      <div id="ogcExistingPanel"><div class="field"><label>Rechercher dans Ogust</label><input id="ogcSearch" autocomplete="off" placeholder="Nom, prénom ou téléphone"></div><div id="ogcResults" class="ogcResults"></div><div id="ogcStatus" class="ogcStatus"></div></div>
+      <div class="ogcHint">La recherche utilise automatiquement le compte Ogust de la société choisie. Changer de société efface la sélection pour éviter tout mélange de clients.</div>`;
     companyCard.insertAdjacentElement('afterend',card);
     document.getElementById('ogcExistingBtn').addEventListener('click',()=>applyMode('existing'));
     document.getElementById('ogcNewBtn').addEventListener('click',()=>applyMode('new'));
     document.getElementById('ogcSearch').addEventListener('input',e=>{selected=null;clearClientInputs();results=[];renderResults();queueSearch(e.target.value)});
     applyMode('existing',false);
 
+    const originalSetCompany=window.setCompany;
+    if(typeof originalSetCompany==='function'&&!window.__acjMultiOgustCompanyV28)window.setCompany=function(n){
+      const before=companyName();const out=originalSetCompany.apply(this,arguments);if(String(n)!==before)resetAfterCompanyChange(String(n));return out;
+    };
+    window.__acjMultiOgustCompanyV28=true;
+
     const originalGoStep=window.goStep;
     if(typeof originalGoStep==='function')window.goStep=function(step){
-      if(Number(step)===2&&mode==='existing'&&!selected){status('Sélectionne d’abord un client Ogust, ou choisis « Nouveau client ».',true);document.getElementById('ogcSearch')?.focus();return}
+      if(Number(step)===2&&mode==='existing'&&!selected){status(`Sélectionne d’abord un client dans ${ogustName()}, ou choisis « Nouveau client ».`,true);document.getElementById('ogcSearch')?.focus();return}
       return originalGoStep.apply(this,arguments);
     };
     const originalNewQuote=window.newQuote;
