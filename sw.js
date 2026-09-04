@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v24';
+const CACHE = 'devis-acj-v25';
 const ASSETS = [
   './',
   './index.html',
@@ -15,7 +15,8 @@ const ASSETS = [
   './client-step-v21.js',
   './navigation-v22.js',
   './compliance-v23.js',
-  './prestation-sync-v24.js'
+  './prestation-sync-v24.js',
+  './ogust-units-v25.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -35,7 +36,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV24(response) {
+async function withV25(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -52,6 +53,7 @@ async function withV24(response) {
   if (!html.includes('navigation-v22.js')) html = html.replace('</body>', '<script src="./navigation-v22.js"></script></body>');
   if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js"></script></body>');
   if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js"></script></body>');
+  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
@@ -65,10 +67,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV24(response);
+        return await withV25(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV24(cached);
+        return withV25(cached);
       }
     })());
     return;
