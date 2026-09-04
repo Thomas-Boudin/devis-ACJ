@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v28.1';
+const CACHE = 'devis-acj-v29';
 const ASSETS = [
   './',
   './index.html',
@@ -19,6 +19,7 @@ const ASSETS = [
   './prestation-sync-v24.js',
   './costs-v28-1.js',
   './ogust-units-v25.js',
+  './history-v29.js',
   './ux-v26.js',
   './ux-v27.js'
 ];
@@ -40,7 +41,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV281(response) {
+async function withV29(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -60,6 +61,7 @@ async function withV281(response) {
   if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js"></script></body>');
   if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js"></script></body>');
   if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js"></script></body>');
+  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js"></script></body>');
   if (!html.includes('ux-v26.js')) html = html.replace('</body>', '<script src="./ux-v26.js"></script></body>');
   if (!html.includes('ux-v27.js')) html = html.replace('</body>', '<script src="./ux-v27.js"></script></body>');
   const headers = new Headers(response.headers);
@@ -75,10 +77,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV281(response);
+        return await withV29(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV281(cached);
+        return withV29(cached);
       }
     })());
     return;
