@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v28';
+const CACHE = 'devis-acj-v28.1';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ASSETS = [
   './compliance-v23.js',
   './multi-ogust-v28.js',
   './prestation-sync-v24.js',
+  './costs-v28-1.js',
   './ogust-units-v25.js',
   './ux-v26.js',
   './ux-v27.js'
@@ -39,7 +40,7 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-async function withV28(response) {
+async function withV281(response) {
   if (!response) return response;
   const type = response.headers.get('content-type') || '';
   if (!type.includes('text/html')) return response;
@@ -57,6 +58,7 @@ async function withV28(response) {
   if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js"></script></body>');
   if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js"></script></body>');
   if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js"></script></body>');
+  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js"></script></body>');
   if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js"></script></body>');
   if (!html.includes('ux-v26.js')) html = html.replace('</body>', '<script src="./ux-v26.js"></script></body>');
   if (!html.includes('ux-v27.js')) html = html.replace('</body>', '<script src="./ux-v27.js"></script></body>');
@@ -73,10 +75,10 @@ self.addEventListener('fetch', (event) => {
         const response = await fetch(event.request);
         const copy = response.clone();
         caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return await withV28(response);
+        return await withV281(response);
       } catch (e) {
         const cached = await caches.match(event.request) || await caches.match('./index.html');
-        return withV28(cached);
+        return withV281(cached);
       }
     })());
     return;
