@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <meta name="description" content="ACJ Terrain — planning et outils terrain pour jardiniers et hommes toutes mains">
+  <title>ACJ Terrain</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">ACJ</div>
+        <div>
+          <strong>ACJ Terrain</strong>
+          <span id="userLabel">Julien · Terrain</span>
+        </div>
+      </div>
+      <button class="icon-btn" id="installBtn" hidden title="Installer l'application">＋</button>
+    </header>
+
+    <main>
+      <section class="screen active" id="screen-today">
+        <div class="hero">
+          <div>
+            <div class="eyebrow">Aujourd'hui</div>
+            <h1 id="todayTitle">Votre journée</h1>
+            <p id="todaySubtitle">Planning terrain</p>
+          </div>
+          <div class="status-dot">En ligne</div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card"><span>Interventions</span><strong id="statCount">0</strong></div>
+          <div class="stat-card"><span>Heures prévues</span><strong id="statHours">0 h</strong></div>
+          <div class="stat-card"><span>Km prévus</span><strong id="statKm">0 km</strong></div>
+        </div>
+
+        <div class="section-head">
+          <h2>Planning du jour</h2>
+          <button class="text-btn" data-nav="planning">Voir la semaine</button>
+        </div>
+        <div id="todayList" class="stack"></div>
+      </section>
+
+      <section class="screen" id="screen-planning">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Planning</div>
+            <h1>Semaine</h1>
+          </div>
+          <select id="employeeFilter" aria-label="Intervenant"></select>
+        </div>
+        <div id="weekDays" class="week-strip"></div>
+        <div id="planningList" class="stack"></div>
+      </section>
+
+      <section class="screen" id="screen-new">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Nouvelle intervention</div>
+            <h1>Planifier sans recopier</h1>
+          </div>
+        </div>
+
+        <form id="newInterventionForm" class="form-stack">
+          <div class="card">
+            <label>Client Ogust</label>
+            <div class="search-wrap">
+              <input id="customerSearch" type="search" autocomplete="off" placeholder="Rechercher un nom, téléphone…" required>
+              <div id="customerResults" class="search-results" hidden></div>
+            </div>
+            <input type="hidden" id="customerId">
+            <div id="selectedCustomer" class="selected-customer" hidden></div>
+            <p class="helper">Le client doit être sélectionné dans Ogust. Aucun nom libre n'est enregistré.</p>
+          </div>
+
+          <div class="card two-col">
+            <div>
+              <label for="employeeSelect">Intervenant</label>
+              <select id="employeeSelect" required></select>
+            </div>
+            <div>
+              <label for="serviceType">Prestation</label>
+              <select id="serviceType" required>
+                <option value="">Choisir</option>
+                <option>Jardinage</option>
+                <option>Bricolage</option>
+                <option>Tonte</option>
+                <option>Taille de haies</option>
+                <option>Désherbage</option>
+                <option>Débroussaillage</option>
+                <option>Autre</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <label for="serviceAddress">Adresse d'intervention</label>
+            <select id="serviceAddress" required></select>
+          </div>
+
+          <div class="card two-col">
+            <div>
+              <label for="serviceDate">Date</label>
+              <input id="serviceDate" type="date" required>
+            </div>
+            <div class="time-row">
+              <div>
+                <label for="startTime">Début</label>
+                <input id="startTime" type="time" required>
+              </div>
+              <div>
+                <label for="endTime">Fin</label>
+                <input id="endTime" type="time" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <label for="instructions">Consignes</label>
+            <textarea id="instructions" rows="4" placeholder="Accès, déchets, matériel, consignes client…"></textarea>
+          </div>
+
+          <button class="primary-btn" type="submit">Créer l'intervention</button>
+          <div id="createStatus" class="notice" hidden></div>
+        </form>
+      </section>
+
+      <section class="screen" id="screen-tools">
+        <div class="page-head">
+          <div>
+            <div class="eyebrow">Caisse à outils</div>
+            <h1>Outils terrain</h1>
+          </div>
+        </div>
+        <div class="tool-grid">
+          <button class="tool-card" data-tool="Matériel / consommables"><strong>Matériel</strong><span>Consommables et besoins</span></button>
+          <button class="tool-card" data-tool="Signaler un problème"><strong>Problème</strong><span>Client, chantier, véhicule</span></button>
+          <button class="tool-card" data-tool="Photos chantier"><strong>Photos</strong><span>Avant / après</span></button>
+          <button class="tool-card" data-tool="Mes kilomètres"><strong>Kilomètres</strong><span>Suivi des déplacements</span></button>
+          <button class="tool-card" data-tool="Documents utiles"><strong>Documents</strong><span>Procédures et fiches</span></button>
+        </div>
+        <div id="toolStatus" class="notice" hidden></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-nav="today"><span>Jour</span></button>
+      <button class="nav-item" data-nav="planning"><span>Planning</span></button>
+      <button class="nav-item nav-main" data-nav="new"><span>＋</span><small>Nouvelle</small></button>
+      <button class="nav-item" data-nav="tools"><span>Outils</span></button>
+    </nav>
+  </div>
+
+  <dialog id="interventionDialog">
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div>
+          <div class="eyebrow">Intervention</div>
+          <h2 id="dialogTitle">Client</h2>
+        </div>
+        <button class="icon-btn" id="closeDialog">×</button>
+      </div>
+      <div id="dialogBody"></div>
+    </div>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
