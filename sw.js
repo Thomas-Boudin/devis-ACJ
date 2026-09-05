@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v29';
+const CACHE = 'devis-acj-v29.1';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ const ASSETS = [
   './costs-v28-1.js',
   './ogust-units-v25.js',
   './history-v29.js',
+  './history-delete-v29-1.js',
   './ux-v26.js',
   './ux-v27.js'
 ];
@@ -62,6 +63,7 @@ async function withV29(response) {
   if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js"></script></body>');
   if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js"></script></body>');
   if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js"></script></body>');
+  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js"></script></body>');
   if (!html.includes('ux-v26.js')) html = html.replace('</body>', '<script src="./ux-v26.js"></script></body>');
   if (!html.includes('ux-v27.js')) html = html.replace('</body>', '<script src="./ux-v27.js"></script></body>');
   const headers = new Headers(response.headers);
