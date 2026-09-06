@@ -6,10 +6,12 @@
   const STORAGE_KEY='acj_auth_id_token_v29_2';
   const API_ORIGIN='https://acj-ogust-proxy.vercel.app';
   const AUTH_STATUS_URL=API_ORIGIN+'/api/ogust-devis';
+  const FORCE_TEST=new URLSearchParams(location.search).get('auth_test')==='1';
   let token='';
   let profile=null;
   let reloadScheduled=false;
   let authRequired=false;
+  let serverRequiresAuth=false;
   let modePromise=null;
 
   function decodePart(value){
@@ -60,8 +62,9 @@
       try{
         const r=await nativeFetch(AUTH_STATUS_URL,{cache:'no-store'});
         const data=await r.json().catch(()=>null);
-        authRequired=!!(r.ok&&data?.auth_required===true&&String(data?.auth_version||'')==='29.2');
-      }catch{authRequired=false}
+        serverRequiresAuth=!!(r.ok&&data?.auth_required===true&&String(data?.auth_version||'')==='29.2');
+      }catch{serverRequiresAuth=false}
+      authRequired=serverRequiresAuth||FORCE_TEST;
       return authRequired;
     })();
     return modePromise;
@@ -69,8 +72,8 @@
 
   window.fetch=async function(input,init){
     if(!isApiTarget(input))return nativeFetch(input,init);
-    const required=await detectAuthMode();
-    if(!required)return nativeFetch(input,init);
+    await detectAuthMode();
+    if(!serverRequiresAuth)return nativeFetch(input,init);
     if(!tokenValid(token))return syntheticAuthRequired();
     const next={...(init||{}),headers:authHeaders(input,init)};
     let response;
@@ -139,10 +142,10 @@
     if(!required){window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{legacy:true}}));return}
     token=readStored();
     if(token){unlock();return}
-    gate();loadGoogle();
+    gate(FORCE_TEST&&!serverRequiresAuth?'Test de connexion Google — aucune protection serveur n’est encore activée.':undefined);loadGoogle();
   }
 
-  window.acjAuthV292={get authenticated(){return !authRequired||tokenValid(token)},logout(){clear();location.reload()}};
+  window.acjAuthV292={get authenticated(){return !authRequired||tokenValid(token)},get serverRequired(){return serverRequiresAuth},logout(){clear();location.reload()}};
   window.__acjAuthV292=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
