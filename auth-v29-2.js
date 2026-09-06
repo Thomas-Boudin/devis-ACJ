@@ -5,9 +5,12 @@
   const CLIENT_ID='93181159242-i64qf82vtrij5c4b7l5q18ctjj48l3so.apps.googleusercontent.com';
   const STORAGE_KEY='acj_auth_id_token_v29_2';
   const API_ORIGIN='https://acj-ogust-proxy.vercel.app';
+  const AUTH_STATUS_URL=API_ORIGIN+'/api/ogust-devis';
   let token='';
   let profile=null;
   let reloadScheduled=false;
+  let authRequired=false;
+  let modePromise=null;
 
   function decodePart(value){
     try{
@@ -51,8 +54,23 @@
   }
 
   const nativeFetch=window.fetch.bind(window);
+  async function detectAuthMode(){
+    if(modePromise)return modePromise;
+    modePromise=(async()=>{
+      try{
+        const r=await nativeFetch(AUTH_STATUS_URL,{cache:'no-store'});
+        const data=await r.json().catch(()=>null);
+        authRequired=!!(r.ok&&data?.auth_required===true&&String(data?.auth_version||'')==='29.2');
+      }catch{authRequired=false}
+      return authRequired;
+    })();
+    return modePromise;
+  }
+
   window.fetch=async function(input,init){
     if(!isApiTarget(input))return nativeFetch(input,init);
+    const required=await detectAuthMode();
+    if(!required)return nativeFetch(input,init);
     if(!tokenValid(token))return syntheticAuthRequired();
     const next={...(init||{}),headers:authHeaders(input,init)};
     let response;
@@ -71,14 +89,16 @@
   function gate(status='Connexion Google requise pour accéder aux données Ogust.'){
     addStyles();document.getElementById('acjAuthGateV292')?.remove();
     const el=document.createElement('div');el.id='acjAuthGateV292';el.className='acjAuthGate';
-    el.innerHTML=`<div class="acjAuthCard"><div class="acjAuthLogo">ACJ</div><div class="acjAuthTitle">Devis ACJ</div><div class="acjAuthText">L’accès aux clients et aux devis Ogust est maintenant protégé par ton compte Google autorisé.</div><div id="acjGoogleButtonV292" class="acjAuthButton"></div><div id="acjAuthStatusV292" class="acjAuthStatus">${status}</div></div>`;
+    el.innerHTML=`<div class="acjAuthCard"><div class="acjAuthLogo">ACJ</div><div class="acjAuthTitle">Devis ACJ</div><div class="acjAuthText">L’accès aux clients et aux devis Ogust est protégé par un compte Google autorisé.</div><div id="acjGoogleButtonV292" class="acjAuthButton"></div><div id="acjAuthStatusV292" class="acjAuthStatus">${status}</div></div>`;
     document.body.appendChild(el);document.body.style.overflow='hidden';
   }
   function status(text){const el=document.getElementById('acjAuthStatusV292');if(el)el.textContent=text||''}
   function loginSuccess(response){
     const value=String(response?.credential||'');
     if(!tokenValid(value)){status('La connexion Google n’a pas renvoyé une session valide. Réessaie.');return}
-    store(value);status('Connexion validée. Ouverture de l’application…');setTimeout(()=>location.reload(),180);
+    token=value;store(value);profile=claims(value)||null;
+    status('Connexion validée. Ouverture de l’application…');
+    setTimeout(()=>{document.getElementById('acjAuthGateV292')?.remove();document.body.style.overflow='';addSessionControl();window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{email:String(profile?.email||'')}}));},120);
   }
   function renderGoogleButton(){
     const box=document.getElementById('acjGoogleButtonV292');if(!box||!window.google?.accounts?.id)return false;
@@ -114,13 +134,15 @@
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addSessionControl,{once:true});else addSessionControl();
     window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{email:String(profile?.email||'')}}));
   }
-  function init(){
+  async function init(){
+    const required=await detectAuthMode();
+    if(!required){window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{legacy:true}}));return}
     token=readStored();
     if(token){unlock();return}
     gate();loadGoogle();
   }
 
-  window.acjAuthV292={get authenticated(){return tokenValid(token)},logout(){clear();location.reload()}};
+  window.acjAuthV292={get authenticated(){return !authRequired||tokenValid(token)},logout(){clear();location.reload()}};
   window.__acjAuthV292=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
