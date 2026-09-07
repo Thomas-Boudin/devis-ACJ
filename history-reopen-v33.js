@@ -3,6 +3,7 @@
   if(window.__acjHistoryReopenV33)return;
   const SAVED_KEY='acj_devis_saved_v6';
   const META_KEY='acj_devis_history_meta_v29';
+  const CUSTOMER_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-customer';
 
   function n(v){const x=Number(String(v??'').replace(',','.'));return Number.isFinite(x)?x:0}
   function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
@@ -24,14 +25,44 @@
     });
   }
   function setInput(id,value){const x=document.getElementById(id);if(x)x.value=value||''}
-  function restoreQuote(p){
+  function exposeOgustClient(p,id){
+    const customerId=String(id||'').trim();if(!customerId)return;
+    const previous=window.ogustClientChoiceV21||{};
+    window.ogustClientChoiceV21={mode:previous.mode||'existing',selected:{id_customer:customerId,label:String(p?.client?.nom||''),phone:String(p?.client?.telephone||''),address:String(p?.client?.adresse||'')},company:String(p?.societe||'ACJ Services')};
+    window.acjReopenedClientIdV33=customerId;
+  }
+  function persistClientId(p,id){
+    const list=readSaved(),key=keyFor(p),customerId=String(id||'').trim();if(!customerId)return;
+    let changed=false;
+    for(const item of list){if(keyFor(item)!==key)continue;item.client=item.client||{};if(String(item.client.id_customer||'')!==customerId){item.client.id_customer=customerId;changed=true}}
+    if(changed)try{localStorage.setItem(SAVED_KEY,JSON.stringify(list))}catch{}
+    if(p?.client)p.client.id_customer=customerId;
+  }
+  async function resolveCustomerId(p){
+    const known=String(p?.client?.id_customer||'').trim();if(known){exposeOgustClient(p,known);return known}
+    const query=String(p?.client?.nom||'').trim();if(query.length<2||!['ACJ Services','ACJ Services Lens'].includes(String(p?.societe||'')))return '';
+    try{
+      const r=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'search',query,company:p.societe})});
+      const data=await r.json().catch(()=>null);if(!r.ok||!data?.ok)return '';
+      const candidates=Array.isArray(data.customer_candidates)?data.customer_candidates:[];
+      const exact=candidates.find(c=>norm(c?.label)===norm(query));
+      const chosen=exact||(candidates.length===1?candidates[0]:null);
+      const id=String(chosen?.id_customer||'').trim();if(!id)return '';
+      persistClientId(p,id);exposeOgustClient(p,id);window.dispatchEvent(new CustomEvent('acj:quote-reopened-client',{detail:{id_customer:id,quote:p}}));return id;
+    }catch{return ''}
+  }
+  function reopenNotice(p){
+    const step=document.querySelector('.step[data-step="4"]');if(!step)return;
+    step.querySelector('.histReopenNoticeV33')?.remove();
+    const meta=readMeta()[keyFor(p)]||{};
+    const box=document.createElement('div');box.className='histReopenNoticeV33';
+    box.style.cssText='margin:0 0 13px;padding:10px 11px;border:1px solid #b9d9ec;background:#eef8fd;border-radius:12px;color:#29516b;font-size:11px;line-height:1.45';
+    box.innerHTML=`<strong>Devis rouvert.</strong> Tu peux revenir au chiffrage pour le modifier puis l’enregistrer.${meta.ogust_id?' Ce devis existe déjà dans Ogust : « Créer dans Ogust » ne modifiera pas encore l’original.':''}`;
+    const lead=step.querySelector('.lead');if(lead)lead.insertAdjacentElement('afterend',box);else step.prepend(box);
+  }
+  async function restoreQuote(p){
     if(!p||typeof state==='undefined')return;
-    state.step=1;
-    state.number=String(p?.numero_devis||state.number||'');
-    state.company=String(p?.societe||'ACJ Services');
-    state.client=String(p?.client?.nom||'');
-    state.tel=String(p?.client?.telephone||'');
-    state.address=String(p?.client?.adresse||'');
+    state.step=1;state.number=String(p?.numero_devis||state.number||'');state.company=String(p?.societe||'ACJ Services');state.client=String(p?.client?.nom||'');state.tel=String(p?.client?.telephone||'');state.address=String(p?.client?.adresse||'');
     state.mode=(typeof MODES!=='undefined'&&MODES?.[p?.mode])?p.mode:((p?.lignes||[]).find(l=>typeof MODES!=='undefined'&&MODES?.[l?.activite])?.activite||'jardin');
     state.activePreset=null;state.builderMethod='hourly';state.notes=String(p?.notes||'');
     state.lines=(p?.lignes||[]).map(l=>({
@@ -41,14 +72,13 @@
     })).filter(l=>l.designation&&l.qty>0);
     window.acjReopenedQuoteV33={societe:state.company,numero_devis:state.number,id_customer:String(p?.client?.id_customer||''),snapshot:p};
     window.acjReopenedClientIdV33=String(p?.client?.id_customer||'');
+    if(window.acjReopenedClientIdV33)exposeOgustClient(p,window.acjReopenedClientIdV33);
     setInput('client',state.client);setInput('tel',state.tel);setInput('adresse',state.address);setInput('email',p?.client?.email||'');setInput('notes',state.notes);
     const top=document.getElementById('quoteNumberTop');if(top)top.textContent=state.number;
-    if(typeof window.renderCompanies==='function')window.renderCompanies();
-    if(typeof window.renderModes==='function')window.renderModes();
-    if(typeof window.renderQuoteLines==='function')window.renderQuoteLines();
-    document.getElementById('historyOverlayV29')?.remove();
-    if(typeof window.goStep==='function')window.goStep(4);
-    setTimeout(()=>{window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:p}}));window.scrollTo({top:0,behavior:'smooth'})},0);
+    if(typeof window.renderCompanies==='function')window.renderCompanies();if(typeof window.renderModes==='function')window.renderModes();if(typeof window.renderQuoteLines==='function')window.renderQuoteLines();
+    document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(4);reopenNotice(p);
+    window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:p}}));window.scrollTo({top:0,behavior:'smooth'});
+    await resolveCustomerId(p);
   }
   window.reopenHistoryQuoteV33=function(index){const p=filtered()[Number(index)];if(p)restoreQuote(p)};
 
@@ -57,20 +87,15 @@
     [...list.querySelectorAll('.histCard')].forEach((card,i)=>{
       card.dataset.historyIndex=String(i);card.style.cursor='pointer';
       const actions=card.querySelector('.histActions');
-      if(actions&&!actions.querySelector('.histReopenBtn')){
-        const btn=document.createElement('button');btn.type='button';btn.className='btn histReopenBtn';btn.textContent='Rouvrir';btn.addEventListener('click',ev=>{ev.stopPropagation();window.reopenHistoryQuoteV33(i)});actions.prepend(btn);
-      }
+      if(actions&&!actions.querySelector('.histReopenBtn')){const btn=document.createElement('button');btn.type='button';btn.className='btn histReopenBtn';btn.textContent='Rouvrir';btn.addEventListener('click',ev=>{ev.stopPropagation();window.reopenHistoryQuoteV33(i)});actions.prepend(btn)}
       if(!card.dataset.reopenBound){card.dataset.reopenBound='1';card.addEventListener('click',ev=>{if(ev.target.closest('button,summary,details,input,select,a'))return;window.reopenHistoryQuoteV33(Number(card.dataset.historyIndex))})}
     });
   }
   const observer=new MutationObserver(()=>requestAnimationFrame(enhanceHistory));
   function start(){
-    const body=document.body;if(body)observer.observe(body,{childList:true,subtree:true});enhanceHistory();
+    if(document.body)observer.observe(document.body,{childList:true,subtree:true});enhanceHistory();
     const originalPayload=window.quotePayload;
-    if(typeof originalPayload==='function'&&!window.__acjHistoryReopenPayloadV33){
-      window.quotePayload=function(){const p=originalPayload.apply(this,arguments);const selected=window.ogustClientChoiceV21?.selected;const id=String(selected?.id_customer||window.acjReopenedClientIdV33||'');if(p?.client&&id)p.client.id_customer=id;return p};
-      window.__acjHistoryReopenPayloadV33=true;
-    }
+    if(typeof originalPayload==='function'&&!window.__acjHistoryReopenPayloadV33){window.quotePayload=function(){const p=originalPayload.apply(this,arguments);const selected=window.ogustClientChoiceV21?.selected;const id=String(selected?.id_customer||window.acjReopenedClientIdV33||'');if(p?.client&&id)p.client.id_customer=id;return p};window.__acjHistoryReopenPayloadV33=true}
   }
   window.__acjHistoryReopenV33=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
