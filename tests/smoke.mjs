@@ -6,8 +6,8 @@ function expect(condition,message){if(!condition)throw new Error(message)}
 const sw=read('sw.js');
 const manifest=JSON.parse(read('manifest.json'));
 
-expect(sw.includes("const CACHE = 'devis-acj-v32';"),'Le cache PWA doit être v32');
-for(const asset of ['index.html','manifest.json','ai-v17.js','auth-v29-2.js','ogust-write-v19.js','client-step-v21.js','multi-ogust-v28.js','prestation-sync-v24.js','costs-v28-1.js','ogust-units-v25.js','history-v29.js','history-delete-v29-1.js','ux-v30.js','availability-v31.js','availability-v32.js']){
+expect(sw.includes("const CACHE = 'devis-acj-v33';"),'Le cache PWA doit être v33');
+for(const asset of ['index.html','manifest.json','ai-v17.js','auth-v29-2.js','ogust-write-v19.js','client-step-v21.js','multi-ogust-v28.js','prestation-sync-v24.js','costs-v28-1.js','ogust-units-v25.js','history-v29.js','history-delete-v29-1.js','ux-v30.js','availability-v31.js','availability-v32.js','history-reopen-v33.js']){
   expect(fs.existsSync(asset),`Asset manquant: ${asset}`);
   expect(sw.includes(`./${asset}`),`Asset non préchargé dans sw.js: ${asset}`);
 }
@@ -26,5 +26,11 @@ for(const name of ['JB','Vincent','Yohann'])expect(availability.includes(name),`
 expect(availability.includes("id_customer"),'Le client Ogust doit être envoyé au moteur de disponibilités');
 expect(availability.includes("horaires de base"),'Le module doit expliquer le croisement des horaires de base');
 expect(availability.includes("absences"),'Le module doit distinguer les absences du planning de base');
+const reopen=read('history-reopen-v33.js');
+expect(reopen.includes("Rouvrir"),'Le bouton de réouverture doit être présent');
+expect(reopen.includes('reopenHistoryQuoteV33'),'La réouverture d’un devis doit être exposée');
+expect(reopen.includes('acjReopenedClientIdV33'),'Le client Ogust doit être restauré pour les disponibilités');
+expect(reopen.includes('/api/ogust-customer'),'Les anciens devis doivent pouvoir retrouver leur client Ogust');
+expect(reopen.includes('window.quotePayload=function'),'Les prochains snapshots doivent conserver l’identifiant client Ogust');
 
 console.log('Smoke tests Devis ACJ: OK');
