@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v31';
+const CACHE = 'devis-acj-v32';
 const ASSETS = [
   './',
   './index.html',
@@ -25,7 +25,8 @@ const ASSETS = [
   './ux-v26.js',
   './ux-v27.js',
   './ux-v30.js',
-  './availability-v31.js'
+  './availability-v31.js',
+  './availability-v32.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -72,6 +73,7 @@ async function withV292(response) {
   if (!html.includes('ux-v27.js')) html = html.replace('</body>', '<script src="./ux-v27.js"></script></body>');
   if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js"></script></body>');
   if (!html.includes('availability-v31.js')) html = html.replace('</body>', '<script src="./availability-v31.js"></script></body>');
+  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
