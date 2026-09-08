@@ -11,39 +11,35 @@
 </style>
 </head>
 <body>
-<main id="login" class="auth">
-<section class="authCard"><div class="logo">ACJ</div><h1>Mon espace ACJ</h1><p class="muted">Pilote sécurisé — planning Ogust en lecture seule.</p><div id="googleButton" class="google"></div><p id="loginStatus" class="status"></p></section>
-</main>
+<main id="login" class="auth"><section class="authCard"><div class="logo">ACJ</div><h1>ACJ Intervenantes</h1><p class="muted">Planning ménage connecté à Ogust.</p><div id="googleButton" class="google"></div><p id="loginStatus" class="status"></p></section></main>
 <div id="app" class="app" hidden>
-<header class="top"><div><div class="eyebrow">ACJ SERVICES</div><h1 id="hello">Pilote intervenantes</h1></div><button id="logout" class="logout">Quitter</button></header>
-<section class="picker"><label for="employee">Intervenante affichée</label><select id="employee"></select></section>
+<header class="top"><div><div class="eyebrow">ACJ SERVICES</div><h1>ACJ Intervenantes</h1></div><button id="logout" class="logout">Quitter</button></header>
+<section class="picker"><label for="employee">Choisir une intervenante</label><select id="employee"><option value="" selected disabled>Choisir une intervenante</option></select></section>
 <section class="datebar"><button id="prev">‹</button><button id="dateButton" class="dateMain"><strong id="dateTitle"></strong><span id="dateSub"></span></button><button id="next">›</button><input id="datePicker" type="date"></section>
 <section class="summary"><div><small>Prestations</small><strong id="count">—</strong></div><div><small>Heures prévues</small><strong id="hours">—</strong></div></section>
-<div class="banner">Lecture Ogust en direct · aucun pointage n'est écrit pendant le pilote.</div>
-<section id="list" class="list"></section>
+<div class="banner">Connexion Ogust active · pointage désactivé pendant le test.</div>
+<section id="list" class="list"><div class="empty">Choisissez une intervenante ménage pour afficher sa journée.</div></section>
 </div>
 <script>
 const CLIENT_ID='93181159242-i64qf82vtrij5c4b7l5q18ctjj48l3so.apps.googleusercontent.com';
 const API='https://acj-ogust-proxy.vercel.app/api/intervenante-pilot';
 const TOKEN='acj_intervenantes_google_token';
-const EMP='acj_intervenantes_emp';
-let date=today();
-const $=id=>document.getElementById(id);
+let date=today();const $=id=>document.getElementById(id);
 function today(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function plus(v,n){const [y,m,d]=v.split('-').map(Number),x=new Date(y,m-1,d,12);x.setDate(x.getDate()+n);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
 function fmt(v){const [y,m,d]=v.split('-').map(Number),x=new Date(y,m-1,d,12);return {a:v===today()?"Aujourd'hui":new Intl.DateTimeFormat('fr-FR',{weekday:'long'}).format(x),b:new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'long',year:'numeric'}).format(x)}}
 function mins(a,b){if(!/^\d\d:\d\d$/.test(a||'')||!/^\d\d:\d\d$/.test(b||''))return 0;const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);return Math.max(0,bh*60+bm-ah*60-am)}
 function dur(n){const h=Math.floor(n/60),m=n%60;return h?(m?`${h} h ${String(m).padStart(2,'0')}`:`${h} h`):`${m} min`}
 function token(){return sessionStorage.getItem(TOKEN)||''}
-function setDate(v){date=v;$('datePicker').value=v;const f=fmt(v);$('dateTitle').textContent=f.a.charAt(0).toUpperCase()+f.a.slice(1);$('dateSub').textContent=f.b;if(!$('app').hidden)loadPlanning()}
+function setDate(v){date=v;$('datePicker').value=v;const f=fmt(v);$('dateTitle').textContent=f.a.charAt(0).toUpperCase()+f.a.slice(1);$('dateSub').textContent=f.b;if(!$('app').hidden&&$('employee').value)loadPlanning()}
 async function call(params){const u=new URL(API);Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));const r=await fetch(u,{headers:{Authorization:`Bearer ${token()}`},cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`HTTP_${r.status}`);return j}
-async function loadConfig(){const j=await call({action:'config'});$('employee').innerHTML='';for(const e of j.employees||[]){const o=document.createElement('option');o.value=e.id_employee;o.textContent=e.label;$('employee').appendChild(o)}const prev=localStorage.getItem(EMP);if(prev&&[...$('employee').options].some(o=>o.value===prev))$('employee').value=prev;localStorage.setItem(EMP,$('employee').value||'');const first=(j.manager?.name||'').split(/\s+/)[0];$('hello').textContent=first?`Pilote · ${first}`:'Pilote intervenantes'}
-async function loadPlanning(){const id=$('employee').value;if(!id)return;$('list').innerHTML='<div class="empty">Chargement du planning Ogust…</div>';$('count').textContent='—';$('hours').textContent='—';try{const j=await call({action:'planning',employee_id:id,date});render(j.services||[])}catch(e){$('list').innerHTML=`<div class="empty">Planning indisponible (${e.message}).</div>`}}
+async function loadConfig(){const j=await call({action:'config'});const sel=$('employee');sel.innerHTML='<option value="" selected disabled>Choisir une intervenante</option>';for(const e of j.employees||[]){const o=document.createElement('option');o.value=e.id_employee;o.textContent=e.label;sel.appendChild(o)}$('count').textContent='—';$('hours').textContent='—';$('list').innerHTML='<div class="empty">Choisissez une intervenante ménage pour afficher sa journée.</div>'}
+async function loadPlanning(){const id=$('employee').value;if(!id){$('count').textContent='—';$('hours').textContent='—';$('list').innerHTML='<div class="empty">Choisissez une intervenante ménage pour afficher sa journée.</div>';return}$('list').innerHTML='<div class="empty">Chargement du planning Ogust…</div>';$('count').textContent='—';$('hours').textContent='—';try{const j=await call({action:'planning',employee_id:id,date});render(j.services||[])}catch(e){$('list').innerHTML=`<div class="empty">Planning indisponible (${e.message}).</div>`}}
 function render(rows){$('list').innerHTML='';$('count').textContent=`${rows.length} prestation${rows.length>1?'s':''}`;const total=rows.reduce((s,x)=>s+mins(x.start_time,x.end_time),0);$('hours').textContent=total?dur(total):'0 h';if(!rows.length){$('list').innerHTML='<div class="empty">Aucune prestation prévue pour cette journée.</div>';return}for(const s of rows){const c=s.customer||{},p=s.product||{};const art=document.createElement('article');art.className='card';const phone=String(c.phone||'').replace(/[^+\d]/g,'');const address=String(c.address||'');const note=[s.alert,s.comment,s.task_list].filter(Boolean).join(' — ');art.innerHTML=`<div class="cardHead"><div><div class="type">${esc(p.label||'Prestation')}</div><div class="client">${esc(c.name||'Client')}</div></div><div class="time">${esc([s.start_time,s.end_time].filter(Boolean).join(' – '))}</div></div><div class="address">${esc(address||'Adresse non remontée par Ogust')}</div><div class="meta">${s.distance?`<span class="chip">${esc(s.distance)} km</span>`:''}${s.journey_time?`<span class="chip">Trajet ${esc(s.journey_time)}</span>`:''}</div>${note?`<div class="note">${esc(note)}</div>`:''}<div class="actions">${address?`<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}">Itinéraire</a>`:''}${phone?`<a href="tel:${phone}">Appeler</a>`:''}</div><button class="pointage" disabled>Pointage en préparation</button>`;$('list').appendChild(art)}}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function googleLogin(r){if(!r?.credential)return;$('loginStatus').textContent='Connexion…';sessionStorage.setItem(TOKEN,r.credential);try{await loadConfig();$('login').hidden=true;$('app').hidden=false;setDate(date)}catch(e){sessionStorage.removeItem(TOKEN);$('loginStatus').textContent=`Connexion refusée (${e.message}).`}}
 function initGoogle(){const wait=()=>{if(!window.google?.accounts?.id)return setTimeout(wait,150);google.accounts.id.initialize({client_id:CLIENT_ID,callback:googleLogin,auto_select:false});google.accounts.id.renderButton($('googleButton'),{theme:'outline',size:'large',shape:'pill',text:'continue_with',width:300})};wait()}
-$('employee').addEventListener('change',()=>{localStorage.setItem(EMP,$('employee').value||'');loadPlanning()});$('prev').onclick=()=>setDate(plus(date,-1));$('next').onclick=()=>setDate(plus(date,1));$('dateButton').onclick=()=>typeof $('datePicker').showPicker==='function'?$('datePicker').showPicker():$('datePicker').click();$('datePicker').onchange=()=>$('datePicker').value&&setDate($('datePicker').value);$('logout').onclick=()=>{sessionStorage.removeItem(TOKEN);$('app').hidden=true;$('login').hidden=false;$('loginStatus').textContent='';google.accounts.id.disableAutoSelect()};setDate(date);initGoogle();
+$('employee').addEventListener('change',loadPlanning);$('prev').onclick=()=>setDate(plus(date,-1));$('next').onclick=()=>setDate(plus(date,1));$('dateButton').onclick=()=>typeof $('datePicker').showPicker==='function'?$('datePicker').showPicker():$('datePicker').click();$('datePicker').onchange=()=>$('datePicker').value&&setDate($('datePicker').value);$('logout').onclick=()=>{sessionStorage.removeItem(TOKEN);$('app').hidden=true;$('login').hidden=false;$('loginStatus').textContent='';google.accounts.id.disableAutoSelect()};setDate(date);initGoogle();
 </script>
 </body>
 </html>
