@@ -1,6 +1,10 @@
 (() => {
   const STORAGE_KEY = 'acj_intervenantes_liaison_v1';
+  const PLANNING_KEY = 'acj_intervenantes_liaison_planning_v1';
   const MAX_ITEMS = 50;
+  const MAX_PLANNING_DAYS = 30;
+  let planningContexts = [];
+  let selectedServiceId = '';
 
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, (c) => ({
@@ -18,11 +22,16 @@
     }).format(d);
   }
 
-  function loadItems() {
+  function readJson(key, fallback) {
     try {
-      const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      return Array.isArray(value) ? value : [];
-    } catch { return []; }
+      const value = JSON.parse(localStorage.getItem(key) || '');
+      return value ?? fallback;
+    } catch { return fallback; }
+  }
+
+  function loadItems() {
+    const value = readJson(STORAGE_KEY, []);
+    return Array.isArray(value) ? value : [];
   }
 
   function saveItems(items) {
@@ -34,6 +43,101 @@
     return select?.selectedOptions?.[0]?.textContent?.trim() || 'Intervenante';
   }
 
+  function employeeId() {
+    return String(document.getElementById('employee')?.value || '');
+  }
+
+  function selectedDate() {
+    return String(document.getElementById('datePicker')?.value || '');
+  }
+
+  function planningCacheKey() {
+    return `${employeeId()}|${selectedDate()}`;
+  }
+
+  function serviceContext(service) {
+    const customer = service?.customer || {};
+    const product = service?.product || {};
+    return {
+      serviceId: String(service?.id_service || ''),
+      customerId: String(service?.id_customer || customer?.id_customer || ''),
+      clientName: String(customer?.name || 'Client'),
+      productLabel: String(product?.label || 'Prestation'),
+      startTime: String(service?.start_time || ''),
+      endTime: String(service?.end_time || ''),
+      scheduledDate: selectedDate(),
+      employeeId: employeeId(),
+      employeeLabel: employeeLabel()
+    };
+  }
+
+  function savePlanningCache(contexts) {
+    const key = planningCacheKey();
+    if (!key || key.startsWith('|')) return;
+    const all = readJson(PLANNING_KEY, {});
+    const next = all && typeof all === 'object' && !Array.isArray(all) ? all : {};
+    next[key] = { savedAt: nowIso(), contexts: contexts.slice(0, 30) };
+    const keys = Object.keys(next).sort((a, b) => String(next[b]?.savedAt || '').localeCompare(String(next[a]?.savedAt || '')));
+    keys.slice(MAX_PLANNING_DAYS).forEach((oldKey) => delete next[oldKey]);
+    localStorage.setItem(PLANNING_KEY, JSON.stringify(next));
+  }
+
+  function loadPlanningCache() {
+    const all = readJson(PLANNING_KEY, {});
+    const entry = all?.[planningCacheKey()];
+    return Array.isArray(entry?.contexts) ? entry.contexts : [];
+  }
+
+  function contextLabel(context) {
+    if (!context?.serviceId) return 'Message général';
+    const hours = [context.startTime, context.endTime].filter(Boolean).join(' – ');
+    return [hours, context.clientName].filter(Boolean).join(' · ');
+  }
+
+  function selectedContext(serviceId = selectedServiceId) {
+    const id = String(serviceId || '');
+    return planningContexts.find((item) => item.serviceId === id) || null;
+  }
+
+  function contextFields(context) {
+    if (!context) return {};
+    return {
+      service_id: context.serviceId,
+      customer_id: context.customerId,
+      client_name: context.clientName,
+      product_label: context.productLabel,
+      start_time: context.startTime,
+      end_time: context.endTime,
+      scheduled_date: context.scheduledDate,
+      employee_id: context.employeeId
+    };
+  }
+
+  function defaultContextIndex(rows) {
+    const cards = [...document.querySelectorAll('#list .card')];
+    const heroIndex = cards.findIndex((card) => card.classList.contains('hero'));
+    if (heroIndex >= 0 && heroIndex < rows.length) return heroIndex;
+    return rows.length ? 0 : -1;
+  }
+
+  function capturePlanning(rows) {
+    const source = Array.isArray(rows) ? rows : [];
+    planningContexts = source.map(serviceContext).filter((item) => item.serviceId);
+    const index = defaultContextIndex(source);
+    selectedServiceId = planningContexts[index]?.serviceId || planningContexts[0]?.serviceId || '';
+    if (planningContexts.length) savePlanningCache(planningContexts);
+    refreshContextUi();
+  }
+
+  function ensurePlanningContext() {
+    const currentKey = planningContexts[0] ? `${planningContexts[0].employeeId}|${planningContexts[0].scheduledDate}` : '';
+    if (currentKey !== planningCacheKey()) {
+      planningContexts = loadPlanningCache();
+      selectedServiceId = planningContexts[0]?.serviceId || '';
+    }
+    refreshContextUi();
+  }
+
   function injectCss() {
     if (document.getElementById('acj-liaison-css')) return;
     const style = document.createElement('style');
@@ -43,6 +147,10 @@
       .liaisonIntro{background:#0f172a;color:#fff;border-radius:20px;padding:17px}
       .liaisonIntro h2{margin:0 0 6px;font-size:20px;letter-spacing:-.02em}
       .liaisonIntro p{margin:0;color:#cbd5e1;font-size:12px;line-height:1.5}
+      .liaisonContext{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:17px;padding:12px}
+      .liaisonContext label{display:block;color:#166534;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+      .liaisonContext select{width:100%;min-height:44px;border:1px solid #a7f3d0;background:#fff;border-radius:12px;padding:0 10px;color:#0f172a;font-weight:800;outline:none}
+      .liaisonContextMeta{margin-top:7px;color:#475569;font-size:11px;line-height:1.4}
       .liaisonQuick{display:grid;grid-template-columns:1fr 1fr;gap:9px}
       .liaisonAction{min-height:88px;border:1px solid #dbe3ee;background:#fff;border-radius:17px;padding:12px;text-align:left;color:#0f172a;box-shadow:0 4px 15px rgba(15,23,42,.035)}
       .liaisonAction strong{display:block;font-size:14px;margin-bottom:5px}
@@ -51,7 +159,7 @@
       .liaisonBlock{background:#fff;border:1px solid #dbe3ee;border-radius:19px;padding:14px}
       .liaisonBlock h3{margin:0 0 10px;font-size:15px}
       .liaisonComposer{display:grid;gap:8px}
-      .liaisonComposer select,.liaisonComposer textarea{width:100%;border:1px solid #dbe3ee;background:#f8fafc;border-radius:12px;padding:11px;color:#0f172a;outline:none}
+      .liaisonComposer select,.liaisonComposer textarea,.liaisonSheet select{width:100%;border:1px solid #dbe3ee;background:#f8fafc;border-radius:12px;padding:11px;color:#0f172a;outline:none}
       .liaisonComposer textarea{min-height:82px;resize:vertical}
       .liaisonSend{min-height:46px;border:0;border-radius:12px;background:#0f766e;color:#fff;font-weight:900}
       .liaisonHint{font-size:11px;color:#64748b;line-height:1.4}
@@ -61,12 +169,15 @@
       .liaisonItemType{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#0f766e}
       .liaisonItemTime{font-size:10px;color:#94a3b8}
       .liaisonItemMsg{font-size:12px;line-height:1.4;color:#334155}
+      .liaisonItemContext{margin-top:7px;padding:7px 8px;border-radius:9px;background:#ecfdf5;color:#166534;font-size:10px;font-weight:800}
       .liaisonItemMeta{margin-top:6px;font-size:10px;color:#64748b}
       .liaisonPending{display:inline-flex;margin-top:7px;border-radius:999px;background:#fff7ed;color:#9a3412;padding:4px 7px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}
       .liaisonEmpty{padding:18px;text-align:center;color:#64748b;font-size:12px}
       .liaisonSheetBackdrop{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:80;display:flex;align-items:flex-end;justify-content:center;padding:12px}
       .liaisonSheet{width:min(100%,560px);background:#fff;border-radius:24px;padding:17px;box-shadow:0 24px 80px rgba(15,23,42,.28)}
       .liaisonSheet h3{margin:0 0 5px;font-size:19px}.liaisonSheet p{margin:0 0 13px;color:#64748b;font-size:12px;line-height:1.45}
+      .liaisonSheetContext{margin-bottom:10px}
+      .liaisonSheetContext label{display:block;font-size:10px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
       .liaisonPresets{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:12px}
       .liaisonPreset{min-height:42px;border:1px solid #cbd5e1;background:#fff;border-radius:11px;font-weight:850}
       .liaisonRecipients{display:grid;gap:8px;margin:10px 0;padding:11px;background:#f8fafc;border-radius:13px}
@@ -94,6 +205,12 @@
     renderFeed();
   }
 
+  function itemContextLabel(item) {
+    if (!item?.service_id) return '';
+    const hours = [item.start_time, item.end_time].filter(Boolean).join(' – ');
+    return [hours, item.client_name, item.product_label].filter(Boolean).join(' · ');
+  }
+
   function renderFeed() {
     const feed = document.getElementById('liaisonFeed');
     if (!feed) return;
@@ -106,6 +223,7 @@
       <article class="liaisonItem">
         <div class="liaisonItemTop"><span class="liaisonItemType">${esc(item.type || 'Message')}</span><span class="liaisonItemTime">${esc(fmtTime(item.createdAt))}</span></div>
         <div class="liaisonItemMsg">${esc(item.message || '')}</div>
+        ${item.service_id ? `<div class="liaisonItemContext">${esc(itemContextLabel(item))}</div>` : ''}
         <div class="liaisonItemMeta">${esc(item.author || employeeLabel())} · vers ${esc(recipientLabel(item.recipients || ['agency']))}</div>
         ${item.pending ? '<span class="liaisonPending">À synchroniser</span>' : ''}
       </article>`).join('');
@@ -126,15 +244,42 @@
     return `${who} signale un problème pendant ou avant l’intervention.`;
   }
 
+  function contextOptions(selectedId = selectedServiceId) {
+    const general = '<option value="">Message général · sans prestation</option>';
+    return general + planningContexts.map((context) => `<option value="${esc(context.serviceId)}" ${context.serviceId === selectedId ? 'selected' : ''}>${esc(contextLabel(context))}</option>`).join('');
+  }
+
+  function refreshContextUi() {
+    const select = document.getElementById('liaisonService');
+    const meta = document.getElementById('liaisonContextMeta');
+    if (select) {
+      const previous = selectedServiceId;
+      select.innerHTML = contextOptions(previous);
+      if (previous && planningContexts.some((context) => context.serviceId === previous)) select.value = previous;
+      else if (planningContexts[0]) {
+        selectedServiceId = planningContexts[0].serviceId;
+        select.value = selectedServiceId;
+      }
+    }
+    const context = selectedContext();
+    if (meta) {
+      meta.textContent = context
+        ? `${context.productLabel} · ${context.clientName} · ${context.scheduledDate || 'date du planning'}`
+        : 'Aucune prestation liée. Le message sera enregistré comme communication générale.';
+    }
+  }
+
   function openSheet(type) {
     const def = quickDefs[type];
     if (!def) return;
+    ensurePlanningContext();
     const backdrop = document.createElement('div');
     backdrop.className = 'liaisonSheetBackdrop';
     backdrop.innerHTML = `
       <section class="liaisonSheet" role="dialog" aria-modal="true">
         <h3>${esc(def.title)}</h3>
-        <p>Un seul signalement, avec la trace de qui doit être prévenu. Tant que le serveur de communication n’est pas branché, l’action reste marquée « à synchroniser ».</p>
+        <p>Le signalement sera rattaché à la prestation sélectionnée et gardé hors ligne tant que le serveur de communication n’est pas branché.</p>
+        <div class="liaisonSheetContext"><label>Intervention concernée</label><select id="liaisonQuickService">${contextOptions(selectedServiceId)}</select></div>
         ${type === 'delay' ? '<div class="liaisonPresets"><button class="liaisonPreset" data-min="5">+5 min</button><button class="liaisonPreset" data-min="10">+10 min</button><button class="liaisonPreset" data-min="15">+15 min</button><button class="liaisonPreset" data-min="30">+30 min</button></div>' : ''}
         <textarea id="liaisonQuickText">${esc(messageFor(type))}</textarea>
         <div class="liaisonRecipients">
@@ -156,7 +301,17 @@
     backdrop.querySelector('.liaisonConfirm')?.addEventListener('click', () => {
       const recipients = [...backdrop.querySelectorAll('[data-recipient]:checked')].map((el) => el.dataset.recipient);
       const message = backdrop.querySelector('#liaisonQuickText')?.value?.trim() || messageFor(type);
-      addItem({ type: def.title, message, recipients: recipients.length ? recipients : ['agency'], author: employeeLabel() });
+      const serviceId = String(backdrop.querySelector('#liaisonQuickService')?.value || '');
+      selectedServiceId = serviceId;
+      const context = selectedContext(serviceId);
+      refreshContextUi();
+      addItem({
+        type: def.title,
+        message,
+        recipients: recipients.length ? recipients : ['agency'],
+        author: employeeLabel(),
+        ...contextFields(context)
+      });
       backdrop.remove();
     });
   }
@@ -169,14 +324,19 @@
     panel.hidden = true;
     panel.innerHTML = `
       <div class="liaisonIntro"><h2>Liaison</h2><p>Agence, intervenante et client au même endroit. Les urgences terrain doivent pouvoir être signalées en quelques secondes.</p></div>
+      <div class="liaisonContext"><label>Intervention concernée</label><select id="liaisonService"></select><div id="liaisonContextMeta" class="liaisonContextMeta"></div></div>
       <div class="liaisonQuick">
         ${Object.entries(quickDefs).map(([key, def]) => `<button class="liaisonAction ${def.urgent ? 'urgent' : ''}" data-liaison-action="${key}"><strong>${esc(def.title)}</strong><span>${esc(def.sub)}</span></button>`).join('')}
       </div>
-      <div class="liaisonBlock"><h3>Écrire un message</h3><div class="liaisonComposer"><select id="liaisonAudience"><option value="all">Agence + client</option><option value="agency">Agence uniquement</option><option value="client">Client uniquement</option></select><textarea id="liaisonMessage" placeholder="Votre message…"></textarea><button id="liaisonSend" class="liaisonSend">Enregistrer le message</button><div class="liaisonHint">La messagerie serveur et les notifications seront branchées ensuite. Pour l’instant, les messages sont conservés sur ce téléphone et marqués « à synchroniser ».</div></div></div>
+      <div class="liaisonBlock"><h3>Écrire un message</h3><div class="liaisonComposer"><select id="liaisonAudience"><option value="all">Agence + client</option><option value="agency">Agence uniquement</option><option value="client">Client uniquement</option></select><textarea id="liaisonMessage" placeholder="Votre message…"></textarea><button id="liaisonSend" class="liaisonSend">Enregistrer le message</button><div class="liaisonHint">La messagerie serveur et les notifications seront branchées ensuite. Le message conserve déjà la prestation et le client concernés.</div></div></div>
       <div class="liaisonBlock"><h3>Dernières communications</h3><div id="liaisonFeed" class="liaisonFeed"></div></div>`;
 
     const nav = document.querySelector('.bottomNav');
     nav?.parentElement?.insertBefore(panel, nav);
+    panel.querySelector('#liaisonService')?.addEventListener('change', (event) => {
+      selectedServiceId = String(event.target.value || '');
+      refreshContextUi();
+    });
     panel.querySelectorAll('[data-liaison-action]').forEach((button) => button.addEventListener('click', () => openSheet(button.dataset.liaisonAction)));
     panel.querySelector('#liaisonSend')?.addEventListener('click', () => {
       const textarea = panel.querySelector('#liaisonMessage');
@@ -184,10 +344,12 @@
       const message = textarea?.value?.trim();
       if (!message) { textarea?.focus(); return; }
       const recipients = audience === 'all' ? ['agency', 'client'] : [audience];
-      addItem({ type: 'Message', message, recipients, author: employeeLabel() });
+      const context = selectedContext();
+      addItem({ type: 'Message', message, recipients, author: employeeLabel(), ...contextFields(context) });
       textarea.value = '';
     });
     renderFeed();
+    refreshContextUi();
     return panel;
   }
 
@@ -198,10 +360,24 @@
     const title = document.querySelector('.top h1');
     const navItems = [...document.querySelectorAll('.bottomNav .navItem')];
     const liaison = mode === 'liaison';
+    if (liaison) ensurePlanningContext();
     pageParts.forEach((el) => { el.hidden = liaison; });
     panel.hidden = !liaison;
     if (title) title.textContent = liaison ? 'Liaison' : 'Ma journée';
     navItems.forEach((button, index) => button.classList.toggle('active', liaison ? index === 2 : index === 0));
+  }
+
+  function installRenderHook() {
+    const original = window.render;
+    if (typeof original !== 'function' || original.__acjLiaisonWrapped) return false;
+    const wrapped = function (rows) {
+      const result = original.apply(this, arguments);
+      capturePlanning(Array.isArray(rows) ? rows : []);
+      return result;
+    };
+    wrapped.__acjLiaisonWrapped = true;
+    window.render = wrapped;
+    return true;
   }
 
   function init() {
@@ -212,6 +388,17 @@
     navItems[2].addEventListener('click', () => setMode('liaison'));
     navItems[0].addEventListener('click', () => setMode('today'));
     buildPanel();
+    installRenderHook();
+    document.getElementById('employee')?.addEventListener('change', () => {
+      planningContexts = loadPlanningCache();
+      selectedServiceId = planningContexts[0]?.serviceId || '';
+      refreshContextUi();
+    });
+    document.getElementById('datePicker')?.addEventListener('change', () => {
+      planningContexts = loadPlanningCache();
+      selectedServiceId = planningContexts[0]?.serviceId || '';
+      refreshContextUi();
+    });
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
