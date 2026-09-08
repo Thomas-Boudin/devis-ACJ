@@ -132,5 +132,13 @@ window.meaningfulOgustNote = function (value) {
       script.dataset.acjPointageLocal = '1';
       document.body.appendChild(script);
     }
+
+    const liaisonLoaded = [...document.scripts].some((script) => /(?:^|\/)liaison-local\.js(?:$|\?)/.test(script.src));
+    if (!liaisonLoaded) {
+      const script = document.createElement('script');
+      script.src = './liaison-local.js';
+      script.dataset.acjLiaisonLocal = '1';
+      document.body.appendChild(script);
+    }
   });
 })();
