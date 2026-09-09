@@ -109,7 +109,7 @@
     const loaded = [...document.scripts].some((script) => /(?:^|\/)liaison-sms\.js(?:$|\?)/.test(script.src));
     if (loaded) return;
     const script = document.createElement('script');
-    script.src = './liaison-sms.js?v=20260909-1';
+    script.src = './liaison-sms.js?v=20260909-2';
     script.dataset.acjLiaisonSms = '1';
     document.body.appendChild(script);
   }
