@@ -2,7 +2,7 @@ name: Surveillance planning ACJ Intervenantes
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '2-57/5 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -30,4 +30,4 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${OIDC_TOKEN}" \
             -H "Content-Type: application/json" \
-            https://acj-ogust-proxy.vercel.app/api/intervenante-planning-watch
+            'https://acj-ogust-proxy.vercel.app/api/intervenante-alert?action=planning_watch'
