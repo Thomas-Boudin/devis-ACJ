@@ -114,10 +114,20 @@
     document.body.appendChild(script);
   }
 
+  function loadAlertsModule() {
+    const loaded = [...document.scripts].some((script) => /(?:^|\/)liaison-alerts\.js(?:$|\?)/.test(script.src));
+    if (loaded) return;
+    const script = document.createElement('script');
+    script.src = './liaison-alerts.js?v=20260909-1';
+    script.dataset.acjLiaisonAlerts = '1';
+    document.body.appendChild(script);
+  }
+
   function init() {
     injectCss();
     registration().catch(() => {});
     loadSmsModule();
+    loadAlertsModule();
     if (installCard()) return;
     let attempts = 0;
     const timer = setInterval(() => {
