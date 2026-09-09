@@ -1,7 +1,7 @@
 (() => {
   const CARD_ID = 'acjNotificationCard';
   const SW_PATH = './notification-sw.js?v=20260909-2';
-  const PUSH_API = 'https://acj-ogust-proxy.vercel.app/api/intervenante-push';
+  const PUSH_API = 'https://acj-ogust-proxy.vercel.app/api/intervenante-alert';
   const TOKEN_KEY = 'acj_intervenantes_google_token';
   const PUSH_EMPLOYEE_KEY = 'acj_intervenantes_push_employee';
   const PUSH_ID_KEY = 'acj_intervenantes_push_id';
@@ -81,12 +81,12 @@
       return false;
     }
     const reg = await registration();
-    const configResponse = await fetch(`${PUSH_API}?action=config`, { cache: 'no-store' });
+    const configResponse = await fetch(`${PUSH_API}?action=push_config`, { cache: 'no-store' });
     const config = await configResponse.json().catch(() => ({}));
     if (!configResponse.ok || !config?.public_key) throw new Error('PUSH_CONFIG');
     let subscription = await reg.pushManager.getSubscription();
     if (!subscription) subscription = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(config.public_key) });
-    const response = await fetch(`${PUSH_API}?action=subscribe`, {
+    const response = await fetch(`${PUSH_API}?action=push_subscribe`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ employee_id: id, subscription: subscription.toJSON() }),
@@ -184,8 +184,13 @@
       const [text, type] = permissionLabel();
       setStatus(text, type);
       if (Notification.permission !== 'granted' || !localStorage.getItem(PUSH_ID_KEY)) return;
-      try { await remoteSubscribe({ silent: true }); const [t, ty] = permissionLabel(); setStatus(t, ty); }
-      catch { setStatus('Le téléphone n’a pas pu être relié à cette intervenante.', 'err'); }
+      try {
+        await remoteSubscribe({ silent: true });
+        const [t, ty] = permissionLabel();
+        setStatus(t, ty);
+      } catch {
+        setStatus('Le téléphone n’a pas pu être relié à cette intervenante.', 'err');
+      }
     });
   }
 
