@@ -105,9 +105,19 @@
     return true;
   }
 
+  function loadSmsModule() {
+    const loaded = [...document.scripts].some((script) => /(?:^|\/)liaison-sms\.js(?:$|\?)/.test(script.src));
+    if (loaded) return;
+    const script = document.createElement('script');
+    script.src = './liaison-sms.js?v=20260909-1';
+    script.dataset.acjLiaisonSms = '1';
+    document.body.appendChild(script);
+  }
+
   function init() {
     injectCss();
     registration().catch(() => {});
+    loadSmsModule();
     if (installCard()) return;
     let attempts = 0;
     const timer = setInterval(() => {
