@@ -39,7 +39,6 @@
 
     const employeeSelect = document.getElementById('employee');
     const employeeName = employeeSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Intervenante';
-    const scheduledDate = document.getElementById('datePicker')?.value || '';
 
     try {
       const response = await fetch(ALERT_API, {
@@ -53,8 +52,7 @@
           message,
           service_id: serviceId,
           client_name: clientName,
-          employee_name: employeeName,
-          scheduled_date: scheduledDate
+          employee_name: employeeName
         }),
         cache: 'no-store'
       });
