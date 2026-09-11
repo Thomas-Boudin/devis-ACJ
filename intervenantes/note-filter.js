@@ -157,6 +157,14 @@ window.meaningfulOgustNote = function (value) {
       document.body.appendChild(script);
     }
 
+    const planningDndLoaded = [...document.scripts].some((script) => /(?:^|\/)planning-dnd\.js(?:$|\?)/.test(script.src));
+    if (!planningDndLoaded) {
+      const script = document.createElement('script');
+      script.src = './planning-dnd.js?v=20260911-1';
+      script.dataset.acjPlanningDnd = '1';
+      document.body.appendChild(script);
+    }
+
     const notificationsLoaded = [...document.scripts].some((script) => /(?:^|\/)notifications-local\.js(?:$|\?)/.test(script.src));
     if (!notificationsLoaded) {
       const script = document.createElement('script');
