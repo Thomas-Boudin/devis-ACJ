@@ -28,6 +28,7 @@ window.meaningfulOgustNote = function (value) {
   function clearSession() {
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem('acj_intervenantes_role');
   }
 
   const remembered = localStorage.getItem(TOKEN_KEY) || '';
@@ -47,6 +48,7 @@ window.meaningfulOgustNote = function (value) {
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data?.token) return '';
         saveSession(data.token);
+        if (data?.role) localStorage.setItem('acj_intervenantes_role', data.role);
         return data.token;
       } catch {
         return '';
@@ -123,6 +125,14 @@ window.meaningfulOgustNote = function (value) {
             : 'Ogust est momentanément indisponible. Votre connexion reste mémorisée.';
         }
       }, 0);
+    }
+
+    const roleGuardLoaded = [...document.scripts].some((script) => /(?:^|\/)role-guard\.js(?:$|\?)/.test(script.src));
+    if (!roleGuardLoaded) {
+      const script = document.createElement('script');
+      script.src = './role-guard.js?v=20260911-1';
+      script.dataset.acjRoleGuard = '1';
+      document.body.appendChild(script);
     }
 
     const alreadyLoaded = [...document.scripts].some((script) => /(?:^|\/)pointage-local\.js(?:$|\?)/.test(script.src));
