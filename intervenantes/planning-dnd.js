@@ -6,6 +6,7 @@
   const SNAP_MIN = 15;
   let drag = null;
   let toastTimer = null;
+  let suppressClickUntil = 0;
 
   function token() { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; }
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -130,6 +131,7 @@
       drag.service = service;
       drag.duration = end - start;
       drag.block.classList.add('acjDndArmed');
+      suppressClickUntil = Date.now() + 2000;
       const ghost = document.createElement('div');
       ghost.className = 'acjDndGhost';
       ghost.innerHTML = `${service.start_time}–${service.end_time}<small>Déplacez puis relâchez · durée ${drag.duration} min</small>`;
@@ -171,6 +173,7 @@
       comment: String(service.comment || ''),
       confirm: true
     };
+    suppressClickUntil = Date.now() + 2000;
     clearDrag();
     toast('Modification dans Ogust…');
     try {
@@ -211,6 +214,7 @@
     if (!drag || event.pointerId !== drag.pointerId) return;
     if (!drag.active) return clearDrag();
     event.preventDefault();
+    suppressClickUntil = Date.now() + 2000;
     const day = drag.targetDay || targetDayAt(event.clientX, event.clientY);
     const proposed = drag.proposed || (day ? proposedStart(day, event.clientY, drag.duration) : null);
     commitDrop(day, proposed);
@@ -218,6 +222,17 @@
   function onPointerCancel(event) {
     if (!drag || event.pointerId !== drag.pointerId) return;
     clearDrag();
+  }
+  function onClickCapture(event) {
+    if (Date.now() >= suppressClickUntil) return;
+    if (!sourceBlock(event.target)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
+  function onContextMenu(event) {
+    const block = sourceBlock(event.target);
+    if (!block || !currentVisual()?.contains(block)) return;
+    event.preventDefault();
   }
   function addHelp() {
     const visual = currentVisual();
@@ -242,6 +257,8 @@
     document.addEventListener('pointermove', onPointerMove, { passive: false });
     document.addEventListener('pointerup', onPointerUp, { passive: false });
     document.addEventListener('pointercancel', onPointerCancel, { passive: true });
+    document.addEventListener('click', onClickCapture, true);
+    document.addEventListener('contextmenu', onContextMenu, true);
     observeVisual();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
