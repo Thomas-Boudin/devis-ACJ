@@ -5,6 +5,7 @@
   let role = '';
   let observer = null;
   let checking = false;
+  let confirmed = false;
 
   function token() {
     return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || '';
@@ -70,7 +71,7 @@
     }
   }
   async function checkRole() {
-    if (checking) return;
+    if (checking || confirmed) return;
     const currentToken = token();
     if (!currentToken) return;
     checking = true;
@@ -82,6 +83,7 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || `HTTP_${response.status}`);
       apply(data?.role);
+      confirmed = true;
     } catch {
       apply('intervenante');
     } finally {
@@ -95,8 +97,8 @@
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;
-      if (role === 'admin' || token()) checkRole();
-      if (attempts >= 40 || role === 'admin') clearInterval(timer);
+      checkRole();
+      if (attempts >= 40 || confirmed) clearInterval(timer);
     }, 500);
 
     document.addEventListener('click', (event) => {
