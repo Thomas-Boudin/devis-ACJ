@@ -144,7 +144,7 @@ window.meaningfulOgustNote = function (value) {
     const planningLoaded = [...document.scripts].some((script) => /(?:^|\/)planning-month\.js(?:$|\?)/.test(script.src));
     if (!planningLoaded) {
       const script = document.createElement('script');
-      script.src = './planning-month.js?v=20260911-1';
+      script.src = './planning-month.js?v=20260911-2';
       script.dataset.acjPlanningMonth = '1';
       document.body.appendChild(script);
     }
