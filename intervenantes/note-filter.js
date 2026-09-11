@@ -141,6 +141,14 @@ window.meaningfulOgustNote = function (value) {
       document.body.appendChild(script);
     }
 
+    const planningLoaded = [...document.scripts].some((script) => /(?:^|\/)planning-month\.js(?:$|\?)/.test(script.src));
+    if (!planningLoaded) {
+      const script = document.createElement('script');
+      script.src = './planning-month.js?v=20260911-1';
+      script.dataset.acjPlanningMonth = '1';
+      document.body.appendChild(script);
+    }
+
     const notificationsLoaded = [...document.scripts].some((script) => /(?:^|\/)notifications-local\.js(?:$|\?)/.test(script.src));
     if (!notificationsLoaded) {
       const script = document.createElement('script');
