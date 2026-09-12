@@ -183,6 +183,14 @@ window.meaningfulOgustNote = function (value) {
       document.body.appendChild(script);
     }
 
+    const planningReplacementLoaded = [...document.scripts].some((script) => /(?:^|\/)planning-replacement\.js(?:$|\?)/.test(script.src));
+    if (!planningReplacementLoaded) {
+      const script = document.createElement('script');
+      script.src = './planning-replacement.js?v=20260912-1';
+      script.dataset.acjPlanningReplacement = '1';
+      document.body.appendChild(script);
+    }
+
     const notificationsLoaded = [...document.scripts].some((script) => /(?:^|\/)notifications-local\.js(?:$|\?)/.test(script.src));
     if (!notificationsLoaded) {
       const script = document.createElement('script');
