@@ -37,9 +37,9 @@
     }
     const panel = document.getElementById('acjPlanningMonthPanel');
     if (panel) panel.hidden = true;
-    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen').forEach((node) => {
+    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen,.acjReplacePanel').forEach((node) => {
       node.hidden = true;
-      node.disabled = true;
+      if ('disabled' in node) node.disabled = true;
     });
     lockOwnEmployee();
   }
