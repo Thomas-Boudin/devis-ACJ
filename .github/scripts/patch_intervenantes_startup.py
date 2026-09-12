@@ -1,0 +1,87 @@
+from pathlib import Path
+import re
+
+index = Path('intervenantes/index.html')
+text = index.read_text()
+text = text.replace('./note-filter.js?v=20260912-1', './note-filter.js?v=20260912-3')
+pattern = r"async function loadConfig\(\)\{.*?\}\nasync function loadPlanning"
+replacement = """async function loadConfig(){const j=await call({action:'config'});const sel=$('employee');sel.innerHTML='<option value=\"\" selected disabled>Choisir une intervenante</option>';for(const e of j.employees||[]){const o=document.createElement('option');o.value=e.id_employee;o.textContent=e.label;sel.appendChild(o)}$('count').textContent='—';$('hours').textContent='—';$('dayMeta').textContent='Choisissez une intervenante';$('list').innerHTML='<div class=\"empty\">Choisissez une intervenante ménage pour afficher sa journée.</div>';const login=$('login'),app=$('app'),status=$('loginStatus');if(login)login.hidden=true;if(app)app.hidden=false;if(status)status.textContent=''}
+async function loadPlanning"""
+text, n = re.subn(pattern, replacement, text, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit('loadConfig patch target not found')
+index.write_text(text)
+
+note = Path('intervenantes/note-filter.js')
+text = note.read_text()
+start = text.index('    const persistentSession = localStorage.getItem(TOKEN_KEY)')
+end = text.index('    const roleGuardLoaded', start)
+replacement = r'''    const persistentSession = localStorage.getItem(TOKEN_KEY) || '';
+    if (persistentSession.startsWith(SESSION_PREFIX) && typeof window.loadConfig === 'function') {
+      const status = document.getElementById('loginStatus');
+      if (status) status.textContent = 'Ouverture de votre espace…';
+
+      const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), ms))
+      ]);
+
+      const openPersistentSession = async (attempt = 0) => {
+        try {
+          await withTimeout(window.loadConfig(), 12000);
+          const savedEmployee = localStorage.getItem(EMPLOYEE_KEY) || '';
+          if (savedEmployee && employee && [...employee.options].some((option) => option.value === savedEmployee)) {
+            employee.value = savedEmployee;
+          }
+
+          const login = document.getElementById('login');
+          const app = document.getElementById('app');
+          if (login) login.hidden = true;
+          if (app) app.hidden = false;
+          if (status) {
+            status.textContent = '';
+            status.onclick = null;
+            status.style.cursor = '';
+          }
+
+          const datePicker = document.getElementById('datePicker');
+          const currentDate = datePicker?.value || new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit'
+          }).format(new Date());
+
+          if (typeof window.setDate === 'function') window.setDate(currentDate);
+          else if (employee?.value && typeof window.loadPlanning === 'function') window.loadPlanning();
+        } catch (error) {
+          const code = String(error?.message || '');
+          if (['AUTH_REQUIRED', 'AUTH_INVALID', 'AUTH_FORBIDDEN'].includes(code)) {
+            clearSession();
+            if (status) status.textContent = 'Votre session a expiré. Reconnectez-vous avec Google.';
+            return;
+          }
+          if (attempt < 1) {
+            if (status) status.textContent = 'Connexion à Ogust… nouvelle tentative.';
+            setTimeout(() => openPersistentSession(attempt + 1), 800);
+            return;
+          }
+          if (status) {
+            status.textContent = 'Chargement trop long. Touchez ici pour réessayer.';
+            status.style.cursor = 'pointer';
+            status.onclick = () => {
+              status.onclick = null;
+              status.style.cursor = '';
+              status.textContent = 'Ouverture de votre espace…';
+              openPersistentSession(0);
+            };
+          }
+        }
+      };
+
+      setTimeout(() => openPersistentSession(0), 0);
+    }
+
+'''
+text = text[:start] + replacement + text[end:]
+note.write_text(text)
+
+Path('.github/workflows/patch-intervenantes-startup.yml').unlink(missing_ok=True)
+Path('.github/scripts/patch_intervenantes_startup.py').unlink(missing_ok=True)
