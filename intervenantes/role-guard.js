@@ -37,7 +37,7 @@
     }
     const panel = document.getElementById('acjPlanningMonthPanel');
     if (panel) panel.hidden = true;
-    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService').forEach((node) => {
+    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen').forEach((node) => {
       node.hidden = true;
       node.disabled = true;
     });
