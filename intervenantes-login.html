@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Connexion ACJ Intervenantes</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f172a;background:#f4f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 10% 0%,rgba(15,118,110,.14),transparent 36%),linear-gradient(180deg,#f8fafc,#eef3f8)}.card{width:min(100%,430px);background:#fff;border:1px solid #dbe3ee;border-radius:28px;padding:28px;box-shadow:0 14px 40px rgba(15,23,42,.08)}.logo{width:58px;height:58px;border-radius:18px;background:#0f172a;color:#fff;display:grid;place-items:center;font-weight:900;margin-bottom:24px}h1{font-size:28px;margin:0 0 8px}.muted{color:#64748b;line-height:1.5}.google{margin-top:24px;min-height:48px}.status{margin-top:14px;min-height:22px;color:#b91c1c;font-size:14px;line-height:1.4}.back{display:inline-block;margin-top:18px;color:#475569;font-size:13px}
+</style>
+<script>
+const ACJ_API='https://acj-ogust-proxy.vercel.app/api/intervenante-pilot';
+const ACJ_TOKEN_KEY='acj_intervenantes_google_token';
+window.handleCredentialResponse=async function(response){
+  const status=document.getElementById('status');
+  if(!response?.credential){ if(status) status.textContent='Connexion Google non reçue.'; return; }
+  if(status) status.textContent='Connexion à ACJ Intervenantes…';
+  try{
+    const r=await fetch(`${ACJ_API}?action=session`,{method:'POST',headers:{Authorization:`Bearer ${response.credential}`,'Content-Type':'application/json'},cache:'no-store'});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok||!data?.token) throw new Error(data?.error||`HTTP_${r.status}`);
+    localStorage.setItem(ACJ_TOKEN_KEY,data.token);
+    sessionStorage.setItem(ACJ_TOKEN_KEY,data.token);
+    if(data?.role) localStorage.setItem('acj_intervenantes_role',data.role);
+    location.replace('./intervenantes/?v=20260912-5');
+  }catch(error){
+    if(status) status.textContent=`Connexion refusée (${String(error?.message||'erreur')}).`;
+  }
+};
+window.addEventListener('load',()=>{
+  setTimeout(()=>{
+    const box=document.querySelector('.g_id_signin');
+    const status=document.getElementById('status');
+    if(box && box.childElementCount===0 && status && !status.textContent){
+      status.textContent='Le bouton Google ne se charge pas. Ouvrez cette page dans Chrome puis réessayez.';
+    }
+  },5000);
+});
+</script>
+<script src="https://accounts.google.com/gsi/client?hl=fr" async defer></script>
+</head>
+<body>
+<section class="card">
+  <div class="logo">ACJ</div>
+  <h1>ACJ Intervenantes</h1>
+  <p class="muted">Connexion sécurisée. Cette page s’ouvre hors de l’application installée pour éviter le blocage Google.</p>
+  <div id="g_id_onload" data-client_id="93181159242-i64qf82vtrij5c4b7l5q18ctjj48l3so.apps.googleusercontent.com" data-callback="handleCredentialResponse" data-auto_prompt="false"></div>
+  <div class="google g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="continue_with" data-shape="pill" data-logo_alignment="left" data-width="300" data-locale="fr"></div>
+  <div id="status" class="status"></div>
+  <a class="back" href="./intervenantes/?v=20260912-5">Retour à ACJ Intervenantes</a>
+</section>
+</body>
+</html>
