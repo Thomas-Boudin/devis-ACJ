@@ -1,3 +1,36 @@
+(() => {
+  const head = document.head || document.getElementsByTagName('head')[0];
+  if (head && !document.querySelector('link[rel="manifest"]')) {
+    const manifest = document.createElement('link');
+    manifest.rel = 'manifest';
+    manifest.href = './manifest.webmanifest?v=20260912-1';
+    head.appendChild(manifest);
+  }
+  if (head && !document.querySelector('link[rel="apple-touch-icon"]')) {
+    const icon = document.createElement('link');
+    icon.rel = 'apple-touch-icon';
+    icon.href = './acj-intervenantes-icon-192.png?v=20260912-1';
+    head.appendChild(icon);
+  }
+  if (head && !document.querySelector('meta[name="mobile-web-app-capable"]')) {
+    const capable = document.createElement('meta');
+    capable.name = 'mobile-web-app-capable';
+    capable.content = 'yes';
+    head.appendChild(capable);
+  }
+  if (head && !document.querySelector('meta[name="apple-mobile-web-app-capable"]')) {
+    const appleCapable = document.createElement('meta');
+    appleCapable.name = 'apple-mobile-web-app-capable';
+    appleCapable.content = 'yes';
+    head.appendChild(appleCapable);
+  }
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./notification-sw.js?v=20260912-pwa1', { scope: './' }).catch(() => {});
+    }, { once: true });
+  }
+})();
+
 window.meaningfulOgustNote = function (value) {
   const text = String(value ?? '').trim();
   if (!text) return '';
