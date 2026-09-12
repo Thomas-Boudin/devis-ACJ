@@ -11,7 +11,7 @@
     return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || '';
   }
   function isAdmin() {
-    return window.ACJ_INTERVENANTES_ROLE === 'admin' || localStorage.getItem('acj_intervenantes_role') === 'admin';
+    return window.ACJ_INTERVENANTES_ROLE === 'admin';
   }
   async function api(action, { method = 'GET', query = {}, body = null } = {}) {
     const url = new URL(API);
