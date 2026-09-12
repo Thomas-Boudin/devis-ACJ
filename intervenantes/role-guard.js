@@ -13,6 +13,14 @@
   function navItems() {
     return [...document.querySelectorAll('.bottomNav .navItem')];
   }
+  function openAuthenticatedApp() {
+    const login = document.getElementById('login');
+    const app = document.getElementById('app');
+    const status = document.getElementById('loginStatus');
+    if (login) login.hidden = true;
+    if (app) app.hidden = false;
+    if (status) status.textContent = '';
+  }
   function lockOwnEmployee() {
     const select = document.getElementById('employee');
     if (!select) return;
@@ -84,6 +92,7 @@
       if (!response.ok) throw new Error(data?.error || `HTTP_${response.status}`);
       apply(data?.role);
       confirmed = true;
+      openAuthenticatedApp();
     } catch {
       apply('intervenante');
     } finally {
