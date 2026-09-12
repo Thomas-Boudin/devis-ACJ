@@ -131,17 +131,28 @@ window.meaningfulOgustNote = function (value) {
       const status = document.getElementById('loginStatus');
       if (status) status.textContent = 'Ouverture de votre espace…';
 
-      setTimeout(async () => {
+      const withTimeout = (promise, ms) => Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('STARTUP_TIMEOUT')), ms))
+      ]);
+
+      const openPersistentSession = async (attempt = 0) => {
         try {
-          await window.loadConfig();
+          await withTimeout(window.loadConfig(), 12000);
           const savedEmployee = localStorage.getItem(EMPLOYEE_KEY) || '';
           if (savedEmployee && employee && [...employee.options].some((option) => option.value === savedEmployee)) {
             employee.value = savedEmployee;
           }
 
-          document.getElementById('login').hidden = true;
-          document.getElementById('app').hidden = false;
-          if (status) status.textContent = '';
+          const login = document.getElementById('login');
+          const app = document.getElementById('app');
+          if (login) login.hidden = true;
+          if (app) app.hidden = false;
+          if (status) {
+            status.textContent = '';
+            status.onclick = null;
+            status.style.cursor = '';
+          }
 
           const datePicker = document.getElementById('datePicker');
           const currentDate = datePicker?.value || new Intl.DateTimeFormat('en-CA', {
@@ -152,12 +163,30 @@ window.meaningfulOgustNote = function (value) {
           else if (employee?.value && typeof window.loadPlanning === 'function') window.loadPlanning();
         } catch (error) {
           const code = String(error?.message || '');
-          if (['AUTH_REQUIRED', 'AUTH_INVALID', 'AUTH_FORBIDDEN'].includes(code)) clearSession();
-          if (status) status.textContent = code.startsWith('AUTH_')
-            ? 'Votre session a expiré. Reconnectez-vous avec Google.'
-            : 'Ogust est momentanément indisponible. Votre connexion reste mémorisée.';
+          if (['AUTH_REQUIRED', 'AUTH_INVALID', 'AUTH_FORBIDDEN'].includes(code)) {
+            clearSession();
+            if (status) status.textContent = 'Votre session a expiré. Reconnectez-vous avec Google.';
+            return;
+          }
+          if (attempt < 1) {
+            if (status) status.textContent = 'Connexion à Ogust… nouvelle tentative.';
+            setTimeout(() => openPersistentSession(attempt + 1), 800);
+            return;
+          }
+          if (status) {
+            status.textContent = 'Chargement trop long. Touchez ici pour réessayer.';
+            status.style.cursor = 'pointer';
+            status.onclick = () => {
+              status.onclick = null;
+              status.style.cursor = '';
+              status.textContent = 'Ouverture de votre espace…';
+              openPersistentSession(0);
+            };
+          }
         }
-      }, 0);
+      };
+
+      setTimeout(() => openPersistentSession(0), 0);
     }
 
     const roleGuardLoaded = [...document.scripts].some((script) => /(?:^|\/)role-guard\.js(?:$|\?)/.test(script.src));
