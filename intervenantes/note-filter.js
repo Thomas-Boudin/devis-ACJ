@@ -87,6 +87,14 @@ window.meaningfulOgustNote = function (value) {
     const employee = document.getElementById('employee');
     const logout = document.getElementById('logout');
 
+    const googleLoaderLoaded = [...document.scripts].some((script) => /(?:^|\/)google-loader\.js(?:$|\?)/.test(script.src));
+    if (!googleLoaderLoaded) {
+      const script = document.createElement('script');
+      script.src = './google-loader.js?v=20260913-1';
+      script.dataset.acjGoogleLoader = '1';
+      document.body.appendChild(script);
+    }
+
     employee?.addEventListener('change', () => {
       if (employee.value) localStorage.setItem(EMPLOYEE_KEY, employee.value);
     });
