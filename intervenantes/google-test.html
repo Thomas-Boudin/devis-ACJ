@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Test Google ACJ Intervenantes</title>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f4f7fb;color:#0f172a;margin:0;padding:24px}.card{max-width:420px;margin:40px auto;background:#fff;border:1px solid #dbe3ee;border-radius:22px;padding:24px}.row{margin-top:18px}.test{width:100%;min-height:48px;border:0;border-radius:14px;background:#0f172a;color:#fff;font-weight:800;font-size:16px}#googleButton{min-height:48px;margin-top:16px}#status{margin-top:16px;color:#b91c1c;line-height:1.4;min-height:44px}.ok{color:#166534!important}
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+<div class="card">
+<h1>Test connexion ACJ</h1>
+<p>Cette page ne charge ni Ogust, ni le planning, ni les autres scripts ACJ.</p>
+<div class="row"><button id="touchTest" class="test">1. Tester le toucher</button></div>
+<div id="googleButton"></div>
+<div id="status">Chargement de Google…</div>
+</div>
+<script>
+const CLIENT_ID='93181159242-i64qf82vtrij5c4b7l5q18ctjj48l3so.apps.googleusercontent.com';
+const status=document.getElementById('status');
+document.getElementById('touchTest').onclick=()=>{status.textContent='Le toucher fonctionne sur cette page.';status.className='ok'};
+function credential(response){if(response?.credential){status.textContent='Connexion Google OK : le bouton fonctionne.';status.className='ok'}}
+function boot(){
+ if(!window.google?.accounts?.id){setTimeout(boot,150);return}
+ try{
+  google.accounts.id.initialize({client_id:CLIENT_ID,callback:credential,auto_select:false,use_fedcm_for_button:true});
+  google.accounts.id.renderButton(document.getElementById('googleButton'),{theme:'outline',size:'large',shape:'pill',text:'continue_with',width:300,click_listener:()=>{status.textContent='Clic Google détecté…';status.className=''}});
+  status.textContent='Google chargé. Appuie sur le bouton Google.';
+ }catch(e){status.textContent='Erreur Google : '+String(e?.message||e)}
+}
+boot();
+setTimeout(()=>{if(!window.google?.accounts?.id)status.textContent='Google ne s’est pas chargé sur ce navigateur.'},8000);
+</script>
+</body>
+</html>
