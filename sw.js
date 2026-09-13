@@ -1,4 +1,7 @@
-const CACHE = 'devis-acj-v34';
+const CACHE = 'devis-acj-v35';
+const CACHE_PREFIX = 'devis-acj-';
+const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];
+
 const ASSETS = [
   './',
   './index.html',
@@ -31,6 +34,20 @@ const ASSETS = [
   './quotation-update-v34.js'
 ];
 
+function relativePath(urlValue) {
+  const url = new URL(urlValue);
+  const scopePath = new URL(self.registration.scope).pathname;
+  if (!url.pathname.startsWith(scopePath)) return '';
+  return url.pathname.slice(scopePath.length);
+}
+
+function isIsolatedSubapp(urlValue) {
+  const url = new URL(urlValue);
+  if (url.origin !== self.location.origin) return false;
+  const relative = relativePath(urlValue);
+  return ISOLATED_SUBAPPS.some((prefix) => relative === prefix.slice(0, -1) || relative.startsWith(prefix));
+}
+
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
@@ -39,12 +56,12 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)));
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE)
+        .map((key) => caches.delete(key))
+    );
     await self.clients.claim();
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    await Promise.all(clients.map(async (client) => {
-      try { await client.navigate(client.url); } catch (e) {}
-    }));
   })());
 });
 
@@ -85,6 +102,14 @@ async function withV292(response) {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  const requestUrl = new URL(event.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
+
+  // ACJ Intervenantes et ACJ Terrain ont leur propre logique. Le Service Worker
+  // de Devis ACJ ne doit ni les mettre en cache, ni modifier leur HTML.
+  if (isIsolatedSubapp(event.request.url)) return;
+
   if (event.request.mode === 'navigate') {
     event.respondWith((async () => {
       try {
@@ -99,6 +124,7 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
+
   event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
     if (response && response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
     return response;
