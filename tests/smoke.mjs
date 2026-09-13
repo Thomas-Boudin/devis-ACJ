@@ -42,6 +42,7 @@ new Function(intervenantesLoader);
 new Function(intervenantesBootstrap);
 expect(intervenantesLoader.includes('accounts.google.com/gsi/client'),'Intervenantes doit pouvoir recharger Google de façon autonome');
 expect(intervenantesLoader.includes('acj_retry'),'Intervenantes doit avoir une deuxième tentative Google mobile');
+expect(intervenantesLoader.includes("document.readyState === 'loading'"),'Le secours Google doit démarrer même s’il est injecté après DOMContentLoaded');
 expect(intervenantesBootstrap.includes("./google-loader.js?v=20260913-1"),'Le bootstrap Intervenantes doit charger son secours Google local');
 
 console.log('Smoke tests Devis ACJ: OK');
