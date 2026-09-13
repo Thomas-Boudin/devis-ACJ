@@ -130,7 +130,7 @@ window.meaningfulOgustNote = function (value) {
     const roleGuardLoaded = [...document.scripts].some((script) => /(?:^|\/)role-guard\.js(?:$|\?)/.test(script.src));
     if (!roleGuardLoaded) {
       const script = document.createElement('script');
-      script.src = './role-guard.js?v=20260911-1';
+      script.src = './role-guard.js?v=20260913-1';
       script.dataset.acjRoleGuard = '1';
       document.body.appendChild(script);
     }
