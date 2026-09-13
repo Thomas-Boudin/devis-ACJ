@@ -36,4 +36,12 @@ expect(reopen.includes('acjReopenedClientIdV33'),'Le client Ogust doit être res
 expect(reopen.includes('/api/ogust-customer'),'Les anciens devis doivent pouvoir retrouver leur client Ogust');
 expect(reopen.includes('window.quotePayload=function'),'Les prochains snapshots doivent conserver l’identifiant client Ogust');
 
+const intervenantesLoader=read('intervenantes/google-loader.js');
+const intervenantesBootstrap=read('intervenantes/note-filter.js');
+new Function(intervenantesLoader);
+new Function(intervenantesBootstrap);
+expect(intervenantesLoader.includes('accounts.google.com/gsi/client'),'Intervenantes doit pouvoir recharger Google de façon autonome');
+expect(intervenantesLoader.includes('acj_retry'),'Intervenantes doit avoir une deuxième tentative Google mobile');
+expect(intervenantesBootstrap.includes("./google-loader.js?v=20260913-1"),'Le bootstrap Intervenantes doit charger son secours Google local');
+
 console.log('Smoke tests Devis ACJ: OK');
