@@ -30,12 +30,9 @@
     document.head.appendChild(script);
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  function boot() {
     if (ready()) return;
 
-    // Le script Google statique de la page peut rester bloqué sur certains chargements
-    // mobiles. Une seconde injection reproduit le mécanisme de secours qui existait
-    // auparavant via Devis ACJ, mais cette fois Intervenantes reste autonome.
     injectGoogleScript();
 
     setTimeout(() => {
@@ -49,5 +46,11 @@
         status('Google ne répond pas. Rechargez cette page pour réessayer.');
       }
     }, MAX_WAIT_MS + 5000);
-  });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else {
+    boot();
+  }
 })();
