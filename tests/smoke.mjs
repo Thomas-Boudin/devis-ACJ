@@ -43,6 +43,8 @@ new Function(intervenantesBootstrap);
 expect(intervenantesLoader.includes('accounts.google.com/gsi/client'),'Intervenantes doit pouvoir recharger Google de façon autonome');
 expect(intervenantesLoader.includes('acj_retry'),'Intervenantes doit avoir une deuxième tentative Google mobile');
 expect(intervenantesLoader.includes("document.readyState === 'loading'"),'Le secours Google doit démarrer même s’il est injecté après DOMContentLoaded');
-expect(intervenantesBootstrap.includes("./google-loader.js?v=20260913-1"),'Le bootstrap Intervenantes doit charger son secours Google local');
+expect(intervenantesLoader.includes('use_fedcm_for_button: true'),'Le bouton Google Intervenantes doit utiliser FedCM sur mobile');
+expect(intervenantesLoader.includes('renderFedCmButton'),'Le secours Google doit rerendre le bouton en mode FedCM');
+expect(intervenantesBootstrap.includes("./google-loader.js?v=20260914-1"),'Le bootstrap Intervenantes doit charger la version FedCM du secours Google');
 
 console.log('Smoke tests Devis ACJ: OK');
