@@ -6,7 +6,10 @@ function expect(condition,message){if(!condition)throw new Error(message)}
 const sw=read('sw.js');
 const manifest=JSON.parse(read('manifest.json'));
 
-expect(sw.includes("const CACHE = 'devis-acj-v34';"),'Le cache PWA doit être v34');
+expect(sw.includes("const CACHE = 'devis-acj-v35';"),'Le cache PWA doit être v35');
+expect(sw.includes("const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];"),'Les sous-apps doivent être isolées du Service Worker Devis');
+expect(sw.includes("key.startsWith(CACHE_PREFIX)"),'Le Service Worker Devis ne doit supprimer que ses propres caches');
+expect(sw.includes("if (isIsolatedSubapp(event.request.url)) return;"),'Le Service Worker Devis doit ignorer Terrain et Intervenantes');
 for(const asset of ['index.html','manifest.json','ai-v17.js','auth-v29-2.js','ogust-write-v19.js','client-step-v21.js','multi-ogust-v28.js','prestation-sync-v24.js','costs-v28-1.js','ogust-units-v25.js','history-v29.js','history-delete-v29-1.js','ux-v30.js','availability-v31.js','availability-v32.js','history-reopen-v33.js']){
   expect(fs.existsSync(asset),`Asset manquant: ${asset}`);
   expect(sw.includes(`./${asset}`),`Asset non préchargé dans sw.js: ${asset}`);
