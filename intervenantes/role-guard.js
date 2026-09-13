@@ -2,7 +2,6 @@
   const API = 'https://acj-ogust-proxy.vercel.app/api/intervenante-pilot';
   const TOKEN_KEY = 'acj_intervenantes_google_token';
   const ROLE_KEY = 'acj_intervenantes_role';
-  const ADMIN_SELECTOR = '.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen,.acjReplacePanel';
   let role = '';
   let observer = null;
   let checking = false;
@@ -13,36 +12,6 @@
   }
   function navItems() {
     return [...document.querySelectorAll('.bottomNav .navItem')];
-  }
-  function openAuthenticatedApp() {
-    const login = document.getElementById('login');
-    const app = document.getElementById('app');
-    const status = document.getElementById('loginStatus');
-    if (login) login.hidden = true;
-    if (app) app.hidden = false;
-    if (status) status.textContent = '';
-  }
-  function roleHide(node, { disable = false } = {}) {
-    if (!node) return;
-    if (!node.hidden) {
-      node.dataset.acjRoleHidden = '1';
-      node.hidden = true;
-    }
-    if (disable && 'disabled' in node && !node.disabled) {
-      node.dataset.acjRoleDisabled = '1';
-      node.disabled = true;
-    }
-  }
-  function roleRestore(node) {
-    if (!node) return;
-    if (node.dataset.acjRoleHidden === '1') {
-      node.hidden = false;
-      delete node.dataset.acjRoleHidden;
-    }
-    if ('disabled' in node && node.dataset.acjRoleDisabled === '1') {
-      node.disabled = false;
-      delete node.dataset.acjRoleDisabled;
-    }
   }
   function lockOwnEmployee() {
     const select = document.getElementById('employee');
@@ -55,38 +24,33 @@
       localStorage.setItem('acj_intervenantes_employee', value);
       if (changed) select.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    if (!select.disabled) {
-      select.dataset.acjRoleDisabled = '1';
-      select.disabled = true;
-    }
+    select.disabled = true;
     const badge = document.querySelector('.pilotBadge');
     if (badge) badge.textContent = 'Mon planning';
   }
   function hideAdminUi() {
     const nav = navItems();
     if (nav[1]) {
-      if (nav[1].classList.contains('active')) {
-        nav[1].dataset.acjRoleActive = '1';
-        nav[1].classList.remove('active');
-      }
-      roleHide(nav[1], { disable: true });
+      nav[1].hidden = true;
+      nav[1].disabled = true;
+      nav[1].classList.remove('active');
     }
-    roleHide(document.getElementById('acjPlanningMonthPanel'));
-    document.querySelectorAll(ADMIN_SELECTOR).forEach((node) => roleHide(node, { disable: true }));
+    const panel = document.getElementById('acjPlanningMonthPanel');
+    if (panel) panel.hidden = true;
+    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen,.acjReplacePanel').forEach((node) => {
+      node.hidden = true;
+      if ('disabled' in node) node.disabled = true;
+    });
     lockOwnEmployee();
   }
   function showAdminUi() {
     const nav = navItems();
     if (nav[1]) {
-      roleRestore(nav[1]);
-      if (nav[1].dataset.acjRoleActive === '1') {
-        nav[1].classList.add('active');
-        delete nav[1].dataset.acjRoleActive;
-      }
+      nav[1].hidden = false;
+      nav[1].disabled = false;
     }
-    roleRestore(document.getElementById('employee'));
-    roleRestore(document.getElementById('acjPlanningMonthPanel'));
-    document.querySelectorAll(ADMIN_SELECTOR).forEach(roleRestore);
+    const select = document.getElementById('employee');
+    if (select) select.disabled = false;
     const badge = document.querySelector('.pilotBadge');
     if (badge) badge.textContent = 'Mode admin';
   }
@@ -120,7 +84,6 @@
       if (!response.ok) throw new Error(data?.error || `HTTP_${response.status}`);
       apply(data?.role);
       confirmed = true;
-      openAuthenticatedApp();
     } catch {
       apply('intervenante');
     } finally {
