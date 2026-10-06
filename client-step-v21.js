@@ -81,6 +81,18 @@
     window.acjNotesClientDraft={...client,label,company:companyName()};
     if(typeof syncClient==='function')syncClient();
   };
+  // Restore an unfinished local quote without searching by a possibly shared name.
+  // The server still verifies this ID in the chosen company before any write.
+  window.restoreOgustDraftClientV42=function(choice,company){
+    if(String(company||'')!==companyName())return false;
+    clearTimeout(timer);requestSeq++;results=[];selected=null;
+    applyMode(choice?.mode==='new'?'new':'existing',false);
+    if(mode==='existing'&&choice?.selected?.id_customer){
+      selected={...choice.selected};setClientInputs(selected);
+      status('Client mémorisé. Ogust le vérifiera avant la création.');
+    }
+    renderResults();return true;
+  };
   function resetAfterCompanyChange(company){
     window.acjNotesClientDraft=null;
     window.acjReopenedClientIdV33='';clearTimeout(timer);requestSeq++;selected=null;results=[];

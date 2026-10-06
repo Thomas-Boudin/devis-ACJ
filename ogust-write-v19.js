@@ -5,6 +5,8 @@
   const NEW_CUSTOMER='__NEW__';
   let session=null;
   let customerBusy=false;
+  let prepareGeneration=0;
+  const COMPANY_PREFERENCE='acj_ogust_company_choice_v1';
 
   function addStyles(){
     if(document.getElementById('ogust-write-v19-style'))return;
@@ -37,13 +39,28 @@
   }
   function fmt(v){return typeof money==='function'?money(v):`${Number(v||0).toFixed(2)} €`}
   function currentQuote(){return typeof quotePayload==='function'?quotePayload():null}
+  function currentCompany(){return typeof window.currentOgustCompanyV28==='function'?String(window.currentOgustCompanyV28()):String(currentQuote()?.societe||'ACJ Services')}
+  function clientIdFor(quote,company){
+    const choice=window.ogustClientChoiceV21;
+    if(choice?.selected?.id_customer&&String(choice.company||'')===company)return String(choice.selected.id_customer);
+    if(choice?.mode==='new')return '';
+    const reopened=window.acjReopenedQuoteV33;
+    if(reopened&&String(reopened.societe||'')===company&&String(reopened.numero_devis||'')===String(quote?.numero_devis||''))return String(reopened.id_customer||window.acjReopenedClientIdV33||'');
+    return '';
+  }
+  function sessionCurrent(active){return session===active&&currentCompany()===active.company&&String(currentQuote()?.numero_devis||'')===String(active.quote?.numero_devis||'')}
+  function quoteUnchanged(active){return !active.fingerprint||active.fingerprint===JSON.stringify(currentQuote())}
+  function companyPreference(company){try{return String(JSON.parse(localStorage.getItem(COMPANY_PREFERENCE)||'{}')[company]||'')}catch{return ''}}
+  function saveCompanyPreference(company,id){try{const map=JSON.parse(localStorage.getItem(COMPANY_PREFERENCE)||'{}');map[company]=id;localStorage.setItem(COMPANY_PREFERENCE,JSON.stringify(map))}catch{}}
 
-  function removeModal(){if(customerBusy)return;document.getElementById('ogwOverlay')?.remove();session=null}
+  function removeModal(){if(customerBusy)return;document.getElementById('ogwOverlay')?.remove();session=null;prepareGeneration++}
   window.closeOgustWriteModal=removeModal;
 
   function isNewCustomerMode(){return !!document.getElementById('ogwNewCustomerForm')}
   function selectedCustomer(){
+    if(session?.createdCustomerId)return session.createdCustomerId;
     if(isNewCustomerMode())return NEW_CUSTOMER;
+    if(session?.fixedCustomer)return session.fixedCustomer;
     return document.querySelector('input[name="ogwCustomer"]:checked')?.value||'';
   }
   function selectedCompany(){return document.getElementById('ogwCompany')?.value||''}
@@ -74,9 +91,9 @@
 
   function refreshConfirm(){
     const btn=document.getElementById('ogwCreateBtn');if(!btn)return;
-    const checked=!!document.getElementById('ogwConfirmCheck')?.checked;
+    const checked=session?.fixedCustomer&&!session.requiresCheckbox||!!document.getElementById('ogwConfirmCheck')?.checked;
     const customerOk=isNewCustomerMode()?newCustomerComplete():!!selectedCustomer();
-    btn.disabled=!(checked&&customerOk&&(session?.customerOnly||selectedCompany())&&!customerBusy);
+    btn.disabled=!(checked&&customerOk&&(session?.customerOnly||selectedCompany())&&!customerBusy&&!session?.created&&!session?.stopAfterCustomer&&(session?.customerOnly||sessionCurrent(session)&&quoteUnchanged(session)));
   }
   window.refreshOgustConfirm=refreshConfirm;
 
@@ -124,14 +141,22 @@
     }).join('');
   }
 
-  function renderCompanyChoices(data){
-    const choices=data.company_choices||[],suggested=String(data.suggested_company_id||'');
+  function renderFixedCustomer(customer){
+    const meta=[customer?.code?`Code ${customer.code}`:'',customer?.phone||'',customer?.city||''].filter(Boolean).join(' · ');
+    return `<div class="ogwPreview"><strong>${htmlEsc(customer?.label||'Client sélectionné')}</strong>${meta?`<div class="ogwSub">${htmlEsc(meta)}</div>`:''}<button class="ogcChange" type="button" onclick="changeOgustWriteClient()">Changer de client</button></div>`;
+  }
+  window.changeOgustWriteClient=function(){if(customerBusy)return;removeModal();if(typeof window.goStep==='function')window.goStep(1);document.getElementById('ogcExistingBtn')?.click();document.getElementById('ogcSearch')?.focus()};
+
+  function renderCompanyChoices(data,company){
+    const choices=data.company_choices||[],preferred=companyPreference(company),suggested=String(data.suggested_company_id||'');
     if(!choices.length)return `<div class="ogwNotice ogwError">Aucun établissement Ogust n’a pu être lu. La création est bloquée pour éviter d’enregistrerer le devis dans la mauvaise société.</div>`;
-    return `<select id="ogwCompany" class="ogwSelect" onchange="refreshOgustConfirm()"><option value="">Choisir l’établissement Ogust</option>${choices.map(c=>`<option value="${htmlEsc(c.id_company)}" ${String(c.id_company)===suggested?'selected':''}>${htmlEsc(c.label)}</option>`).join('')}</select>`;
+    const picked=choices.find(c=>String(c.id_company)===preferred)||choices.find(c=>String(c.id_company)===suggested)||(choices.length===1?choices[0]:null);
+    if(choices.length===1)return `<div class="ogwPreview"><strong>${htmlEsc(choices[0].label)}</strong><input id="ogwCompany" type="hidden" value="${htmlEsc(choices[0].id_company)}"></div>`;
+    return `<select id="ogwCompany" class="ogwSelect" onchange="refreshOgustConfirm()"><option value="">Choisir l’établissement Ogust</option>${choices.map(c=>`<option value="${htmlEsc(c.id_company)}" ${String(c.id_company)===String(picked?.id_company||'')?'selected':''}>${htmlEsc(c.label)}</option>`).join('')}</select>`;
   }
 
-  function openPrepareModal(data,quote){
-    removeModal();session={data,quote};
+  function openPrepareModal(data,quote,company,fixedCustomer){
+    removeModal();session={data,quote,company,fixedCustomer,requiresCheckbox:!fixedCustomer,fingerprint:JSON.stringify(quote)};
     const p=data.preview||{};
     const isNew=!(data.customer_candidates||[]).length;
     const canCreateNew=!isNew||!!data.new_customer_config;
@@ -143,14 +168,14 @@
       :'Je confirme que le client, l’établissement et le montant ci-dessus sont corrects. Cette validation va <strong>créer réellement un devis dans Ogust</strong>.';
     const overlay=document.createElement('div');overlay.id='ogwOverlay';overlay.className='ogwOverlay';
     overlay.innerHTML=`<div class="ogwModal" role="dialog" aria-modal="true" aria-label="Création du devis dans Ogust">
-      <div class="ogwHead"><div><div class="ogwTitle">Préparer dans Ogust</div><div class="ogwSub">Rien n’est créé tant que tu n’appuies pas sur « Valider et créer dans Ogust ».</div></div><button class="ogwClose" type="button" onclick="closeOgustWriteModal()">×</button></div>
+      <div class="ogwHead"><div><div class="ogwTitle">Créer le devis dans Ogust</div><div class="ogwSub">Vérifie le résumé. Le bouton ci-dessous confirme la création du brouillon.</div></div><button class="ogwClose" type="button" onclick="closeOgustWriteModal()">×</button></div>
       <div class="ogwPreview"><div class="ogwPreviewRow"><span>Référence ACJ</span><strong>${htmlEsc(p.numero_devis||'')}</strong></div><div class="ogwPreviewRow"><span>Société demandée</span><strong>${htmlEsc(p.societe||'')}</strong></div><div class="ogwPreviewRow"><span>Client saisi</span><strong>${htmlEsc(p.client?.nom||'')}</strong></div><div class="ogwPreviewRow"><span>Lignes</span><strong>${Number(p.line_count)||0}</strong></div><div class="ogwPreviewRow ogwTotal"><span>Total TTC</span><strong>${fmt(p.total_ttc)}</strong></div></div>
-      <div class="ogwSection"><div class="ogwSectionTitle">1. Client Ogust</div>${renderCustomerChoices(data.customer_candidates||[],quote,data.new_customer_config)}</div>
-      <div class="ogwSection"><div class="ogwSectionTitle">2. Établissement Ogust</div>${renderCompanyChoices(data)}</div>
+      <div class="ogwSection"><div class="ogwSectionTitle">Client Ogust</div>${fixedCustomer?renderFixedCustomer(data.customer_candidates[0]):renderCustomerChoices(data.customer_candidates||[],quote,data.new_customer_config)}</div>
+      <div class="ogwSection"><div class="ogwSectionTitle">Établissement Ogust</div>${renderCompanyChoices(data,company)}</div>
       <div class="ogwNotice">${draft}</div>
-      ${canCreateNew?`<label class="ogwConfirm"><input id="ogwConfirmCheck" type="checkbox" onchange="refreshOgustConfirm()"><span>${confirmText}</span></label>`:''}
+      ${canCreateNew&&!fixedCustomer?`<label class="ogwConfirm"><input id="ogwConfirmCheck" type="checkbox" onchange="refreshOgustConfirm()"><span>${confirmText}</span></label>`:''}
       <div id="ogwResult"></div>
-      <div class="ogwActions"><button class="btn" type="button" onclick="closeOgustWriteModal()">Annuler</button>${canCreateNew?'<button id="ogwCreateBtn" class="btn good" type="button" onclick="confirmOgustWrite()" disabled>Valider et créer dans Ogust</button>':''}</div>
+      <div class="ogwActions"><button class="btn" type="button" onclick="closeOgustWriteModal()">Annuler</button>${canCreateNew?'<button id="ogwCreateBtn" class="btn good" type="button" onclick="confirmOgustWrite()" disabled>Créer le devis dans Ogust</button>':''}</div>
     </div>`;
     document.body.appendChild(overlay);refreshConfirm();
   }
@@ -162,30 +187,39 @@
   }
 
   async function prepare(){
+    if(customerBusy)return;
     const quote=currentQuote();
     if(!quote||!quote.client?.nom||!quote.lignes?.length){
       if(typeof showStatus==='function')showStatus('finalStatus','Client ou prestation manquante.','err');return;
     }
-    if(typeof showStatus==='function')showStatus('finalStatus','Préparation Ogust : recherche du client et de l’établissement…','info');
+    const company=currentCompany(),idCustomer=clientIdFor(quote,company),seq=++prepareGeneration,fingerprint=JSON.stringify(quote);
+    if(String(quote.societe||'')!==company){if(typeof showStatus==='function')showStatus('finalStatus','La société du devis a changé. Vérifie le client avant l’envoi.','err');return}
+    if(typeof showStatus==='function')showStatus('finalStatus',idCustomer?'Préparation Ogust : vérification du client choisi…':'Préparation Ogust : recherche du client et de l’établissement…','info');
     try{
-      const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'prepare',quote})});
+      const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'prepare',company,id_customer:idCustomer||undefined,quote})});
       const data=await response.json().catch(()=>null);
-      if(!response.ok||!data?.ok)throw new Error(data?.detail||data?.error||'Préparation Ogust impossible');
+      if(seq!==prepareGeneration||company!==currentCompany()||fingerprint!==JSON.stringify(currentQuote()))return;
+      if(!response.ok||!data?.ok)throw new Error(data?.error==='CUSTOMER_NOT_FOUND'?'Le client choisi ne peut pas être relu dans Ogust. Retourne à l’étape Client.':data?.error==='COMPANY_SELECTION_MISMATCH'?'La société et le client doivent être vérifiés à l’étape Client.':data?.detail||data?.error||'Préparation Ogust impossible');
+      const fixedCustomer=idCustomer&&data.customer_locked===true&&String(data.selected_customer_id||'')===idCustomer&&data.customer_candidates?.length===1&&String(data.customer_candidates[0].id_customer)===idCustomer?idCustomer:'';
+      if(idCustomer&&!fixedCustomer)throw new Error('Le client choisi n’a pas pu être confirmé. Retourne à l’étape Client.');
       if(!(data.customer_candidates||[]).length){
         try{
-          const cr=await fetch(CUSTOMER_ENDPOINT,{method:'GET'});
+          const cr=await fetch(`${CUSTOMER_ENDPOINT}?company=${encodeURIComponent(company)}`,{method:'GET'});
           const cd=await cr.json().catch(()=>null);
           if(cr.ok&&cd?.ok&&cd?.mode==='particulier_only')data.new_customer_config=cd.config||null;
         }catch(e){}
       }
-      openPrepareModal(data,quote);
+      if(seq!==prepareGeneration||company!==currentCompany()||fingerprint!==JSON.stringify(currentQuote()))return;
+      openPrepareModal(data,quote,company,fixedCustomer);
       if(typeof showStatus==='function')showStatus('finalStatus','Préparation prête. Vérifie puis confirme la création.','info');
     }catch(error){
+      if(seq!==prepareGeneration||company!==currentCompany())return;
       if(typeof showStatus==='function')showStatus('finalStatus',`Ogust : ${error?.message||'préparation impossible'}. Aucun devis n’a été créé.`,'err');
     }
   }
 
   window.openOgustCustomerCreate=async function(onCreated){
+    if(customerBusy)throw new Error('Une création Ogust est déjà en cours.');
     const company=typeof window.currentOgustCompanyV28==='function'?window.currentOgustCompanyV28():'ACJ Services';
     const response=await fetch(`${CUSTOMER_ENDPOINT}?company=${encodeURIComponent(company)}`,{method:'GET'});
     const data=await response.json().catch(()=>null);
@@ -236,30 +270,40 @@
   }
 
   window.confirmOgustWrite=async function(){
-    if(!session)return;
+    if(!session||session.created||session.stopAfterCustomer||customerBusy||!sessionCurrent(session)||!quoteUnchanged(session))return;
     let customer=selectedCustomer();
     const company=selectedCompany(),check=document.getElementById('ogwConfirmCheck');
-    if(!customer||!company||!check?.checked)return;
+    if(!customer||!company||(session.requiresCheckbox&&!check?.checked))return;
     const newMode=customer===NEW_CUSTOMER;
+    if(newMode&&!newCustomerComplete())return;
+    if(newMode&&document.getElementById('ogwNewEmail')&&!document.getElementById('ogwNewEmail').reportValidity())return;
+    const active=session;
+    customerBusy=true;saveCompanyPreference(active.company,company);
     const btn=document.getElementById('ogwCreateBtn');if(btn){btn.disabled=true;btn.textContent=newMode?'Création du client…':'Création dans Ogust…'}
     let createdCustomerId='';
     try{
       if(newMode){
+        active.customerAttempted=true;
         const customerData=await createNewCustomer(btn);
         customer=customerData.id_customer;createdCustomerId=customer;
+        active.createdCustomerId=String(customer);
+        document.getElementById('ogwNewCustomerForm')?.querySelectorAll('input,select').forEach(x=>x.disabled=true);
+        if(!sessionCurrent(active))return;
         resultBox(`Client créé et vérifié dans Ogust (ID <span class="ogwId">${htmlEsc(customer)}</span>). Création du devis…`,'info');
         if(btn)btn.textContent='Création du devis…';
       }else{
         resultBox('Création du brouillon puis relecture de contrôle…');
       }
 
-      const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',confirm:true,id_customer:customer,id_company:company,quote:session.quote})});
+      const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',confirm:true,company:active.company,id_customer:customer,id_company:company,quote:active.quote})});
       const data=await response.json().catch(()=>null);
       if(!response.ok||!data?.ok){
         if(data?.orphan_quotation_id)throw new Error(`Une création partielle est possible. Vérifie immédiatement le devis Ogust ID ${data.orphan_quotation_id}.`);
         const extra=data?.rolled_back?' La création incomplète a été annulée automatiquement.':'';
         throw new Error(`${quotationError(data)}${extra}`);
       }
+      active.created=true;
+      if(!sessionCurrent(active))return;
       if(data.already_exists){
         const prefix=createdCustomerId?`Le client a été créé et vérifié. `:'';
         resultBox(`${prefix}Ce devis semble déjà exister dans Ogust. ID : <span class="ogwId">${htmlEsc(data.id_quotation)}</span>. Aucune copie supplémentaire n’a été créée.`,'ok');
@@ -280,15 +324,24 @@
         if(btn){btn.textContent='Créé — à vérifier';btn.disabled=true}
       }
     }catch(error){
+      if(error?.stopAfterCustomer||active.customerAttempted&&!active.createdCustomerId)active.stopAfterCustomer=true;
+      if(!sessionCurrent(active))return;
       const customerNote=createdCustomerId&&!error?.stopAfterCustomer?` Le client Ogust ID ${createdCustomerId} a déjà été créé : ne le recrée pas manuellement.`:'';
       resultBox(`${htmlEsc(error?.message||'Création Ogust impossible.')}${htmlEsc(customerNote)}`,'err');
       if(typeof showStatus==='function')showStatus('finalStatus',`Ogust : ${error?.message||'création impossible'}`,'err');
       if(btn){
-        if(error?.stopAfterCustomer){btn.disabled=true;btn.textContent='Client créé — à vérifier'}
+        if(active.stopAfterCustomer){btn.disabled=true;btn.textContent=error?.stopAfterCustomer?'Client créé — à vérifier':'Vérifier la création dans Ogust'}
         else{btn.disabled=false;btn.textContent=createdCustomerId?'Réessayer le devis':'Réessayer la création'}
       }
+    }finally{
+      customerBusy=false;
+      if(sessionCurrent(active))refreshConfirm();
+      else if(session===active)removeModal();
     }
   };
+
+  window.addEventListener('acj:company-changed',()=>{prepareGeneration++;if(!customerBusy)removeModal()});
+  window.addEventListener('acj:quotation-created',()=>{prepareGeneration++;if(!customerBusy)removeModal()});
 
   window.sendToOgust=prepare;
   addStyles();
