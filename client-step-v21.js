@@ -69,13 +69,13 @@
     document.getElementById('ogcNewBtn')?.classList.toggle('active',mode==='new');
     const panel=document.getElementById('ogcExistingPanel');if(panel)panel.style.display=mode==='existing'?'block':'none';
     const card=formCard();if(card)card.style.display=mode==='new'?'block':'none';
-    if(clear){selected=null;results=[];clearClientInputs();renderResults()}
+    if(clear){window.acjReopenedClientIdV33='';selected=null;results=[];clearClientInputs();renderResults()}
     if(mode==='existing')status(searchHint());
     else status('');
     window.ogustClientChoiceV21={mode,get selected(){return selected},get company(){return companyName()}};
   }
   function resetAfterCompanyChange(company){
-    clearTimeout(timer);requestSeq++;selected=null;results=[];
+    window.acjReopenedClientIdV33='';clearTimeout(timer);requestSeq++;selected=null;results=[];
     const q=document.getElementById('ogcSearch');if(q)q.value='';
     if(mode==='existing')clearClientInputs();
     renderResults();if(mode==='existing')status(searchHint());
@@ -95,6 +95,21 @@
     companyCard.insertAdjacentElement('afterend',card);
     document.getElementById('ogcExistingBtn').addEventListener('click',()=>applyMode('existing'));
     document.getElementById('ogcNewBtn').addEventListener('click',()=>applyMode('new'));
+    const create=document.createElement('button');create.type='button';create.className='btn good';create.textContent='Créer le client dans Ogust';
+    clientCard.appendChild(create);
+    const feedback=document.createElement('div');feedback.className='ogcStatus';clientCard.appendChild(feedback);
+    create.addEventListener('click',async()=>{
+      create.disabled=true;feedback.textContent='Chargement du formulaire Ogust…';
+      try{
+        await window.openOgustCustomerCreate((customer,company)=>{
+          if(company!==companyName())return;
+          requestSeq++;clearTimeout(timer);applyMode('existing',false);selected=customer;results=[];
+          window.acjReopenedClientIdV33='';setClientInputs(customer);if(typeof syncClient==='function')syncClient();renderResults();status('Client créé dans Ogust et sélectionné pour ce devis.');
+        });
+        feedback.textContent='';
+      }catch(e){feedback.textContent=e?.message||'Formulaire Ogust indisponible';feedback.className='ogcStatus err'}
+      finally{create.disabled=false}
+    });
     document.getElementById('ogcSearch').addEventListener('input',e=>{selected=null;clearClientInputs();results=[];renderResults();queueSearch(e.target.value)});
     applyMode('existing',false);
 

@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v35';
+const CACHE = 'devis-acj-v36';
 const CACHE_PREFIX = 'devis-acj-';
 const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];
 
