@@ -69,12 +69,20 @@
     document.getElementById('ogcNewBtn')?.classList.toggle('active',mode==='new');
     const panel=document.getElementById('ogcExistingPanel');if(panel)panel.style.display=mode==='existing'?'block':'none';
     const card=formCard();if(card)card.style.display=mode==='new'?'block':'none';
-    if(clear){window.acjReopenedClientIdV33='';selected=null;results=[];clearClientInputs();renderResults()}
+    if(clear){window.acjNotesClientDraft=null;window.acjReopenedClientIdV33='';selected=null;results=[];clearClientInputs();renderResults()}
     if(mode==='existing')status(searchHint());
     else status('');
     window.ogustClientChoiceV21={mode,get selected(){return selected},get company(){return companyName()}};
   }
+  window.applyImportedNotesClientV39=function(client){
+    clearTimeout(timer);requestSeq++;applyMode('new');
+    const label=[client.first_name,client.last_name].filter(Boolean).join(' ');
+    setInput('client',label);setInput('tel',client.mobile_phone||client.landline);setInput('adresse',[client.address,[client.zip,client.city].filter(Boolean).join(' ')].filter(Boolean).join(', '));
+    window.acjNotesClientDraft={...client,label,company:companyName()};
+    if(typeof syncClient==='function')syncClient();
+  };
   function resetAfterCompanyChange(company){
+    window.acjNotesClientDraft=null;
     window.acjReopenedClientIdV33='';clearTimeout(timer);requestSeq++;selected=null;results=[];
     const q=document.getElementById('ogcSearch');if(q)q.value='';
     if(mode==='existing')clearClientInputs();
