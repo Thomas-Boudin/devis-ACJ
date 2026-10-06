@@ -135,6 +135,12 @@
     if(h.available) return `<div class="aiHistoryStatus">Historique Ogust connecté, mais aucune intervention exploitable n’a été trouvée dans la période analysée.</div>`;
     return `<div class="aiHistoryStatus">Historique Ogust non disponible pour cette analyse : estimation basée sur les photos, les informations du chantier et les repères ACJ.</div>`;
   }
+  function memoryStatusHtml(){
+    const memory=lastMeta?.chantier_memory;if(!memory)return '';
+    if(!memory.available)return '<div class="aiHistoryStatus">Mémoire partagée indisponible pour cette analyse. Les retours en attente restent sur cet appareil.</div>';
+    const actual=Math.max(0,Number(memory.actual_count)||0),decisions=Math.max(0,Number(memory.decision_count)||0);
+    return `<div class="aiHistoryStatus">Mémoire chantier disponible : ${actual} durée${actual>1?'s':''} réalisée${actual>1?'s':''} confirmée${actual>1?'s':''} · ${decisions} choix de chiffrage. Les temps retenus pour un devis ne sont pas des temps réellement passés.</div>`;
+  }
 
   function injectCard(){
     if(document.getElementById('aiChantierCard')) return;
@@ -251,7 +257,7 @@
     }).join('');
     const supplies=Number(analysis.fournitures_ttc)||0;
     const suppliesHtml=supplies>0&&statedMoney(supplies)?`<div class="aiSupplies"><div><strong>Fournitures · montant à vérifier</strong><br><span style="color:#9fdcf6">${money(supplies)} TTC</span></div><button id="aiSuppliesBtn" class="btn small" type="button" onclick="addAISupplies()">Ajouter</button></div>`:'';
-    box.innerHTML=`<div style="font-size:12px;font-weight:850;color:#dff6ff">Proposition</div>${lines}${suppliesHtml}${historyStatusHtml()}${analysis.notes?`<div class="tiny" style="margin-top:9px;color:#a9d9ea">${esc(analysis.notes)}</div>`:''}`;box.className='aiResult show';
+    box.innerHTML=`<div style="font-size:12px;font-weight:850;color:#dff6ff">Proposition</div>${lines}${suppliesHtml}${historyStatusHtml()}${memoryStatusHtml()}${analysis.notes?`<div class="tiny" style="margin-top:9px;color:#a9d9ea">${esc(analysis.notes)}</div>`:''}`;box.className='aiResult show';
   }
 
   window.analyseChantierAI=async function(){
@@ -319,9 +325,19 @@
 
   window.addAISupplies=function(){if(!validAnalysis())return;const amount=Number(lastAnalysis?.fournitures_ttc)||0;if(amount<=0||suppliesAdded)return;if(!statedMoney(amount)){setError('Le montant des fournitures n’est pas indiqué dans les notes. Renseigne-le dans le chiffrage.');return}const activity=lastAnalysis?.prestations?.[0]?.mode||state.mode,m=MODES[activity]||MODES[state.mode];state.lines.push({id:uid(),type:'cost',designation:'Fournitures / consommables',meta:'Montant extrait des notes · à vérifier',activity,qty:1,unit:'forfait',unitPriceTTC:amount,vat:m.vat,aiProvenance:{source:'notes',description:lastContext.text,photoCount:selectedPhotos.length,status:'saisi',durationConfirmed:true},aiPendingFields:[]});suppliesAdded=true;renderQuoteLines();const btn=document.getElementById('aiSuppliesBtn');if(btn){btn.textContent='Ajouté';btn.disabled=true}};
 
-  function provenanceFor(pending){
+  function validatedBuilderFeatures(){
+    const features={},read=id=>String(document.getElementById(id)?.value||'').trim(),preset=MODES[state.mode]?.presets.find(item=>item.id===state.activePreset);
+    const metric=Number(read('detailMetric')||read('builderMetric')),height=Number(read('detailHeight')),faces=Number(read('detailFaces'));
+    if(Number.isFinite(metric)&&metric>0&&metric<=1000000&&['ml','m²','m2'].includes(preset?.unitLabel)){features.metric=metric;features.metric_unit=preset.unitLabel==='m2'?'m²':preset.unitLabel}
+    if(Number.isFinite(height)&&height>0&&height<=50)features.height_m=height;
+    if([1,2].includes(faces))features.faces=faces;
+    if(['oui','non'].includes(read('detailTop')))features.top=read('detailTop')==='oui';
+    for(const [key,id,allowed] of [['cut_type','detailCutType',['entretien','rabattage']],['waste','detailWaste',['oui','non']],['grass','detailGrass',['entretien','haute','tres_haute']],['collection','detailCollection',['oui','non']],['density','detailDensity',['leger','dense','friche']],['zone','detailZone',['massifs','allees','cour','mixte']],['method','detailMethod',['manuel','autre']],['support','detailSupport',['terrasse','cour','paves','mur','autre']]]){const value=read(id);if(allowed.includes(value))features[key]=value}
+    return features;
+  }
+  function provenanceFor(pending,features){
     const p=pending.proposal;
-    return {source:'assistant',description:pending.context.text,photoCount:pending.photoCount??selectedPhotos.length,status:pending.estimated?'estimation_confirmee':'saisi_verifie',durationConfirmed:true,estimatedHours:suggestedHours(p),basis:String(p.estimation_basis||''),visualHypotheses:visualMeasureText(p),missingFields:missingFields(p)};
+    return {source:'assistant',description:pending.context.text,photoCount:pending.photoCount??selectedPhotos.length,status:pending.estimated?'estimation_confirmee':'saisi_verifie',durationConfirmed:true,estimatedHours:suggestedHours(p),basis:String(p.estimation_basis||''),visualHypotheses:visualMeasureText(p),missingFields:missingFields(p),mode:pending.mode,preset:pending.preset,features:features||{}};
   }
   window.acjAIDraftV42={
     get(){
@@ -364,9 +380,9 @@
         if(pending.mode!==state.mode||pending.preset!==state.activePreset||pending.method!==state.builderMethod){pendingProposal=null}
         else if(pending.estimated&&pending.prefilledHours>0&&!document.getElementById('aiDurationConfirm')?.checked){setError('Confirme ou corrige la durée proposée avant d’ajouter cette prestation.');document.getElementById('aiDurationConfirm')?.focus();return}
       }
-      const applied=pendingProposal,before=state.lines.length,out=add.apply(this,arguments);
+      const applied=pendingProposal,features=applied?validatedBuilderFeatures():null,before=state.lines.length,out=add.apply(this,arguments);
       if(applied&&state.lines.length>before){
-        const line=state.lines[state.lines.length-1];line.aiProvenance=provenanceFor(applied);line.aiPendingFields=missingFields(applied.proposal);pendingProposal=null;setError('');renderQuoteLines();
+        const line=state.lines[state.lines.length-1];line.aiProvenance=provenanceFor(applied,features);line.aiPendingFields=missingFields(applied.proposal);pendingProposal=null;setError('');renderQuoteLines();
       }
       return out;
     };
