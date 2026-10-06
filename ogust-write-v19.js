@@ -30,6 +30,11 @@
     if(typeof esc==='function')return esc(v);
     return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
+  function quotationError(data){
+    const line=data?.line?` (ligne ${data.line})`:'';
+    const messages={QUOTATION_PRODUCT_REQUIRED:'Prestation Ogust manquante'+line+'. Aucun devis créé.',QUOTATION_RATE_NOT_FOUND:'Aucun tarif Ogust actif compatible avec la prestation, l’unité et la TVA'+line+'. Aucun devis créé.',QUOTATION_RATE_AMBIGUOUS:'Plusieurs tarifs Ogust correspondent'+line+'. Le choix doit être précisé avant l’envoi. Aucun devis créé.',QUOTATION_RATES_INCOMPLETE:'Le catalogue des tarifs Ogust n’a pas pu être lu entièrement. Aucun devis créé.'};
+    return messages[data?.error]||data?.detail||data?.error||'Création du devis refusée.';
+  }
   function fmt(v){return typeof money==='function'?money(v):`${Number(v||0).toFixed(2)} €`}
   function currentQuote(){return typeof quotePayload==='function'?quotePayload():null}
 
@@ -240,7 +245,7 @@
       if(!response.ok||!data?.ok){
         if(data?.orphan_quotation_id)throw new Error(`Une création partielle est possible. Vérifie immédiatement le devis Ogust ID ${data.orphan_quotation_id}.`);
         const extra=data?.rolled_back?' La création incomplète a été annulée automatiquement.':'';
-        throw new Error(`${data?.detail||data?.error||'Création du devis refusée.'}${extra}`);
+        throw new Error(`${quotationError(data)}${extra}`);
       }
       if(data.already_exists){
         const prefix=createdCustomerId?`Le client a été créé et vérifié. `:'';
@@ -257,7 +262,7 @@
         if(btn){btn.textContent='Créé dans Ogust';btn.disabled=true}
       }else{
         const prefix=createdCustomerId?`Le nouveau client a bien été créé (ID ${htmlEsc(createdCustomerId)}). `:'';
-        resultBox(`${prefix}Le devis a été créé dans Ogust (ID <span class="ogwId">${id}</span>), mais la relecture automatique n’a pas confirmé tous les contrôles. Vérifie-le dans Ogust avant toute validation ou envoi au client.`,'err');
+        resultBox(`${prefix}Le devis a été créé dans Ogust (ID <span class="ogwId">${id}</span>), mais la relecture automatique n’a pas confirmé tous les contrôles. Vérifie-le dans Ogust avant toute validation ou envoi au client. Le rattachement de la prestation et du tarif doit aussi être contrôlé.`,'err');
         if(typeof showStatus==='function')showStatus('finalStatus',`Devis créé dans Ogust — contrôle automatique incomplet. ID ${data.id_quotation}.`,'err');
         if(btn){btn.textContent='Créé — à vérifier';btn.disabled=true}
       }
