@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+const rates=[{id:'722096628',product:'537933390',title:"Jardinage à l'heure",unit:'H',vat:20,price:47},{id:'723501680',product:'537933390',title:'Jardin',unit:'H',vat:20,price:47},{id:'flat',product:'forfait',title:'Forfait Jardinage',unit:'F',vat:20,price:90}];
+let sent=0,status='',loads=0;
+const events={};
+const state={company:'ACJ Services',lines:[{type:'service',activity:'jardin',unit:'h',vat:20,qty:3,unitPriceTTC:60,designation:'Autre'}]};
+const ctx={state,document:{readyState:'complete',querySelectorAll:()=>[]},fetch:async()=>{loads++;return{ok:true,json:async()=>({ok:true,rates})}},renderQuoteLines(){},quotePayload(){return{lignes:state.lines.map(l=>({unite:l.unit,prix_unitaire_ttc:l.unitPriceTTC}))}},sendToOgust(){sent++},goStep(){},showStatus(id,msg){status=msg}};
+ctx.window=ctx;ctx.addEventListener=(name,fn)=>events[name]=fn;
+vm.runInNewContext(fs.readFileSync('ogust-rates-v40.js','utf8'),ctx);
+await new Promise(r=>setImmediate(r));
+const p=ctx.quotePayload();assert.equal(p.lignes[0].ogust_rate_id,'722096628');assert.equal(p.lignes[0].ogust_unit,'H');assert.equal(p.lignes[0].prix_unitaire_ttc,60);assert.equal(state.lines[0].qty,3);
+await ctx.sendToOgust();assert.equal(sent,1);
+state.lines[0].vat=10;await ctx.sendToOgust();assert.equal(sent,1);assert.match(status,/ligne 1/);
+state.lines[0].vat=20;state.lines[0].unit='forfait';await ctx.sendToOgust();assert.equal(sent,1);
+state.lines[0].unit='h';state.lines[0].ogustProductLevelId='537933390';state.lines[0].ogustProductLevelTitle='Unclear';delete state.lines[0].ogustRateId;
+await ctx.sendToOgust();assert.equal(sent,1); // Duplicate rates require a title match or explicit choice.
+state.lines[0].ogustRateId='723501680';await ctx.sendToOgust();assert.equal(sent,2);assert.equal(ctx.quotePayload().lignes[0].ogust_rate_id,'723501680');
+state.company='ACJ Services Lens';events['acj:company-changed']();await new Promise(r=>setImmediate(r));await ctx.sendToOgust();assert.equal(sent,2);assert.equal(state.lines[0].ogustRateId,undefined);assert.equal(loads,2);
+console.log('Ogust tariffs: hourly Other, duplicate selection, negotiated price, incompatible units/TVA and company isolation OK');
