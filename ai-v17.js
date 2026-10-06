@@ -1,22 +1,22 @@
 // Assistant chantier — propositions contextualisées et estimations vérifiées.
 (function(){
   const AI_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/analyse-chantier';
-  const MAX_PHOTOS=4;
+  const MAX_PHOTOS=10,MAX_PHOTO_CHARS=350000,MAX_BODY_BYTES=3600000;
   let lastAnalysis=null;
   let lastMeta=null;
   let suppliesAdded=false;
   let selectedPhotos=[];
-  let generation=0,photoRevision=0,lastContext=null,pendingProposal=null,activeRequest=null,applying=false;
+  let generation=0,photoRevision=0,lastContext=null,pendingProposal=null,activeRequest=null,photoImport=null,applying=false;
 
   function context(){return {generation,company:String(state.company||''),quote:String(state.number||''),mode:state.mode,text:String(document.getElementById('aiChantierText')?.value||'').trim(),photos:photoRevision}}
   function sameContext(a,b=context()){return !!a&&['generation','company','quote','mode','text','photos'].every(key=>a[key]===b[key])}
-  function setBusy(busy){const button=document.getElementById('aiAnalyseBtn');if(button)button.disabled=busy;document.getElementById('aiLoader')?.classList.toggle('show',busy)}
+  function setBusy(busy){const button=document.getElementById('aiAnalyseBtn');if(button)button.disabled=busy||!!photoImport;document.getElementById('aiLoader')?.classList.toggle('show',busy);for(const id of ['aiCameraBtn','aiGalleryBtn','aiCameraInput','aiGalleryInput']){const input=document.getElementById(id);if(input)input.disabled=!!photoImport}}
   function invalidate(reset=false){
     if(pendingProposal){const builder=document.getElementById('serviceBuilder');if(builder){builder.innerHTML='';builder.className='builder'}state.activePreset=null}
-    generation++;activeRequest?.abort();activeRequest=null;lastAnalysis=null;lastMeta=null;lastContext=null;pendingProposal=null;suppliesAdded=false;
+    generation++;activeRequest?.abort();activeRequest=null;photoImport=null;lastAnalysis=null;lastMeta=null;lastContext=null;pendingProposal=null;suppliesAdded=false;
     const result=document.getElementById('aiResult');if(result){result.className='aiResult';result.innerHTML=''}
     document.querySelector('#serviceBuilder .aiBuilderNotice')?.remove();setBusy(false);setError('');
-    if(reset){selectedPhotos=[];photoRevision++;const text=document.getElementById('aiChantierText');if(text)text.value='';renderPhotos()}
+    if(reset){selectedPhotos=[];photoRevision++;const text=document.getElementById('aiChantierText');if(text)text.value=''}renderPhotos();
   }
   function validAnalysis(){if(sameContext(lastContext))return true;invalidate();setError('Le chantier a changé. Relance la préparation avant d’utiliser cette proposition.');return false}
   function missingFields(p){return [...new Set((Array.isArray(p.missing_fields)?p.missing_fields:[]).map(value=>String(value).trim()).filter(Boolean))]}
@@ -145,12 +145,12 @@
     card.innerHTML=`
       <div class="aiTitleRow"><div class="aiTitle">Décrire le chantier</div><span class="aiBadge">Assistant ACJ</span></div>
       <div class="aiHelp">Écris ou dicte les travaux ici, avec les quantités connues. L’assistant prépare des propositions à vérifier. Les photos aident à décrire le chantier ; leurs dimensions et durées restent des estimations à confirmer.</div>
-      <div class="field"><textarea id="aiChantierText" placeholder="Ex. haie à tailler, une face + dessus, évacuation… Tu peux aussi envoyer seulement des photos."></textarea></div>
+      <div class="field"><textarea id="aiChantierText" maxlength="2500" placeholder="Ex. haie à tailler, une face + dessus, évacuation… Tu peux aussi envoyer seulement des photos."></textarea></div>
       <div class="aiPhotoZone">
-        <div class="aiPhotoHelp">Photos facultatives · maximum 4 · elles ne sont pas enregistrées dans le devis.</div>
+        <div class="aiPhotoHelp">Photos facultatives · maximum ${MAX_PHOTOS} · compression automatique · elles ne sont pas enregistrées dans le devis.</div>
         <div class="aiPhotoActions">
-          <button class="btn" type="button" onclick="openAICamera()">Prendre une photo</button>
-          <button class="btn" type="button" onclick="openAIGallery()">Ajouter des photos</button>
+          <button id="aiCameraBtn" class="btn" type="button" onclick="openAICamera()">Prendre une photo</button>
+          <button id="aiGalleryBtn" class="btn" type="button" onclick="openAIGallery()">Ajouter des photos</button>
         </div>
         <input id="aiCameraInput" type="file" accept="image/*" capture="environment" hidden>
         <input id="aiGalleryInput" type="file" accept="image/*" multiple hidden>
@@ -169,13 +169,14 @@
 
   function renderPhotos(){
     const box=document.getElementById('aiPhotoPreview'),count=document.getElementById('aiPhotoCount');
-    if(count) count.textContent=selectedPhotos.length?`${selectedPhotos.length} photo${selectedPhotos.length>1?'s':''} ajoutée${selectedPhotos.length>1?'s':''} sur ${MAX_PHOTOS}`:'Aucune photo ajoutée';
+    if(count) count.textContent=photoImport?`Préparation de ${photoImport.count} photo${photoImport.count>1?'s':''}…`:selectedPhotos.length?`${selectedPhotos.length} photo${selectedPhotos.length>1?'s':''} ajoutée${selectedPhotos.length>1?'s':''} sur ${MAX_PHOTOS}`:'Aucune photo ajoutée';
     if(!box) return;
     box.innerHTML=selectedPhotos.map((photo,i)=>`<div class="aiPhotoThumb"><img src="${photo.dataUrl}" alt="Photo ${i+1}"><button class="aiPhotoRemove" type="button" aria-label="Retirer la photo ${i+1}" onclick="removeAIPhoto(${i})">×</button><span class="aiPhotoLabel">Photo ${i+1}</span></div>`).join('');
   }
 
-  window.openAICamera=function(){if(selectedPhotos.length>=MAX_PHOTOS){setError(`Maximum ${MAX_PHOTOS} photos.`);return}document.getElementById('aiCameraInput')?.click()};
-  window.openAIGallery=function(){if(selectedPhotos.length>=MAX_PHOTOS){setError(`Maximum ${MAX_PHOTOS} photos.`);return}document.getElementById('aiGalleryInput')?.click()};
+  function canChoosePhotos(){if(photoImport){setError('Attends la préparation des photos avant d’en ajouter d’autres.');return false}if(selectedPhotos.length>=MAX_PHOTOS){setError(`Maximum ${MAX_PHOTOS} photos. Retire une photo pour en ajouter une autre.`);return false}return true}
+  window.openAICamera=function(){if(canChoosePhotos())document.getElementById('aiCameraInput')?.click()};
+  window.openAIGallery=function(){if(canChoosePhotos())document.getElementById('aiGalleryInput')?.click()};
   window.removeAIPhoto=function(index){invalidate();selectedPhotos.splice(index,1);photoRevision++;renderPhotos()};
 
   async function imageFromFile(file){
@@ -193,47 +194,50 @@
     }catch(e){URL.revokeObjectURL(url);throw e}
   }
 
-  async function encodePhoto(file,maxSide=1100,quality=.68){
-    const decoded=await imageFromFile(file);
-    try{
-      const scale=Math.min(1,maxSide/Math.max(decoded.width,decoded.height));
-      const canvas=document.createElement('canvas');
-      canvas.width=Math.max(1,Math.round(decoded.width*scale));canvas.height=Math.max(1,Math.round(decoded.height*scale));
-      const ctx=canvas.getContext('2d',{alpha:false});if(!ctx) throw new Error('CANVAS_FAILED');
-      ctx.drawImage(decoded.source,0,0,canvas.width,canvas.height);
-      return canvas.toDataURL('image/jpeg',quality);
-    }finally{decoded.close?.()}
+  function encodePhoto(decoded,maxSide,quality){
+    const scale=Math.min(1,maxSide/Math.max(decoded.width,decoded.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(decoded.width*scale));canvas.height=Math.max(1,Math.round(decoded.height*scale));
+    const ctx=canvas.getContext('2d',{alpha:false});if(!ctx) throw new Error('CANVAS_FAILED');
+    ctx.drawImage(decoded.source,0,0,canvas.width,canvas.height);
+    return canvas.toDataURL('image/jpeg',quality);
   }
 
-  async function compressPhoto(file){
+  async function compressPhoto(file,captured){
     if(!file||!String(file.type||'').startsWith('image/')) throw new Error('PHOTO_TYPE');
-    let dataUrl=await encodePhoto(file,1100,.68);
-    if(dataUrl.length>700000) dataUrl=await encodePhoto(file,900,.58);
-    if(dataUrl.length>900000) throw new Error('PHOTO_TOO_LARGE');
-    return dataUrl;
+    const decoded=await imageFromFile(file);
+    try{
+      for(const [maxSide,quality] of [[1100,.72],[1100,.62],[1100,.52],[1100,.44],[900,.62],[900,.50],[768,.58],[768,.48],[768,.40]]){
+        if(!sameContext(captured))throw new Error('PHOTO_CANCELLED');
+        const dataUrl=encodePhoto(decoded,maxSide,quality);
+        if(dataUrl.startsWith('data:image/jpeg;base64,')&&dataUrl.length<=MAX_PHOTO_CHARS)return dataUrl;
+      }
+      throw new Error('PHOTO_TOO_LARGE');
+    }finally{decoded.close?.()}
   }
 
   async function onPhotoFiles(event){
     const input=event.currentTarget,files=[...(input.files||[])];input.value='';
     if(!files.length) return;
-    invalidate();const captured=context();
+    if(photoImport){photoImport.warning='Cette sélection n’a pas été ajoutée. Attends la préparation des photos avant de réessayer.';setError(photoImport.warning);return}
     const remaining=MAX_PHOTOS-selectedPhotos.length;
     if(remaining<=0){setError(`Maximum ${MAX_PHOTOS} photos.`);return}
-    const chosen=files.slice(0,remaining);
-    const btn=document.getElementById('aiAnalyseBtn');if(btn)btn.disabled=true;
+    if(files.length>remaining){setError(`Cette sélection n’a pas été ajoutée : il reste ${remaining} place${remaining>1?'s':''}. Choisis au maximum ${remaining} photo${remaining>1?'s':''}.`);return}
+    invalidate();const captured=context(),batch={count:files.length};photoImport=batch;setBusy(false);renderPhotos();
+    const prepared=[];
     try{
-      for(const file of chosen){
-        const dataUrl=await compressPhoto(file);
+      for(const file of files){
+        const dataUrl=await compressPhoto(file,captured);
         if(!sameContext(captured))return;
-        selectedPhotos.push({dataUrl,name:file.name||`Photo ${selectedPhotos.length+1}`});
-        renderPhotos();
+        prepared.push({dataUrl,name:file.name||`Photo ${selectedPhotos.length+prepared.length+1}`});
       }
-      if(files.length>remaining) setError(`Seules les ${MAX_PHOTOS} premières photos ont été conservées.`);
+      if(!sameContext(captured)||photoImport!==batch)return;
+      selectedPhotos.push(...prepared);photoRevision++;setError(batch.warning||'');
     }catch(e){
       if(!sameContext(captured))return;
       const message=e?.message==='PHOTO_TOO_LARGE'?'Une photo reste trop lourde après compression. Essaie une autre photo.':e?.message==='PHOTO_TYPE'?'Le fichier choisi n’est pas une image compatible.':'Impossible de préparer une des photos.';
-      setError(message);
-    }finally{if(sameContext(captured)){photoRevision++;if(btn)btn.disabled=false}}
+      setError(`Cette sélection n’a pas été ajoutée. ${message}`);
+    }finally{if(photoImport===batch){photoImport=null;renderPhotos();setBusy(!!activeRequest)}}
   }
 
   function renderResult(analysis){
@@ -251,17 +255,25 @@
   }
 
   window.analyseChantierAI=async function(){
+    if(photoImport){setError('Attends la préparation des photos avant de lancer l’analyse.');return}
     const text=String(document.getElementById('aiChantierText')?.value||'').trim();
+    if(text.length>2500){setError('La description est trop longue. Limite-la à 2 500 caractères avant l’analyse.');return}
     if(text.length<5&&selectedPhotos.length===0){setError('Décris le chantier ou ajoute au moins une photo avant de lancer l’analyse.');return}
     invalidate();const captured=context();const controller=new AbortController();activeRequest=controller;setBusy(true);
     try{
       const payload={description:text,mode:captured.mode,company:captured.company,images:selectedPhotos.map(p=>p.dataUrl)};
-      const response=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
+      const body=JSON.stringify(payload),bytes=typeof TextEncoder==='function'?new TextEncoder().encode(body).byteLength:unescape(encodeURIComponent(body)).length;
+      if(bytes>MAX_BODY_BYTES)throw new Error('Le texte et les photos sont trop volumineux. Réduis le texte ou retire une photo avant l’analyse.');
+      const response=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body,signal:controller.signal});
       const data=await response.json().catch(()=>null);
       if(!sameContext(captured))return;
       if(!response.ok||!data?.ok){
         if(data?.error==='AI_NOT_CONFIGURED') throw new Error('L’assistant n’est pas configuré côté serveur.');
-        if(data?.error==='TOO_MANY_IMAGES') throw new Error('Maximum 4 photos par analyse.');
+        if(data?.error==='TOO_MANY_IMAGES') throw new Error(`Maximum ${MAX_PHOTOS} photos par analyse.`);
+        if(data?.error==='INVALID_IMAGES') throw new Error('Une photo n’est pas compatible. Retire-la et ajoute une autre image.');
+        if(data?.error==='IMAGE_TOO_LARGE') throw new Error('Une photo reste trop volumineuse. Retire-la et ajoute une autre image.');
+        if(data?.error==='PAYLOAD_TOO_LARGE') throw new Error('Le texte et les photos sont trop volumineux. Réduis le texte ou retire une photo avant l’analyse.');
+        if(data?.error==='DESCRIPTION_TOO_LONG') throw new Error('La description est trop longue. Limite-la à 2 500 caractères avant l’analyse.');
         throw new Error('L’analyse n’a pas abouti. Réessaie.');
       }
       lastAnalysis=data.analysis;lastMeta=data.meta||null;lastContext=captured;suppliesAdded=false;renderResult(lastAnalysis);
