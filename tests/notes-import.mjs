@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const inputs=new Map(['client','tel','adresse'].map(id=>[id,{value:'ancien',closest:()=>({style:{}})}]));
+const state={company:'ACJ Services Lens',lines:[{unitPriceTTC:846}],client:'ancien'};
+const ctx={document:{readyState:'loading',addEventListener(){},getElementById:id=>inputs.get(id)},state,clearTimeout,fetch(){throw Error('Import must not call Ogust')},syncClient(){state.client=inputs.get('client').value},window:null};ctx.window=ctx;
+vm.createContext(ctx);vm.runInContext(fs.readFileSync('client-step-v21.js','utf8'),ctx);
+ctx.applyImportedNotesClientV39({title:'Monsieur',first_name:'Laurent',last_name:'Hau',mobile_phone:'0783012768',landline:'',email:'laur.hau@free.fr',address:'',zip:'',city:''});
+assert.equal(inputs.get('client').value,'Laurent Hau');assert.equal(inputs.get('tel').value,'0783012768');assert.equal(inputs.get('adresse').value,'');assert.equal(ctx.acjNotesClientDraft.email,'laur.hau@free.fr');assert.equal(ctx.acjNotesClientDraft.company,'ACJ Services Lens');assert.equal(ctx.ogustClientChoiceV21.mode,'new');assert.equal(ctx.ogustClientChoiceV21.selected,null);assert.equal(state.lines[0].unitPriceTTC,846);
+const write=fs.readFileSync('ogust-write-v19.js','utf8');assert.ok(write.includes('d.company===company&&d.label===q.nom'));assert.ok(write.includes('q.email'));assert.ok(write.includes('q.first_name'));
+const importer=fs.readFileSync('notes-import-v39.js','utf8');new Function(importer);assert.ok(importer.includes("action:'import_notes'"));assert.ok(importer.includes('seq!==generation||account!==company()'));assert.ok(importer.includes("el('noteApplyClient').checked"));assert.ok(importer.includes('reportValidity()'));assert.ok(!importer.includes("action:'create'"));assert.ok(!importer.includes('state.lines.push'));
+const assets=fs.readFileSync('sw.js','utf8');const page=fs.readFileSync('index.html','utf8');for(const [,path] of page.matchAll(/<script src="\.\/([^"]+)"/g))assert.ok(assets.includes('./'+path),`Offline asset missing: ${path}`);
+console.log('Notes UI: exact contact prefill, missing address, tenant isolation, no prices/Ogust writes and offline assets OK');

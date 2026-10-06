@@ -80,27 +80,31 @@
   }
   window.refreshOgustConfirm=refreshConfirm;
 
-  function options(entries,placeholder){
-    return `<option value="">${htmlEsc(placeholder)}</option>${(entries||[]).map(x=>`<option value="${htmlEsc(x.value)}">${htmlEsc(x.label)}</option>`).join('')}`;
+  function options(entries,placeholder,selectedLabel=''){
+    const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z]/g,'');
+    return `<option value="">${htmlEsc(placeholder)}</option>${(entries||[]).map(x=>`<option value="${htmlEsc(x.value)}" ${selectedLabel&&norm(x.label)===norm(selectedLabel)?'selected':''}>${htmlEsc(x.label)}</option>`).join('')}`;
   }
 
   function renderNewCustomer(quote,config){
     if(!config?.titles?.length||!config?.payments?.length||!config?.managers?.length){
       return `<div class="ogwNotice ogwError">Aucun client correspondant n’a été trouvé et la configuration nécessaire à une création sûre n’a pas pu être lue. Aucun client ne sera créé.</div>`;
     }
-    const q=quote?.client||{};
+    let q=quote?.client||{};
+    const d=window.acjNotesClientDraft;
+    const company=typeof window.currentOgustCompanyV28==='function'?window.currentOgustCompanyV28():'ACJ Services';
+    if(d&&d.company===company&&d.label===q.nom)q={...q,nom:d.last_name,first_name:d.first_name,telephone:d.mobile_phone,email:d.email,landline:d.landline,adresse:d.address,zip:d.zip,city:d.city,title:d.title};
     return `<div id="ogwNewCustomerForm" class="ogwNewCard">
-      <div class="ogwNotice ogwInfo" style="margin-top:0">Tu peux créer ici un <strong>nouveau client particulier</strong> dans Ogust. Vérifie chaque champ : aucune civilité, aucun paiement et aucun gestionnaire ne sont choisis automatiquement.</div>
+      <div class="ogwNotice ogwInfo" style="margin-top:0">Tu peux créer ici un <strong>nouveau client particulier</strong> dans Ogust. Vérifie chaque champ. Le mode de paiement et le gestionnaire restent à choisir.</div>
       <div class="ogwFormGrid" style="margin-top:11px">
-        <div class="ogwField"><label>Civilité <span class="ogwRequired">*</span></label><select id="ogwNewTitle" onchange="refreshOgustConfirm()">${options(config.titles,'Choisir')}</select></div>
+        <div class="ogwField"><label>Civilité <span class="ogwRequired">*</span></label><select id="ogwNewTitle" onchange="refreshOgustConfirm()">${options(config.titles,'Choisir',q.title)}</select></div>
         <div class="ogwField"><label>Nom <span class="ogwRequired">*</span></label><input id="ogwNewLastName" value="${htmlEsc(q.nom||'')}" oninput="refreshOgustConfirm()" placeholder="Nom"></div>
-        <div class="ogwField"><label>Prénom</label><input id="ogwNewFirstName" value="" oninput="refreshOgustConfirm()" placeholder="Prénom"></div>
+        <div class="ogwField"><label>Prénom</label><input id="ogwNewFirstName" value="${htmlEsc(q.first_name||'')}" oninput="refreshOgustConfirm()" placeholder="Prénom"></div>
         <div class="ogwField"><label>Téléphone mobile</label><input id="ogwNewPhone" value="${htmlEsc(q.telephone||'')}" oninput="refreshOgustConfirm()" type="tel" autocomplete="tel" placeholder="Téléphone mobile"></div>
-        <div class="ogwField"><label>Téléphone fixe</label><input id="ogwNewLandline" type="tel" oninput="refreshOgustConfirm()" placeholder="Téléphone fixe (facultatif)"></div>
-        <div class="ogwField full"><label>Email</label><input id="ogwNewEmail" type="email" value="" oninput="refreshOgustConfirm()" placeholder="Email (facultatif)"></div>
+        <div class="ogwField"><label>Téléphone fixe</label><input id="ogwNewLandline" value="${htmlEsc(q.landline||'')}" type="tel" oninput="refreshOgustConfirm()" placeholder="Téléphone fixe (facultatif)"></div>
+        <div class="ogwField full"><label>Email</label><input id="ogwNewEmail" type="email" value="${htmlEsc(q.email||'')}" oninput="refreshOgustConfirm()" placeholder="Email (facultatif)"></div>
         <div class="ogwField full"><label>Adresse d’intervention / principale <span class="ogwRequired">*</span></label><input id="ogwNewAddress" value="${htmlEsc(q.adresse||'')}" oninput="refreshOgustConfirm()" placeholder="N° et rue"></div>
-        <div class="ogwField"><label>Code postal <span class="ogwRequired">*</span></label><input id="ogwNewZip" inputmode="numeric" value="" oninput="refreshOgustConfirm()" placeholder="Code postal"></div>
-        <div class="ogwField"><label>Ville <span class="ogwRequired">*</span></label><input id="ogwNewCity" value="" oninput="refreshOgustConfirm()" placeholder="Ville"></div>
+        <div class="ogwField"><label>Code postal <span class="ogwRequired">*</span></label><input id="ogwNewZip" inputmode="numeric" value="${htmlEsc(q.zip||'')}" oninput="refreshOgustConfirm()" placeholder="Code postal"></div>
+        <div class="ogwField"><label>Ville <span class="ogwRequired">*</span></label><input id="ogwNewCity" value="${htmlEsc(q.city||'')}" oninput="refreshOgustConfirm()" placeholder="Ville"></div>
         <div class="ogwField"><label>Catégorie</label><input value="Particulier (B2C)" disabled></div>
         <div class="ogwField"><label>Type de fiche${config.types?.length?' <span class="ogwRequired">*</span>':''}</label><select id="ogwNewType" onchange="refreshOgustConfirm()" ${config.types?.length?'':'disabled'}>${options(config.types,config.types?.length?'Prospect ou client':'Valeur par défaut Ogust')}</select></div>
         <div class="ogwField"><label>Origine du contact <span class="ogwRequired">*</span></label><select id="ogwNewOrigin" onchange="refreshOgustConfirm()">${options(config.origins?.length?config.origins:[{value:config.origin_other,label:'Autre'}],'Choisir l’origine')}</select></div>
