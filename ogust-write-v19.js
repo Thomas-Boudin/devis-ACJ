@@ -4,6 +4,7 @@
   const CUSTOMER_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-customer';
   const NEW_CUSTOMER='__NEW__';
   let session=null;
+  let customerBusy=false;
 
   function addStyles(){
     if(document.getElementById('ogust-write-v19-style'))return;
@@ -32,7 +33,7 @@
   function fmt(v){return typeof money==='function'?money(v):`${Number(v||0).toFixed(2)} €`}
   function currentQuote(){return typeof quotePayload==='function'?quotePayload():null}
 
-  function removeModal(){document.getElementById('ogwOverlay')?.remove();session=null}
+  function removeModal(){if(customerBusy)return;document.getElementById('ogwOverlay')?.remove();session=null}
   window.closeOgustWriteModal=removeModal;
 
   function isNewCustomerMode(){return !!document.getElementById('ogwNewCustomerForm')}
@@ -66,7 +67,7 @@
     const btn=document.getElementById('ogwCreateBtn');if(!btn)return;
     const checked=!!document.getElementById('ogwConfirmCheck')?.checked;
     const customerOk=isNewCustomerMode()?newCustomerComplete():!!selectedCustomer();
-    btn.disabled=!(checked&&customerOk&&selectedCompany());
+    btn.disabled=!(checked&&customerOk&&(session?.customerOnly||selectedCompany())&&!customerBusy);
   }
   window.refreshOgustConfirm=refreshConfirm;
 
@@ -80,7 +81,7 @@
     }
     const q=quote?.client||{};
     return `<div id="ogwNewCustomerForm" class="ogwNewCard">
-      <div class="ogwNotice ogwInfo" style="margin-top:0">Aucun client existant correspondant. Tu peux créer ici un <strong>nouveau client particulier</strong> dans Ogust. Vérifie chaque champ : aucune civilité, aucun paiement et aucun gestionnaire ne sont choisis automatiquement.</div>
+      <div class="ogwNotice ogwInfo" style="margin-top:0">Tu peux créer ici un <strong>nouveau client particulier</strong> dans Ogust. Vérifie chaque champ : aucune civilité, aucun paiement et aucun gestionnaire ne sont choisis automatiquement.</div>
       <div class="ogwFormGrid" style="margin-top:11px">
         <div class="ogwField"><label>Civilité <span class="ogwRequired">*</span></label><select id="ogwNewTitle" onchange="refreshOgustConfirm()">${options(config.titles,'Choisir')}</select></div>
         <div class="ogwField"><label>Nom <span class="ogwRequired">*</span></label><input id="ogwNewLastName" value="${htmlEsc(q.nom||'')}" oninput="refreshOgustConfirm()" placeholder="Nom"></div>
@@ -166,11 +167,46 @@
     }
   }
 
+  window.openOgustCustomerCreate=async function(onCreated){
+    const company=typeof window.currentOgustCompanyV28==='function'?window.currentOgustCompanyV28():'ACJ Services';
+    const response=await fetch(`${CUSTOMER_ENDPOINT}?company=${encodeURIComponent(company)}`,{method:'GET'});
+    const data=await response.json().catch(()=>null);
+    if(!response.ok||!data?.ok||data.mode!=='particulier_only')throw new Error(data?.detail||data?.error||'Configuration client indisponible');
+    if((typeof window.currentOgustCompanyV28==='function'?window.currentOgustCompanyV28():company)!==company)return;
+    removeModal();
+    session={customerOnly:true,company,onCreated,quote:{client:{nom:document.getElementById('client')?.value||'',telephone:document.getElementById('tel')?.value||'',adresse:document.getElementById('adresse')?.value||''},numero_devis:`CLIENT-${crypto.randomUUID()}`}};
+    const overlay=document.createElement('div');overlay.id='ogwOverlay';overlay.className='ogwOverlay';
+    overlay.innerHTML=`<div class="ogwModal" role="dialog" aria-modal="true" aria-label="Nouveau client Ogust"><div class="ogwHead"><div><div class="ogwTitle">Nouveau client Ogust</div><div class="ogwSub">${htmlEsc(company)} · Création du client uniquement.</div></div><button class="ogwClose" type="button" onclick="closeOgustWriteModal()">×</button></div>${renderNewCustomer(session.quote,data.config)}<label class="ogwConfirm"><input id="ogwConfirmCheck" type="checkbox" onchange="refreshOgustConfirm()"><span>Je confirme la création de ce client dans ${htmlEsc(company)}.</span></label><div id="ogwResult"></div><div class="ogwActions"><button class="btn" type="button" onclick="closeOgustWriteModal()">Annuler</button><button id="ogwCreateBtn" class="btn good" type="button" onclick="confirmOgustCustomerOnly()" disabled>Créer le client dans Ogust</button></div></div>`;
+    document.body.appendChild(overlay);refreshConfirm();
+  };
+
+  window.confirmOgustCustomerOnly=async function(){
+    if(!session?.customerOnly||session.attempted||customerBusy||!newCustomerComplete()||!document.getElementById('ogwConfirmCheck')?.checked)return;
+    const email=document.getElementById('ogwNewEmail');
+    if(email&&!email.reportValidity())return;
+    const active=session, payload=newCustomerPayload(),btn=document.getElementById('ogwCreateBtn');
+    active.attempted=true;customerBusy=true;btn.disabled=true;
+    try{
+      const data=await createNewCustomer(btn);
+      const customer={id_customer:String(data.id_customer),label:[payload.first_name,payload.last_name].filter(Boolean).join(' '),phone:payload.mobile_phone,address:[payload.address.line,`${payload.address.zip} ${payload.address.city}`].join(', '),zip:payload.address.zip,city:payload.address.city};
+      active.onCreated?.(customer,active.company);
+      resultBox(`Client ${htmlEsc(customer.label)} créé et vérifié dans Ogust. ID : ${htmlEsc(customer.id_customer)}.`,'ok');
+      btn.textContent='Client créé';
+      document.getElementById('ogwNewCustomerForm')?.querySelectorAll('input,select').forEach(x=>x.disabled=true);
+      const check=document.getElementById('ogwConfirmCheck');check.disabled=true;check.checked=false;
+    }catch(error){
+      resultBox(htmlEsc(error?.message||'Création impossible'),'err');
+      // Une réponse incertaine ne doit jamais déclencher une seconde création.
+      btn.textContent='Vérifier dans Ogust';
+      document.getElementById('ogwConfirmCheck').disabled=true;
+    }finally{customerBusy=false;btn.disabled=true}
+  };
+
   async function createNewCustomer(btn){
     const payload=newCustomerPayload();
     if(btn)btn.textContent='Création du client…';
     resultBox('Création du nouveau client particulier puis relecture de contrôle…');
-    const response=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',confirm:true,customer:payload})});
+    const response=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',confirm:true,company:session?.company||undefined,customer:payload})});
     const data=await response.json().catch(()=>null);
     if(!response.ok||!data?.ok)throw new Error(data?.detail||data?.error||'Création du client refusée.');
     if(!data.id_customer)throw new Error('Client créé sans identifiant exploitable. Vérifie Ogust avant de réessayer.');

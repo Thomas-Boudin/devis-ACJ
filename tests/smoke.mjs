@@ -6,7 +6,7 @@ function expect(condition,message){if(!condition)throw new Error(message)}
 const sw=read('sw.js');
 const manifest=JSON.parse(read('manifest.json'));
 
-expect(sw.includes("const CACHE = 'devis-acj-v35';"),'Le cache PWA doit être v35');
+expect(sw.includes("const CACHE = 'devis-acj-v36';"),'Le cache PWA doit être v36');
 expect(sw.includes("const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];"),'Les sous-apps doivent être isolées du Service Worker Devis');
 expect(sw.includes("key.startsWith(CACHE_PREFIX)"),'Le Service Worker Devis ne doit supprimer que ses propres caches');
 expect(sw.includes("if (isIsolatedSubapp(event.request.url)) return;"),'Le Service Worker Devis doit ignorer Terrain et Intervenantes');
