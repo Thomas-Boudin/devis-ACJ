@@ -51,7 +51,7 @@
 
   function newCustomerComplete(){
     if(!isNewCustomerMode())return false;
-    return !!(value('ogwNewTitle')&&value('ogwNewLastName')&&value('ogwNewAddress')&&value('ogwNewZip')&&value('ogwNewCity')&&value('ogwNewPayment')&&value('ogwNewManager'));
+    return !!(value('ogwNewTitle')&&value('ogwNewLastName')&&value('ogwNewAddress')&&value('ogwNewZip')&&value('ogwNewCity')&&value('ogwNewPayment')&&value('ogwNewManager')&&(!document.getElementById('ogwNewOrigin')||value('ogwNewOrigin'))&&(!document.getElementById('ogwNewType')||document.getElementById('ogwNewType').disabled||value('ogwNewType')));
   }
 
   function newCustomerPayload(){
@@ -60,6 +60,10 @@
       last_name:value('ogwNewLastName'),
       first_name:value('ogwNewFirstName'),
       mobile_phone:value('ogwNewPhone'),
+      landline:value('ogwNewLandline'),
+      type:value('ogwNewType'),
+      origin:value('ogwNewOrigin'),
+      sector:value('ogwNewSector'),
       email:value('ogwNewEmail'),
       method_of_payment:value('ogwNewPayment'),
       manager:value('ogwNewManager'),
@@ -91,15 +95,20 @@
         <div class="ogwField"><label>Civilité <span class="ogwRequired">*</span></label><select id="ogwNewTitle" onchange="refreshOgustConfirm()">${options(config.titles,'Choisir')}</select></div>
         <div class="ogwField"><label>Nom <span class="ogwRequired">*</span></label><input id="ogwNewLastName" value="${htmlEsc(q.nom||'')}" oninput="refreshOgustConfirm()" placeholder="Nom"></div>
         <div class="ogwField"><label>Prénom</label><input id="ogwNewFirstName" value="" oninput="refreshOgustConfirm()" placeholder="Prénom"></div>
-        <div class="ogwField"><label>Téléphone</label><input id="ogwNewPhone" value="${htmlEsc(q.telephone||'')}" oninput="refreshOgustConfirm()" placeholder="Téléphone"></div>
+        <div class="ogwField"><label>Téléphone mobile</label><input id="ogwNewPhone" value="${htmlEsc(q.telephone||'')}" oninput="refreshOgustConfirm()" type="tel" autocomplete="tel" placeholder="Téléphone mobile"></div>
+        <div class="ogwField"><label>Téléphone fixe</label><input id="ogwNewLandline" type="tel" oninput="refreshOgustConfirm()" placeholder="Téléphone fixe (facultatif)"></div>
         <div class="ogwField full"><label>Email</label><input id="ogwNewEmail" type="email" value="" oninput="refreshOgustConfirm()" placeholder="Email (facultatif)"></div>
         <div class="ogwField full"><label>Adresse d’intervention / principale <span class="ogwRequired">*</span></label><input id="ogwNewAddress" value="${htmlEsc(q.adresse||'')}" oninput="refreshOgustConfirm()" placeholder="N° et rue"></div>
         <div class="ogwField"><label>Code postal <span class="ogwRequired">*</span></label><input id="ogwNewZip" inputmode="numeric" value="" oninput="refreshOgustConfirm()" placeholder="Code postal"></div>
         <div class="ogwField"><label>Ville <span class="ogwRequired">*</span></label><input id="ogwNewCity" value="" oninput="refreshOgustConfirm()" placeholder="Ville"></div>
+        <div class="ogwField"><label>Catégorie</label><input value="Particulier (B2C)" disabled></div>
+        <div class="ogwField"><label>Type de fiche${config.types?.length?' <span class="ogwRequired">*</span>':''}</label><select id="ogwNewType" onchange="refreshOgustConfirm()" ${config.types?.length?'':'disabled'}>${options(config.types,config.types?.length?'Prospect ou client':'Valeur par défaut Ogust')}</select></div>
+        <div class="ogwField"><label>Origine du contact <span class="ogwRequired">*</span></label><select id="ogwNewOrigin" onchange="refreshOgustConfirm()">${options(config.origins?.length?config.origins:[{value:config.origin_other,label:'Autre'}],'Choisir l’origine')}</select></div>
+        <div class="ogwField"><label>Secteur</label><select id="ogwNewSector" onchange="refreshOgustConfirm()" ${config.sectors?.length?'':'disabled'}>${options(config.sectors,config.sectors?.length?'Non renseigné':'Liste indisponible dans Ogust')}</select></div>
         <div class="ogwField"><label>Mode de paiement <span class="ogwRequired">*</span></label><select id="ogwNewPayment" onchange="refreshOgustConfirm()">${options(config.payments,'Choisir le paiement')}</select></div>
         <div class="ogwField"><label>Gestionnaire <span class="ogwRequired">*</span></label><select id="ogwNewManager" onchange="refreshOgustConfirm()">${options(config.managers,'Choisir le gestionnaire')}</select></div>
       </div>
-      <div class="ogwNewHint">Ogust enregistrera automatiquement l’origine « Autre », une adresse principale et le pays France. Si le nom saisi ci-dessus contient aussi le prénom, corrige les champs Nom / Prénom avant de confirmer.</div>
+      <div class="ogwNewHint">Les listes proviennent du compte Ogust de la société choisie. L’adresse principale sera enregistrée en France. Si le nom saisi ci-dessus contient aussi le prénom, corrige les champs Nom / Prénom avant de confirmer.</div>
     </div>`;
   }
 
@@ -193,7 +202,7 @@
     active.attempted=true;customerBusy=true;btn.disabled=true;
     try{
       const data=await createNewCustomer(btn);
-      const customer={id_customer:String(data.id_customer),label:[payload.first_name,payload.last_name].filter(Boolean).join(' '),phone:payload.mobile_phone,address:[payload.address.line,`${payload.address.zip} ${payload.address.city}`].join(', '),zip:payload.address.zip,city:payload.address.city};
+      const customer={id_customer:String(data.id_customer),label:[payload.first_name,payload.last_name].filter(Boolean).join(' '),phone:payload.mobile_phone||payload.landline,address:[payload.address.line,`${payload.address.zip} ${payload.address.city}`].join(', '),zip:payload.address.zip,city:payload.address.city};
       active.onCreated?.(customer,active.company);
       resultBox(`Client ${htmlEsc(customer.label)} créé et vérifié dans Ogust. ID : ${htmlEsc(customer.id_customer)}.`,'ok');
       btn.textContent='Client créé';

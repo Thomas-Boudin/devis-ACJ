@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v37';
+const CACHE = 'devis-acj-v38';
 const CACHE_PREFIX = 'devis-acj-';
 const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];
 
@@ -8,30 +8,30 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './sap-v7.js',
-  './print-v9.js',
-  './details-v10.js',
-  './print-v11.js',
-  './ai-v17.js',
-  './ai-policy-v18.js',
-  './ogust-write-v19.js',
-  './client-step-v21.js',
-  './navigation-v22.js',
-  './compliance-v23.js',
-  './multi-ogust-v28.js',
-  './auth-v29-2.js',
-  './prestation-sync-v24.js',
-  './costs-v28-1.js',
-  './ogust-units-v25.js',
-  './history-v29.js',
-  './history-delete-v29-1.js',
-  './ux-v26.js',
-  './ux-v27.js',
-  './ux-v30.js',
-  './availability-v31.js',
-  './availability-v32.js',
-  './history-reopen-v33.js',
-  './quotation-update-v34.js'
+  './sap-v7.js?v=38',
+  './print-v9.js?v=38',
+  './details-v10.js?v=38',
+  './print-v11.js?v=38',
+  './ai-v17.js?v=38',
+  './ai-policy-v18.js?v=38',
+  './ogust-write-v19.js?v=38',
+  './client-step-v21.js?v=38',
+  './navigation-v22.js?v=38',
+  './compliance-v23.js?v=38',
+  './multi-ogust-v28.js?v=38',
+  './auth-v29-2.js?v=38',
+  './prestation-sync-v24.js?v=38',
+  './costs-v28-1.js?v=38',
+  './ogust-units-v25.js?v=38',
+  './history-v29.js?v=38',
+  './history-delete-v29-1.js?v=38',
+  './ux-v26.js?v=38',
+  './ux-v27.js?v=38',
+  './ux-v30.js?v=38',
+  './availability-v31.js?v=38',
+  './availability-v32.js?v=38',
+  './history-reopen-v33.js?v=38',
+  './quotation-update-v34.js?v=38'
 ];
 
 function relativePath(urlValue) {
@@ -50,7 +50,7 @@ function isIsolatedSubapp(urlValue) {
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)));
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})))));
 });
 
 self.addEventListener('activate', (event) => {
@@ -71,30 +71,30 @@ async function withV292(response) {
   if (!type.includes('text/html')) return response;
   const text = await response.text();
   let html = text;
-  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js"></script></body>');
-  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js"></script></body>');
-  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js"></script></body>');
-  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js"></script></body>');
-  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js"></script></body>');
-  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js"></script></body>');
-  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js"></script></body>');
-  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js"></script></body>');
-  if (!html.includes('navigation-v22.js')) html = html.replace('</body>', '<script src="./navigation-v22.js"></script></body>');
-  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js"></script></body>');
-  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js"></script></body>');
-  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js"></script></body>');
-  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js"></script></body>');
-  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js"></script></body>');
-  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js"></script></body>');
-  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js"></script></body>');
-  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js"></script></body>');
-  if (!html.includes('ux-v26.js')) html = html.replace('</body>', '<script src="./ux-v26.js"></script></body>');
-  if (!html.includes('ux-v27.js')) html = html.replace('</body>', '<script src="./ux-v27.js"></script></body>');
-  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js"></script></body>');
-  if (!html.includes('availability-v31.js')) html = html.replace('</body>', '<script src="./availability-v31.js"></script></body>');
-  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js"></script></body>');
-  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js"></script></body>');
-  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js"></script></body>');
+  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=38"></script></body>');
+  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=38"></script></body>');
+  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=38"></script></body>');
+  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=38"></script></body>');
+  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=38"></script></body>');
+  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=38"></script></body>');
+  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=38"></script></body>');
+  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=38"></script></body>');
+  if (!html.includes('navigation-v22.js')) html = html.replace('</body>', '<script src="./navigation-v22.js?v=38"></script></body>');
+  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=38"></script></body>');
+  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=38"></script></body>');
+  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=38"></script></body>');
+  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=38"></script></body>');
+  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=38"></script></body>');
+  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=38"></script></body>');
+  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=38"></script></body>');
+  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=38"></script></body>');
+  if (!html.includes('ux-v26.js')) html = html.replace('</body>', '<script src="./ux-v26.js?v=38"></script></body>');
+  if (!html.includes('ux-v27.js')) html = html.replace('</body>', '<script src="./ux-v27.js?v=38"></script></body>');
+  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=38"></script></body>');
+  if (!html.includes('availability-v31.js')) html = html.replace('</body>', '<script src="./availability-v31.js?v=38"></script></body>');
+  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=38"></script></body>');
+  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=38"></script></body>');
+  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=38"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
