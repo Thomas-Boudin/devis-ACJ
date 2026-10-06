@@ -219,7 +219,7 @@
   async function onPhotoFiles(event){
     const input=event.currentTarget,files=[...(input.files||[])];input.value='';
     if(!files.length) return;
-    if(photoImport){setError('Cette sélection n’a pas été ajoutée. Attends la préparation des photos avant de réessayer.');return}
+    if(photoImport){photoImport.warning='Cette sélection n’a pas été ajoutée. Attends la préparation des photos avant de réessayer.';setError(photoImport.warning);return}
     const remaining=MAX_PHOTOS-selectedPhotos.length;
     if(remaining<=0){setError(`Maximum ${MAX_PHOTOS} photos.`);return}
     if(files.length>remaining){setError(`Cette sélection n’a pas été ajoutée : il reste ${remaining} place${remaining>1?'s':''}. Choisis au maximum ${remaining} photo${remaining>1?'s':''}.`);return}
@@ -232,7 +232,7 @@
         prepared.push({dataUrl,name:file.name||`Photo ${selectedPhotos.length+prepared.length+1}`});
       }
       if(!sameContext(captured)||photoImport!==batch)return;
-      selectedPhotos.push(...prepared);photoRevision++;setError('');
+      selectedPhotos.push(...prepared);photoRevision++;setError(batch.warning||'');
     }catch(e){
       if(!sameContext(captured))return;
       const message=e?.message==='PHOTO_TOO_LARGE'?'Une photo reste trop lourde après compression. Essaie une autre photo.':e?.message==='PHOTO_TYPE'?'Le fichier choisi n’est pas une image compatible.':'Impossible de préparer une des photos.';
