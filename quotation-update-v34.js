@@ -19,6 +19,10 @@
   }
   function patchMeta(company,ref,patch){const all=readMeta(),k=keyFor(company,ref);all[k]={...(all[k]||{}),...patch,updated_at:new Date().toISOString()};writeMeta(all)}
   function statusMessage(code){
+    if(code==='QUOTATION_PRODUCT_REQUIRED')return 'Prestation Ogust manquante. Le devis existant reste inchangé.';
+    if(code==='QUOTATION_RATE_NOT_FOUND')return 'Aucun tarif Ogust actif compatible avec la prestation, l’unité et la TVA. Le devis existant reste inchangé.';
+    if(code==='QUOTATION_RATE_AMBIGUOUS')return 'Plusieurs tarifs Ogust correspondent. Le devis existant reste inchangé.';
+    if(code==='QUOTATION_RATES_INCOMPLETE')return 'Catalogue des tarifs incomplet. Le devis existant reste inchangé.';
     if(code==='REMOTE_QUOTE_CHANGED')return 'Le devis a été modifié dans Ogust depuis la copie locale. Rien n’a été écrasé.';
     if(code==='CUSTOMER_MISMATCH')return 'Le client du devis Ogust ne correspond plus au client sélectionné. Mise à jour bloquée.';
     if(code==='REMOTE_STATUS_LOCKED'||code==='REMOTE_STATUS_NOT_EDITABLE')return 'Ce devis n’est plus dans un état modifiable en sécurité dans Ogust.';
