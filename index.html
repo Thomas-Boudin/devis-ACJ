@@ -53,33 +53,35 @@ function buildPrintHTML(){const p=quotePayload();const date=new Date().toLocaleD
 async function sendToOgust(){const p=quotePayload();if(!p.client.nom||!p.lignes.length){showStatus('finalStatus','Client ou prestation manquante.','err');return}showStatus('finalStatus','Envoi vers Ogust…','info');const payload={quotation:{method:'quotation.create',numero_devis:p.numero_devis,societe:p.societe,client:p.client,lignes:p.lignes.map(l=>({designation:l.designation,quantite:l.quantite,unite:l.unite,prix_unitaire:l.prix_unitaire_ttc,tva:l.tva_rate})),total_ttc:p.totaux.ttc,notes:p.notes}};try{const resp=await fetch('https://acj-ogust-proxy.vercel.app/api/ogust-devis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data={};try{data=await resp.json()}catch(e){}if(resp.ok&&data.ok){saveQuote();showStatus('finalStatus','Devis envoyé à Ogust.','ok')}else{showStatus('finalStatus','Ogust n’a pas confirmé la création du devis. Le devis reste enregistré localement.','err');console.error(data)}}catch(e){showStatus('finalStatus','Connexion Ogust impossible. Le devis n’a pas été perdu.','err');console.error(e)}}function showStatus(id,msg,type='info'){const b=el(id);if(!b)return;b.textContent=msg;b.className=`status show ${type}`}function newQuote(){state={step:1,number:nextQuoteNumber(),company:state.company,client:'',tel:'',address:'',mode:'jardin',activePreset:null,builderMethod:'hourly',lines:[],notes:''};el('client').value='';el('tel').value='';el('adresse').value='';el('notes').value='';el('quoteNumberTop').textContent=state.number;renderCompanies();renderModes();renderQuoteLines();goStep(1);showStatus('finalStatus','','info')}function init(){initQuoteNumber();renderCompanies();renderModes();renderQuoteLines();el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate;['kmRate','wasteRate'].forEach(id=>el(id).addEventListener('change',persistSettings));goStep(1);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error)}document.addEventListener('DOMContentLoaded',init);
 </script>
 
-<script src="./sap-v7.js?v=41"></script>
-<script src="./print-v9.js?v=41"></script>
-<script src="./details-v10.js?v=41"></script>
-<script src="./print-v11.js?v=41"></script>
-<script src="./ai-v17.js?v=41"></script>
-<script src="./ai-policy-v18.js?v=41"></script>
-<script src="./ogust-write-v19.js?v=41"></script>
-<script src="./client-step-v21.js?v=41"></script>
-<script src="./navigation-v22.js?v=41"></script>
-<script src="./compliance-v23.js?v=41"></script>
-<script src="./multi-ogust-v28.js?v=41"></script>
-<script src="./auth-v29-2.js?v=41"></script>
-<script src="./prestation-sync-v24.js?v=41"></script>
-<script src="./costs-v28-1.js?v=41"></script>
-<script src="./ogust-units-v25.js?v=41"></script>
-<script src="./history-v29.js?v=41"></script>
-<script src="./history-delete-v29-1.js?v=41"></script>
-<script src="./ux-v26.js?v=41"></script>
-<script src="./ux-v27.js?v=41"></script>
-<script src="./ux-v30.js?v=41"></script>
-<script src="./availability-v31.js?v=41"></script>
-<script src="./availability-v32.js?v=41"></script>
-<script src="./history-reopen-v33.js?v=41"></script>
-<script src="./quotation-update-v34.js?v=41"></script>
-<script src="./notes-import-v39.js?v=41"></script>
-<script src="./ogust-rates-v40.js?v=41"></script>
-<script src="./ogust-picker-v41.js?v=41"></script>
-<script src="./pwa-update-v38.js?v=41"></script>
+<script src="./sap-v7.js?v=42"></script>
+<script src="./print-v9.js?v=42"></script>
+<script src="./details-v10.js?v=42"></script>
+<script src="./print-v11.js?v=42"></script>
+<script src="./ai-v17.js?v=42"></script>
+<script src="./ai-policy-v18.js?v=42"></script>
+<script src="./ogust-write-v19.js?v=42"></script>
+<script src="./client-step-v21.js?v=42"></script>
+<script src="./navigation-v22.js?v=42"></script>
+<script src="./compliance-v23.js?v=42"></script>
+<script src="./multi-ogust-v28.js?v=42"></script>
+<script src="./auth-v29-2.js?v=42"></script>
+<script src="./prestation-sync-v24.js?v=42"></script>
+<script src="./costs-v28-1.js?v=42"></script>
+<script src="./ogust-units-v25.js?v=42"></script>
+<script src="./history-v29.js?v=42"></script>
+<script src="./history-delete-v29-1.js?v=42"></script>
+<script src="./ux-v26.js?v=42"></script>
+<script src="./ux-v27.js?v=42"></script>
+<script src="./ux-v30.js?v=42"></script>
+<script src="./availability-v31.js?v=42"></script>
+<script src="./availability-v32.js?v=42"></script>
+<script src="./history-reopen-v33.js?v=42"></script>
+<script src="./quotation-update-v34.js?v=42"></script>
+<script src="./notes-import-v39.js?v=42"></script>
+<script src="./ogust-rates-v40.js?v=42"></script>
+<script src="./ogust-picker-v41.js?v=42"></script>
+<script src="./fast-flow-v42.js?v=42"></script>
+<script src="./draft-v42.js?v=42"></script>
+<script src="./pwa-update-v38.js?v=42"></script>
 </body>
 </html>

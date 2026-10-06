@@ -70,6 +70,9 @@
     state.lines=(p?.lignes||[]).map(l=>({
       id:typeof window.uid==='function'?window.uid():`l_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
       type:l?.type||'service',designation:String(l?.designation||''),meta:String(l?.detail||''),pricingMethod:String(l?.methode_chiffrage||''),activity:String(l?.activite||p?.mode||state.mode),qty:n(l?.quantite),unit:String(l?.unite||''),unitPriceTTC:n(l?.prix_unitaire_ttc),vat:n(l?.tva_rate),
+      ...(l?.ogust_rate_id?{ogustRateId:String(l.ogust_rate_id)}:{}),
+      ...(l?.ai_provenance?{aiProvenance:JSON.parse(JSON.stringify(l.ai_provenance))}:{}),
+      ...(Array.isArray(l?.ai_pending_fields)?{aiPendingFields:[...l.ai_pending_fields]}:{}),
       ...(l?.ogust_product_level_id?{ogustProductLevelId:String(l.ogust_product_level_id),ogustProductLevelTitle:String(l.ogust_product_level_title||''),ogustProductCompany:String(p?.societe||'')}:{})
     })).filter(l=>l.designation&&l.qty>0);
     window.acjReopenedQuoteV33={societe:state.company,numero_devis:state.number,id_customer:String(p?.client?.id_customer||''),snapshot:p};

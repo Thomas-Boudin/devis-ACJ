@@ -1,4 +1,4 @@
-// Assistant ACJ v17 — estimation visuelle des dimensions + temps photo exploitable.
+// Assistant chantier — propositions contextualisées et estimations vérifiées.
 (function(){
   const AI_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/analyse-chantier';
   const MAX_PHOTOS=4;
@@ -6,6 +6,34 @@
   let lastMeta=null;
   let suppliesAdded=false;
   let selectedPhotos=[];
+  let generation=0,photoRevision=0,lastContext=null,pendingProposal=null,activeRequest=null,applying=false;
+
+  function context(){return {generation,company:String(state.company||''),quote:String(state.number||''),mode:state.mode,text:String(document.getElementById('aiChantierText')?.value||'').trim(),photos:photoRevision}}
+  function sameContext(a,b=context()){return !!a&&['generation','company','quote','mode','text','photos'].every(key=>a[key]===b[key])}
+  function setBusy(busy){const button=document.getElementById('aiAnalyseBtn');if(button)button.disabled=busy;document.getElementById('aiLoader')?.classList.toggle('show',busy)}
+  function invalidate(reset=false){
+    if(pendingProposal){const builder=document.getElementById('serviceBuilder');if(builder){builder.innerHTML='';builder.className='builder'}state.activePreset=null}
+    generation++;activeRequest?.abort();activeRequest=null;lastAnalysis=null;lastMeta=null;lastContext=null;pendingProposal=null;suppliesAdded=false;
+    const result=document.getElementById('aiResult');if(result){result.className='aiResult';result.innerHTML=''}
+    document.querySelector('#serviceBuilder .aiBuilderNotice')?.remove();setBusy(false);setError('');
+    if(reset){selectedPhotos=[];photoRevision++;const text=document.getElementById('aiChantierText');if(text)text.value='';renderPhotos()}
+  }
+  function validAnalysis(){if(sameContext(lastContext))return true;invalidate();setError('Le chantier a changé. Relance la préparation avant d’utiliser cette proposition.');return false}
+  function missingFields(p){return [...new Set((Array.isArray(p.missing_fields)?p.missing_fields:[]).map(value=>String(value).trim()).filter(Boolean))]}
+  function statedHours(p){
+    const hours=Number(p.hours)||0;if(hours<=0)return 0;
+    const text=lastContext?.text||'';
+    return [...text.matchAll(/(\d+(?:[.,]\d+)?)\s*(?:h\b|heures?\b)/gi)].some(match=>Math.abs(Number(match[1].replace(',','.'))-hours)<.001)?hours:0;
+  }
+  function statedMoney(value){const amount=Number(value)||0;return amount>0&&[...(lastContext?.text||'').matchAll(/(\d+(?:[.,]\d+)?)\s*(?:€|euros?\b|eur\b)/gi)].some(match=>Math.abs(Number(match[1].replace(',','.'))-amount)<.001)}
+  function statedRate(value){const amount=Number(value)||0;return amount>0&&[...(lastContext?.text||'').matchAll(/(\d+(?:[.,]\d+)?)\s*(?:€|euros?\b|eur\b)\s*(?:\/\s*h\b|par\s+heure\b|l['’]heure\b)/gi)].some(match=>Math.abs(Number(match[1].replace(',','.'))-amount)<.001)}
+  function statedMeasure(value,unit){
+    const amount=Number(value)||0;if(amount<=0)return 0;
+    const units=['m2','m²'].includes(unit)?'m(?:²|2)|mètres?\\s+carrés?':unit==='ml'?'ml|m(?:ètres?)?(?![²2])':'m(?:ètres?)?(?![²2])';
+    const regex=new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(?:${units})(?![a-z])`,'gi');
+    return [...(lastContext?.text||'').matchAll(regex)].some(match=>Math.abs(Number(match[1].replace(',','.'))-amount)<.001)?amount:0;
+  }
+  function suggestedHours(p){return quoteHours(statedHours(p)?0:Number(p.estimated_hours_suggested)||Number(p.hours)||0)}
 
   function addStyles(){
     if(document.getElementById('ai-v17-style')) return;
@@ -41,10 +69,10 @@
 
   function resultDetail(p){
     const parts=[];
-    if(p.hours>0) parts.push(`${frNum(p.hours)} h indiquées`);
-    if(p.flat_ttc>0) parts.push(`forfait ${money(p.flat_ttc)}`);
-    if(p.metric>0&&p.metric_unit) parts.push(`${frNum(p.metric)} ${p.metric_unit}`);
-    if(p.height_m>0) parts.push(`hauteur ${frNum(p.height_m)} m`);
+    if(statedHours(p)>0) parts.push(`${frNum(p.hours)} h saisies`);
+    if(p.flat_ttc>0&&statedMoney(p.flat_ttc)) parts.push(`forfait saisi ${money(p.flat_ttc)}`);
+    if(statedMeasure(p.metric,p.metric_unit)>0&&p.metric_unit) parts.push(`${frNum(p.metric)} ${p.metric_unit} saisis`);
+    if(statedMeasure(p.height_m,'m')>0) parts.push(`hauteur saisie ${frNum(p.height_m)} m`);
     if(p.faces>0) parts.push(`${p.faces} face${p.faces===2?'s':''}`);
     if(p.top) parts.push('dessus');
     if(p.cut_type==='entretien') parts.push('taille d’entretien');
@@ -71,17 +99,16 @@
     }
     if(hmin>0&&hmax>0) bits.push(`Hauteur visuelle : environ ${frNum(hmin)} à ${frNum(hmax)} m`);
     if(!bits.length) return '';
-    const confidence=Math.round((Number(p.visual_measurement_confidence)||0)*100);
-    return `<div class="aiVisualMeasure"><strong>Dimensions estimées sur photo</strong><br>${esc(bits.join(' · '))}<div class="muted">Confiance sur les dimensions : ${confidence} %. Ces valeurs servent au calcul mais ne sont pas considérées comme des mesures réelles.</div></div>`;
+    return `<div class="aiVisualMeasure"><strong>Estimation à confirmer sur place</strong><br>${esc(bits.join(' · '))}<div class="muted">Une photo ne donne pas une mesure réelle. Ces hypothèses ne remplissent pas les champs de dimensions.</div></div>`;
   }
 
   function estimateHtml(p){
-    const raw=Number(p.estimated_hours_suggested)||0;
-    if(p.hours>0||p.flat_ttc>0||raw<=0) return '';
-    const advised=quoteHours(raw),min=Number(p.estimated_hours_min)||raw,max=Number(p.estimated_hours_max)||raw,confidence=Number(p.estimation_confidence)||0;
-    const cls=confidence<.55?' aiEstimateLow':'';
+    const raw=suggestedHours(p);
+    if(statedHours(p)>0||(p.flat_ttc>0&&statedMoney(p.flat_ttc))||raw<=0) return '';
+    const advised=raw,min=Number(p.estimated_hours_min)||raw,max=Number(p.estimated_hours_max)||raw;
+    const cls=missingFields(p).length?' aiEstimateLow':'';
     const source=hasVisualMeasures(p)&&Number(p.metric)<=0?' à partir des photos':'';
-    return `<div class="aiEstimate${cls}"><strong>Temps conseillé${source} : ${esc(durationLabel(advised))}</strong><br>Fourchette estimée : ${esc(durationLabel(min))} – ${esc(durationLabel(max))}<div class="aiEstimateReliability">Fiabilité de l’estimation : <strong>${Math.round(confidence*100)} %</strong></div><div class="aiEstimateBasis">${esc(p.estimation_basis||'Estimation indicative ACJ')} · à valider</div></div>`;
+    return `<div class="aiEstimate${cls}"><strong>Estimation à confirmer${source} : ${esc(durationLabel(advised))}</strong><br>Fourchette indicative : ${esc(durationLabel(min))} – ${esc(durationLabel(max))}<div class="aiEstimateBasis">${esc(p.estimation_basis||'Hypothèse proposée par l’assistant')} · ${missingFields(p).length?'renseigne une durée pour chiffrer':'confirme ou corrige le temps avant de chiffrer'}</div></div>`;
   }
 
   function visualHtml(p){
@@ -117,7 +144,7 @@
     card.id='aiChantierCard';card.className='card aiCard';
     card.innerHTML=`
       <div class="aiTitleRow"><div class="aiTitle">Décrire le chantier</div><span class="aiBadge">Assistant ACJ</span></div>
-      <div class="aiHelp">Décris le chantier et ajoute jusqu’à 4 photos. Sans mesure réelle, l’assistant estime visuellement une fourchette de dimensions puis s’en sert pour proposer un temps. Plus tu donnes de dimensions réelles, plus la fiabilité augmente.</div>
+      <div class="aiHelp">Écris ou dicte les travaux ici, avec les quantités connues. L’assistant prépare des propositions à vérifier. Les photos aident à décrire le chantier ; leurs dimensions et durées restent des estimations à confirmer.</div>
       <div class="field"><textarea id="aiChantierText" placeholder="Ex. haie à tailler, une face + dessus, évacuation… Tu peux aussi envoyer seulement des photos."></textarea></div>
       <div class="aiPhotoZone">
         <div class="aiPhotoHelp">Photos facultatives · maximum 4 · elles ne sont pas enregistrées dans le devis.</div>
@@ -135,6 +162,7 @@
     lead.insertAdjacentElement('afterend',card);
     document.getElementById('aiCameraInput')?.addEventListener('change',onPhotoFiles);
     document.getElementById('aiGalleryInput')?.addEventListener('change',onPhotoFiles);
+    document.getElementById('aiChantierText')?.addEventListener('input',()=>invalidate());
   }
 
   function setError(message){const n=document.getElementById('aiError');if(!n)return;n.textContent=message||'';n.classList.toggle('show',!!message)}
@@ -148,7 +176,7 @@
 
   window.openAICamera=function(){if(selectedPhotos.length>=MAX_PHOTOS){setError(`Maximum ${MAX_PHOTOS} photos.`);return}document.getElementById('aiCameraInput')?.click()};
   window.openAIGallery=function(){if(selectedPhotos.length>=MAX_PHOTOS){setError(`Maximum ${MAX_PHOTOS} photos.`);return}document.getElementById('aiGalleryInput')?.click()};
-  window.removeAIPhoto=function(index){selectedPhotos.splice(index,1);renderPhotos();setError('')};
+  window.removeAIPhoto=function(index){invalidate();selectedPhotos.splice(index,1);photoRevision++;renderPhotos()};
 
   async function imageFromFile(file){
     if('createImageBitmap' in window){
@@ -188,7 +216,7 @@
   async function onPhotoFiles(event){
     const input=event.currentTarget,files=[...(input.files||[])];input.value='';
     if(!files.length) return;
-    setError('');
+    invalidate();const captured=context();
     const remaining=MAX_PHOTOS-selectedPhotos.length;
     if(remaining<=0){setError(`Maximum ${MAX_PHOTOS} photos.`);return}
     const chosen=files.slice(0,remaining);
@@ -196,44 +224,48 @@
     try{
       for(const file of chosen){
         const dataUrl=await compressPhoto(file);
+        if(!sameContext(captured))return;
         selectedPhotos.push({dataUrl,name:file.name||`Photo ${selectedPhotos.length+1}`});
         renderPhotos();
       }
       if(files.length>remaining) setError(`Seules les ${MAX_PHOTOS} premières photos ont été conservées.`);
     }catch(e){
+      if(!sameContext(captured))return;
       const message=e?.message==='PHOTO_TOO_LARGE'?'Une photo reste trop lourde après compression. Essaie une autre photo.':e?.message==='PHOTO_TYPE'?'Le fichier choisi n’est pas une image compatible.':'Impossible de préparer une des photos.';
       setError(message);
-    }finally{if(btn)btn.disabled=false}
+    }finally{if(sameContext(captured)){photoRevision++;if(btn)btn.disabled=false}}
   }
 
   function renderResult(analysis){
     const box=document.getElementById('aiResult');if(!box)return;
     const prestations=analysis?.prestations||[];if(!prestations.length){box.className='aiResult';box.innerHTML='';return}
     const lines=prestations.map((p,i)=>{
-      const preset=presetFor(p.mode,p.preset),missing=(p.missing_fields||[]).filter(Boolean),raw=Number(p.estimated_hours_suggested)||0,advised=quoteHours(raw),understanding=Math.round((Number(p.confidence)||0)*100);
-      const buttonLabel=p.hours>0?'Préremplir avec les heures indiquées':advised>0?`Préremplir avec ${durationLabel(advised)}`:'Préremplir cette prestation';
-      return `<div class="aiResultCard"><div class="aiResultTop"><div><div class="aiResultName">${esc(p.designation||preset?.label||'Prestation')}</div><div class="aiResultMeta">${esc(modeLabel(p.mode))} · ${esc(resultDetail(p))}</div>${visualHtml(p)}${visualMeasureHtml(p)}${estimateHtml(p)}${historyHtml(p)}${missing.length?`<div class="aiMissing">À compléter / vérifier : ${esc(missing.join(', '))}</div>`:''}</div><div class="aiConfidence">Chantier compris<br><strong>${understanding} %</strong></div></div><button class="btn small primary" style="width:100%;margin-top:9px" type="button" onclick="applyAIProposal(${i})">${esc(buttonLabel)}</button></div>`;
+      const preset=presetFor(p.mode,p.preset),missing=missingFields(p),hours=statedHours(p),advised=suggestedHours(p);
+      const buttonLabel=hours>0?'Préparer avec les heures saisies':missing.length?'Compléter cette prestation':advised>0?'Vérifier cette estimation':'Préparer cette prestation';
+      const status=hours>0||(p.flat_ttc>0&&statedMoney(p.flat_ttc))?'Saisi':'Estimation à confirmer';
+      return `<div class="aiResultCard"><div class="aiResultTop"><div><div class="aiResultName">${esc(p.designation||preset?.label||'Prestation')}</div><div class="aiResultMeta">${esc(modeLabel(p.mode))} · ${esc(resultDetail(p))}</div>${visualHtml(p)}${visualMeasureHtml(p)}${estimateHtml(p)}${historyHtml(p)}${missing.length?`<div class="aiMissing">À compléter / vérifier : ${esc(missing.join(', '))}</div>`:''}</div><div class="aiConfidence">${esc(status)}</div></div><button class="btn small primary" style="width:100%;margin-top:9px" type="button" onclick="applyAIProposal(${i})">${esc(buttonLabel)}</button></div>`;
     }).join('');
     const supplies=Number(analysis.fournitures_ttc)||0;
-    const suppliesHtml=supplies>0?`<div class="aiSupplies"><div><strong>Fournitures reconnues</strong><br><span style="color:#9fdcf6">${money(supplies)} TTC</span></div><button id="aiSuppliesBtn" class="btn small" type="button" onclick="addAISupplies()">Ajouter</button></div>`:'';
+    const suppliesHtml=supplies>0&&statedMoney(supplies)?`<div class="aiSupplies"><div><strong>Fournitures · montant à vérifier</strong><br><span style="color:#9fdcf6">${money(supplies)} TTC</span></div><button id="aiSuppliesBtn" class="btn small" type="button" onclick="addAISupplies()">Ajouter</button></div>`:'';
     box.innerHTML=`<div style="font-size:12px;font-weight:850;color:#dff6ff">Proposition</div>${lines}${suppliesHtml}${historyStatusHtml()}${analysis.notes?`<div class="tiny" style="margin-top:9px;color:#a9d9ea">${esc(analysis.notes)}</div>`:''}`;box.className='aiResult show';
   }
 
   window.analyseChantierAI=async function(){
     const text=String(document.getElementById('aiChantierText')?.value||'').trim();
     if(text.length<5&&selectedPhotos.length===0){setError('Décris le chantier ou ajoute au moins une photo avant de lancer l’analyse.');return}
-    setError('');const btn=document.getElementById('aiAnalyseBtn'),loader=document.getElementById('aiLoader');if(btn)btn.disabled=true;loader?.classList.add('show');
+    invalidate();const captured=context();const controller=new AbortController();activeRequest=controller;setBusy(true);
     try{
-      const payload={description:text,mode:state.mode,images:selectedPhotos.map(p=>p.dataUrl)};
-      const response=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const payload={description:text,mode:captured.mode,company:captured.company,images:selectedPhotos.map(p=>p.dataUrl)};
+      const response=await fetch(AI_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
       const data=await response.json().catch(()=>null);
+      if(!sameContext(captured))return;
       if(!response.ok||!data?.ok){
         if(data?.error==='AI_NOT_CONFIGURED') throw new Error('L’assistant n’est pas configuré côté serveur.');
         if(data?.error==='TOO_MANY_IMAGES') throw new Error('Maximum 4 photos par analyse.');
         throw new Error('L’analyse n’a pas abouti. Réessaie.');
       }
-      lastAnalysis=data.analysis;lastMeta=data.meta||null;suppliesAdded=false;renderResult(lastAnalysis);
-    }catch(e){setError(e?.message||'Impossible de joindre l’assistant.')}finally{if(btn)btn.disabled=false;loader?.classList.remove('show')}
+      lastAnalysis=data.analysis;lastMeta=data.meta||null;lastContext=captured;suppliesAdded=false;renderResult(lastAnalysis);
+    }catch(e){if(sameContext(captured)&&e?.name!=='AbortError')setError(e?.message||'Impossible de joindre l’assistant.')}finally{if(sameContext(captured)){activeRequest=null;setBusy(false)}}
   };
 
   function setIf(id,value,allowEmpty=false){const n=document.getElementById(id);if(!n)return;if(allowEmpty||value!==''&&value!==0&&value!==false&&value!=null)n.value=value}
@@ -246,25 +278,98 @@
   }
 
   function showEstimateNotice(p,usedHours){
-    if(!(Number(p.estimated_hours_suggested)>0)||Number(p.hours)>0)return;
     const card=document.querySelector('#serviceBuilder .builderCard');if(!card)return;card.querySelector('.aiBuilderNotice')?.remove();
     const notice=document.createElement('div');notice.className='aiBuilderNotice';
-    const min=Number(p.estimated_hours_min)||usedHours,max=Number(p.estimated_hours_max)||usedHours,reliability=Math.round((Number(p.estimation_confidence)||0)*100);
+    const estimate=suggestedHours(p),min=Number(p.estimated_hours_min)||estimate,max=Number(p.estimated_hours_max)||estimate;
     const visual=visualMeasureText(p);const visualLine=visual?`<br>Hypothèse photo utilisée : ${esc(visual)}. Les champs de dimensions restent vides jusqu’à mesure réelle.`:'';
     const history=p.history_used&&Number(p.history_similar_count)>=2?`<br>Historique Ogust : ${Math.round(Number(p.history_similar_count))} cas comparables${Number(p.history_avg_hours)>0?`, moyenne ${esc(durationLabel(p.history_avg_hours))}`:''}.`:'';
-    notice.innerHTML=`<strong>Temps conseillé prérempli : ${esc(durationLabel(usedHours))}</strong><br>Fourchette estimée : ${esc(durationLabel(min))} – ${esc(durationLabel(max))}<br>Fiabilité de l’estimation : ${reliability} %.${visualLine}${history}<br>Tu peux modifier les heures avant d’ajouter la prestation.`;
+    const missing=missingFields(p),estimated=state.builderMethod!=='flat'&&!statedHours(p);
+    const label=estimated?'Estimation à confirmer':state.builderMethod==='flat'&&!statedMoney(p.flat_ttc)?'Montant à renseigner':'Saisi · à vérifier';
+    const time=estimated&&estimate>0?`<br>Fourchette indicative : ${esc(durationLabel(min))} – ${esc(durationLabel(max))}`:'';
+    const warning=missing.length?`<br>À vérifier : ${esc(missing.join(', '))}.`:'';
+    const confirmation=estimated&&usedHours>0?'<label style="display:flex;gap:8px;align-items:flex-start;margin-top:8px"><input id="aiDurationConfirm" type="checkbox">Je confirme cette durée pour chiffrer le chantier.</label>':estimated?'<br>Renseigne le temps retenu dans « Nombre d’heures ».':'';
+    notice.innerHTML=`<strong>${label}</strong>${time}${visualLine}${history}${warning}${confirmation}`;
     card.querySelector('.serviceHead')?.insertAdjacentElement('afterend',notice)
   }
 
   window.applyAIProposal=function(index){
+    if(!validAnalysis())return;
     const p=lastAnalysis?.prestations?.[index];if(!p||!MODES[p.mode])return;const preset=presetFor(p.mode,p.preset);if(!preset)return;
-    setMode(p.mode);state.activePreset=preset.id;state.builderMethod=p.pricing_method==='flat'?'flat':'hourly';renderPresets();renderServiceBuilder();
+    applying=true;try{setMode(p.mode)}finally{applying=false}lastContext.mode=state.mode;
+    state.activePreset=preset.id;state.builderMethod=p.pricing_method==='flat'?'flat':'hourly';renderPresets();renderServiceBuilder();
     if(preset.kind==='custom')setIf('builderDesignation',p.designation||preset.label,true);
-    if(state.builderMethod==='flat')setIf('builderFlat',p.flat_ttc||'',true);else{const usedHours=Number(p.hours)>0?Number(p.hours):quoteHours(p.estimated_hours_suggested);setIf('builderHours',usedHours>0?usedHours:'',true);if(p.rate_ttc>0)setIf('builderRate',p.rate_ttc);showEstimateNotice(p,usedHours)}
-    setIf('detailMetric',p.metric>0?p.metric:'',true);setIf('builderMetric',p.metric>0?p.metric:'',true);setIf('detailHeight',p.height_m>0?p.height_m:'',true);setIf('detailFaces',p.faces>0?String(p.faces):'',true);if(p.top)setIf('detailTop','oui',true);setIf('detailCutType',p.cut_type||'',true);setIf('detailWaste',p.waste||'',true);setIf('detailGrass',p.grass||'',true);setIf('detailCollection',p.collection||'',true);setIf('detailDensity',p.density||'',true);setIf('detailZone',p.zone||'',true);setIf('detailMethod',p.method||'',true);setIf('detailSupport',p.support||'',true);setIf('detailExtra',p.extra||'',true);document.getElementById('serviceBuilder')?.scrollIntoView({behavior:'smooth',block:'center'});
+    const missing=missingFields(p),hours=statedHours(p),estimated=!hours&&state.builderMethod!=='flat',usedHours=hours||(!missing.length&&!hasVisualMeasures(p)?suggestedHours(p):0);
+    pendingProposal={context:{...lastContext},preset:preset.id,mode:p.mode,method:state.builderMethod,proposal:p,estimated,prefilledHours:estimated?usedHours:0,photoCount:selectedPhotos.length};
+    if(state.builderMethod==='flat')setIf('builderFlat',statedMoney(p.flat_ttc)?p.flat_ttc:'',true);else{setIf('builderHours',usedHours>0?usedHours:'',true);if(statedRate(p.rate_ttc))setIf('builderRate',p.rate_ttc)}showEstimateNotice(p,usedHours);
+    const metric=statedMeasure(p.metric,p.metric_unit),height=statedMeasure(p.height_m,'m');
+    setIf('detailMetric',metric||'',true);setIf('builderMetric',metric||'',true);setIf('detailHeight',height||'',true);setIf('detailFaces',p.faces>0?String(p.faces):'',true);if(p.top)setIf('detailTop','oui',true);setIf('detailCutType',p.cut_type||'',true);setIf('detailWaste',p.waste||'',true);setIf('detailGrass',p.grass||'',true);setIf('detailCollection',p.collection||'',true);setIf('detailDensity',p.density||'',true);setIf('detailZone',p.zone||'',true);setIf('detailMethod',p.method||'',true);setIf('detailSupport',p.support||'',true);setIf('detailExtra',p.extra||'',true);document.getElementById('serviceBuilder')?.scrollIntoView({behavior:'smooth',block:'center'});
   };
 
-  window.addAISupplies=function(){const amount=Number(lastAnalysis?.fournitures_ttc)||0;if(amount<=0||suppliesAdded)return;const activity=lastAnalysis?.prestations?.[0]?.mode||state.mode,m=MODES[activity]||MODES[state.mode];state.lines.push({id:uid(),type:'cost',designation:'Fournitures / consommables',meta:'Montant extrait de la description du chantier',activity,qty:1,unit:'forfait',unitPriceTTC:amount,vat:m.vat});suppliesAdded=true;renderQuoteLines();const btn=document.getElementById('aiSuppliesBtn');if(btn){btn.textContent='Ajouté';btn.disabled=true}};
+  window.addAISupplies=function(){if(!validAnalysis())return;const amount=Number(lastAnalysis?.fournitures_ttc)||0;if(amount<=0||suppliesAdded)return;if(!statedMoney(amount)){setError('Le montant des fournitures n’est pas indiqué dans les notes. Renseigne-le dans le chiffrage.');return}const activity=lastAnalysis?.prestations?.[0]?.mode||state.mode,m=MODES[activity]||MODES[state.mode];state.lines.push({id:uid(),type:'cost',designation:'Fournitures / consommables',meta:'Montant extrait des notes · à vérifier',activity,qty:1,unit:'forfait',unitPriceTTC:amount,vat:m.vat,aiProvenance:{source:'notes',description:lastContext.text,photoCount:selectedPhotos.length,status:'saisi',durationConfirmed:true},aiPendingFields:[]});suppliesAdded=true;renderQuoteLines();const btn=document.getElementById('aiSuppliesBtn');if(btn){btn.textContent='Ajouté';btn.disabled=true}};
 
-  addStyles();injectCard();renderPhotos();
+  function provenanceFor(pending){
+    const p=pending.proposal;
+    return {source:'assistant',description:pending.context.text,photoCount:pending.photoCount??selectedPhotos.length,status:pending.estimated?'estimation_confirmee':'saisi_verifie',durationConfirmed:true,estimatedHours:suggestedHours(p),basis:String(p.estimation_basis||''),visualHypotheses:visualMeasureText(p),missingFields:missingFields(p)};
+  }
+  window.acjAIDraftV42={
+    get(){
+      const pending=pendingProposal;
+      if(!pending||!sameContext(pending.context)||pending.mode!==state.mode||pending.preset!==state.activePreset||pending.method!==state.builderMethod)return null;
+      return JSON.parse(JSON.stringify({proposal:pending.proposal,company:pending.context.company,number:pending.context.quote,mode:pending.mode,preset:pending.preset,method:pending.method,text:pending.context.text,photoCount:pending.photoCount??selectedPhotos.length,prefilledHours:pending.prefilledHours,estimated:pending.estimated}));
+    },
+    restore(draft){
+      if(!draft||typeof draft!=='object'||!draft.proposal||typeof draft.proposal!=='object')return false;
+      if(String(draft.company||'')!==String(state.company||'')||String(draft.number||'')!==String(state.number||'')||draft.mode!==state.mode||draft.preset!==state.activePreset||draft.method!==state.builderMethod||String(draft.text||'').trim()!==context().text)return false;
+      const preset=MODES[state.mode]?.presets.find(item=>item.id===draft.preset);
+      if(!preset||!['hourly','flat','auto'].includes(draft.method)||draft.proposal.mode!==draft.mode)return false;
+      lastContext=context();lastAnalysis=null;lastMeta=null;
+      const proposal=JSON.parse(JSON.stringify(draft.proposal)),estimated=!statedHours(proposal)&&draft.method!=='flat';
+      pendingProposal={context:{...lastContext},preset:draft.preset,mode:draft.mode,method:draft.method,proposal,estimated,prefilledHours:estimated?Math.max(0,Number(draft.prefilledHours)||0):0,photoCount:Math.min(MAX_PHOTOS,Math.max(0,Number(draft.photoCount)||0))};
+      showEstimateNotice(proposal,pendingProposal.prefilledHours);
+      const checkbox=document.getElementById('aiDurationConfirm');if(checkbox)checkbox.checked=false;
+      return true;
+    }
+  };
+  window.acjAIReadiness=function(){
+    const lines=state.lines||[];
+    return {ok:!lines.some(line=>line.aiProvenance?.durationConfirmed===false),unconfirmed:lines.filter(line=>line.aiProvenance?.durationConfirmed===false).map(line=>line.id),missing:lines.filter(line=>line.aiPendingFields?.length).map(line=>({id:line.id,designation:line.designation,fields:[...line.aiPendingFields]}))};
+  };
+  function wrap(){
+    const builder=window.renderServiceBuilder;
+    if(typeof builder==='function')window.renderServiceBuilder=function(){
+      const pending=pendingProposal,active=pending&&sameContext(pending.context)&&pending.mode===state.mode&&pending.preset===state.activePreset&&pending.method===state.builderMethod;
+      const ids=['builderHours','builderFlat','builderRate','builderDesignation','builderMetric','detailMetric','detailHeight','detailFaces','detailTop','detailCutType','detailWaste','detailGrass','detailCollection','detailDensity','detailZone','detailMethod','detailSupport','detailExtra'];
+      const saved=active?ids.map(id=>[id,document.getElementById(id)?.value]).filter(([,value])=>value!==undefined):[];
+      const confirmed=document.getElementById('aiDurationConfirm')?.checked,out=builder.apply(this,arguments);
+      if(active){for(const [id,value] of saved)setIf(id,value,true);showEstimateNotice(pending.proposal,pending.prefilledHours);const checkbox=document.getElementById('aiDurationConfirm');if(checkbox)checkbox.checked=!!confirmed}
+      return out;
+    };
+    const add=window.addBuiltService;
+    if(typeof add==='function')window.addBuiltService=function(){
+      const pending=pendingProposal;
+      if(pending){
+        if(!sameContext(pending.context)){invalidate();setError('Le chantier a changé. Prépare à nouveau cette prestation.');return}
+        if(pending.mode!==state.mode||pending.preset!==state.activePreset||pending.method!==state.builderMethod){pendingProposal=null}
+        else if(pending.estimated&&pending.prefilledHours>0&&!document.getElementById('aiDurationConfirm')?.checked){setError('Confirme ou corrige la durée proposée avant d’ajouter cette prestation.');document.getElementById('aiDurationConfirm')?.focus();return}
+      }
+      const applied=pendingProposal,before=state.lines.length,out=add.apply(this,arguments);
+      if(applied&&state.lines.length>before){
+        const line=state.lines[state.lines.length-1];line.aiProvenance=provenanceFor(applied);line.aiPendingFields=missingFields(applied.proposal);pendingProposal=null;setError('');renderQuoteLines();
+      }
+      return out;
+    };
+    const payload=window.quotePayload;
+    if(typeof payload==='function')window.quotePayload=function(){const out=payload.apply(this,arguments);(out?.lignes||[]).forEach((line,index)=>{const source=state.lines[index];if(source?.aiProvenance)line.ai_provenance=JSON.parse(JSON.stringify(source.aiProvenance));if(source?.aiPendingFields?.length)line.ai_pending_fields=[...source.aiPendingFields]});return out};
+    const fresh=window.newQuote;
+    if(typeof fresh==='function')window.newQuote=function(){invalidate(true);return fresh.apply(this,arguments)};
+    const mode=window.setMode;
+    if(typeof mode==='function')window.setMode=function(value){if(!applying&&value!==state.mode)invalidate();return mode.apply(this,arguments)};
+    const choose=window.choosePreset;
+    if(typeof choose==='function')window.choosePreset=function(){pendingProposal=null;document.querySelector('#serviceBuilder .aiBuilderNotice')?.remove();return choose.apply(this,arguments)};
+    const method=window.setBuilderMethod;
+    if(typeof method==='function')window.setBuilderMethod=function(){pendingProposal=null;return method.apply(this,arguments)};
+    window.addEventListener('acj:company-changed',()=>invalidate(true));
+  }
+
+  addStyles();injectCard();renderPhotos();wrap();
 })();

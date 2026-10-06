@@ -54,6 +54,7 @@
     if(window.acjReopenedQuoteV33){window.acjReopenedQuoteV33.snapshot=JSON.parse(JSON.stringify(p));window.acjReopenedQuoteV33.id_customer=String(p?.client?.id_customer||window.acjReopenedClientIdV33||'')}
   }
   async function updateNow(){
+    if(window.acjValidateAIForOgust&&!window.acjValidateAIForOgust())return;
     const ctx=currentContext();if(!ctx?.id)return result('Identifiant Ogust introuvable pour ce devis.','err');
     const button=document.getElementById('quoteUpdateBtnV34');if(button)button.disabled=true;
     result('Vérification du devis Ogust avant mise à jour…','info');
