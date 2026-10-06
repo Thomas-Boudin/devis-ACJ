@@ -38,6 +38,7 @@
     const promise=(async()=>{try{const response=await fetch('https://acj-ogust-proxy.vercel.app/api/ogust-history?rates=1&company='+encodeURIComponent(c),{cache:'no-store'});const data=await response.json();if(!response.ok||!data.ok||!Array.isArray(data.rates)||c!==state.company)return false;rates=data.rates;company=c;render();return true}catch{return false}})();
     pending={company:c,promise};try{return await promise}finally{if(pending?.promise===promise)pending=null}
   }
+  window.acjOgustRates={load,assign,get rates(){return company===state.company?rates:[]},get company(){return company}};
   function init(){
     const originalRender=window.renderQuoteLines;window.renderQuoteLines=function(){const out=originalRender.apply(this,arguments);render();load();return out};
     const originalPayload=window.quotePayload;window.quotePayload=function(){const p=originalPayload.apply(this,arguments);p.lignes.forEach((l,i)=>{const src=state.lines[i];automatic(src);const r=choice(src);delete l.ogust_rate_id;if(r){l.ogust_rate_id=r.id;l.ogust_product_level_id=r.product;l.ogust_product_level_title=r.title;l.ogust_unit=r.unit}});return p};
