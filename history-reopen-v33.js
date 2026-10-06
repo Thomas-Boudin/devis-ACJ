@@ -68,7 +68,7 @@
     state.mode=(typeof MODES!=='undefined'&&MODES?.[p?.mode])?p.mode:((p?.lignes||[]).find(l=>typeof MODES!=='undefined'&&MODES?.[l?.activite])?.activite||'jardin');
     state.activePreset=null;state.builderMethod='hourly';state.notes=String(p?.notes||'');
     state.lines=(p?.lignes||[]).map(l=>({
-      id:typeof window.uid==='function'?window.uid():`l_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+      id:typeof l?.line_id==='string'&&l.line_id?l.line_id:typeof window.uid==='function'?window.uid():`l_${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
       type:l?.type||'service',designation:String(l?.designation||''),meta:String(l?.detail||''),pricingMethod:String(l?.methode_chiffrage||''),activity:String(l?.activite||p?.mode||state.mode),qty:n(l?.quantite),unit:String(l?.unite||''),unitPriceTTC:n(l?.prix_unitaire_ttc),vat:n(l?.tva_rate),
       ...(l?.ogust_rate_id?{ogustRateId:String(l.ogust_rate_id)}:{}),
       ...(l?.ai_provenance?{aiProvenance:JSON.parse(JSON.stringify(l.ai_provenance))}:{}),
@@ -84,6 +84,7 @@
     document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(4);reopenNotice(p);
     window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:p}}));window.scrollTo({top:0,behavior:'smooth'});
     await resolveCustomerId(p);
+    if(p?.availability_proposal)window.acjAvailabilityV32?.restore?.(p.availability_proposal);
   }
   window.reopenHistoryQuoteV33=function(index){const p=filtered()[Number(index)];if(p)restoreQuote(p)};
 

@@ -15,7 +15,8 @@
       clientDraft:window.acjNotesClientDraft?.company===state.company?clone(window.acjNotesClientDraft):null,
       reopened:window.acjReopenedQuoteV33?.societe===state.company&&window.acjReopenedQuoteV33?.numero_devis===state.number?clone(window.acjReopenedQuoteV33):null,
       aiPending:window.acjAIDraftV42?.get?.()||null,
-      picker:window.acjOgustPicker?.getDraft?.()||null};
+      picker:window.acjOgustPicker?.getDraft?.()||null,
+      availability:window.acjAvailabilityV32?.getDraft?.()||null};
   }
   function hasWork(d){return !!(d.state.client||d.state.tel||d.state.address||d.state.notes||d.state.lines?.length||d.state.activePreset||d.inputs.aiChantierText?.trim()||d.inputs.noteText?.trim())}
   function save(){
@@ -47,6 +48,7 @@
     if(draft.aiPending)window.acjAIDraftV42?.restore?.(draft.aiPending);
     window.syncClient?.();window.syncNotes?.();window.renderQuoteLines?.();
     if(window.acjReopenedQuoteV33)window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:window.acjReopenedQuoteV33.snapshot}}));
+    if(draft.availability)window.acjAvailabilityV32?.restore?.(draft.availability);
     const step=Number(draft.state.step);window.goStep?.([2,3,4].includes(step)?step:1);
     restored=true;status('Saisie reprise · enregistrée sur cet appareil');
   }
@@ -62,7 +64,7 @@
       finally{suspended=false}
     };
     document.addEventListener('input',queue);document.addEventListener('change',queue);document.addEventListener('click',queue);
-    window.addEventListener('acj:company-changed',queue);window.addEventListener('acj:ogust-picker-changed',queue);window.addEventListener('acj:quote-reopened',queue);
+    window.addEventListener('acj:company-changed',queue);window.addEventListener('acj:ogust-picker-changed',queue);window.addEventListener('acj:quote-reopened',queue);window.addEventListener('acj:availability-selected',queue);
     window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
     window.acjDraftV42={save,get key(){return KEY}};
   }

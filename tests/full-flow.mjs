@@ -21,7 +21,7 @@ class LocalScripts extends ResourceLoader{
 async function boot(saved={},options={}){
   const errors=[],calls=[],alerts=[],recognitions=[];let aiResponse=null,aiHold=null;
   const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e));vc.on('error',(...items)=>errors.push(new Error(items.map(String).join(' '))));
-  const dom=new JSDOM(html,{url:'https://thomas-boudin.github.io/devis-ACJ/?v=43',resources:new LocalScripts(),runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
+  const dom=new JSDOM(html,{url:'https://thomas-boudin.github.io/devis-ACJ/?v=45',resources:new LocalScripts(),runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
     Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder});
     w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};
     w.requestAnimationFrame=callback=>w.setTimeout(()=>callback(w.performance.now()),0);w.cancelAnimationFrame=id=>w.clearTimeout(id);
@@ -44,6 +44,7 @@ async function boot(saved={},options={}){
       if(call.path==='/api/ogust-quotation'&&body?.action==='prepare')return response({ok:true,customer_locked:true,selected_customer_id:body.id_customer,customer_candidates:[customer],company_choices:[{id_company:'company-main',label:'Établissement principal'}],preview:{...body.quote,line_count:body.quote.lignes.length,total_ttc:body.quote.totaux.ttc},draft:{supported:true,label:'Brouillon'}});
       if(call.path==='/api/ogust-quotation'&&body?.action==='create')return response({ok:true,id_quotation:'test-only-quote',ogust_number:'TEST42',ogust_status:'B',verified:true});
       if(call.path==='/api/analyse-chantier'){
+        if(body?.action==='memory_save')return response({ok:true,configured:true,saved_count:body.records.length,duplicate_count:0,decision_count:body.records.length,actual_count:body.records.filter(record=>record.actual_confirmed).length});
         if(aiHold)return aiHold.promise;
         assert.ok(aiResponse,'AI fixture must be explicitly selected');return response({ok:true,analysis:aiResponse,meta:{}});
       }
@@ -99,6 +100,9 @@ try{
   assert.equal(b.doc.getElementById('builderHours').value,'2');assert.equal(b.doc.getElementById('aiDurationConfirm').checked,false);assert.equal(getState(b.w).lines.length,before);
   b.w.addBuiltService();assert.equal(getState(b.w).lines.length,before,'Reload cannot bypass the AI duration review');assert.match(b.doc.getElementById('aiError').textContent,/Confirme/);
   b.doc.getElementById('aiDurationConfirm').checked=true;b.w.addBuiltService();assert.equal(getState(b.w).lines.length,before+1);assert.equal(getState(b.w).lines.at(-1).aiProvenance.status,'estimation_confirmee');assert.equal(getState(b.w).lines.at(-1).aiProvenance.durationConfirmed,true);
+  b.w.goStep(4);b.w.saveQuote();await until(()=>JSON.parse(b.w.localStorage.getItem(b.w.acjLearningV45.key)||'{"entries":[]}').entries.some(entry=>entry.acked),'confirmed AI correction remotely acknowledged');
+  const memoryCall=b.calls.find(call=>call.body?.action==='memory_save');assert.equal(memoryCall.body.records.length,1,'Manual tariff line is excluded from AI feedback');assert.equal(memoryCall.body.records[0].retained_hours,2);assert.equal(memoryCall.body.records[0].estimated_hours,2);assert.equal(memoryCall.body.records[0].actual_hours,undefined,'Retained hours never become an actual duration');assert.ok(!JSON.stringify(memoryCall.body).includes(customer.phone));assert.ok(!JSON.stringify(memoryCall.body).includes(customer.email));
+  const learnedPayload=b.w.quotePayload();assert.equal(learnedPayload.lignes.at(-1).line_id,getState(b.w).lines.at(-1).id);b.w.goStep(2);
   // Missing/visual quantities do not become fabricated hours or measurements.
   input(b,'aiChantierText','Tailler la haie, dimensions à mesurer.');b.setAnalysis(fixture({preset:'haie',designation:'Taille de haie',missing_fields:['Longueur','Hauteur'],visual_metric_min:10,visual_metric_max:20,visual_metric_unit:'ml'}));await b.w.analyseChantierAI();b.w.applyAIProposal(0);
   assert.equal(b.doc.getElementById('builderHours').value,'');if(b.doc.getElementById('detailMetric'))assert.equal(b.doc.getElementById('detailMetric').value,'');const count=getState(b.w).lines.length;b.w.addBuiltService();assert.equal(getState(b.w).lines.length,count);assert.match(b.alerts.at(-1),/heures/);
