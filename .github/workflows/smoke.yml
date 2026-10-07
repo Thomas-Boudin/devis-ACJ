@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install DOM test dependency
-        run: npm install --prefix "$RUNNER_TEMP/acj-dom" jsdom@26.1.0 --no-audit --no-fund
+        run: npm install --prefix "$RUNNER_TEMP/acj-dom" jsdom@26.1.0 fake-indexeddb@6 --no-audit --no-fund
       - name: Verify the quote workflow
         env:
           ACJ_DOM_TEST_DEPS: ${{ runner.temp }}/acj-dom/node_modules
@@ -26,3 +26,4 @@ jobs:
           for test in tests/*.mjs; do
             node "$test"
           done
+

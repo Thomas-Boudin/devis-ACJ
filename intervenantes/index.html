@@ -44,7 +44,7 @@ async function googleLogin(r){if(!r?.credential)return;$('loginStatus').textCont
 function initGoogle(){const wait=()=>{if(!window.google?.accounts?.id)return setTimeout(wait,150);google.accounts.id.initialize({client_id:CLIENT_ID,callback:googleLogin,auto_select:false});google.accounts.id.renderButton($('googleButton'),{theme:'outline',size:'large',shape:'pill',text:'continue_with',width:300})};wait()}
 $('employee').addEventListener('change',loadPlanning);$('prev').onclick=()=>setDate(plus(date,-1));$('next').onclick=()=>setDate(plus(date,1));$('dateButton').onclick=()=>typeof $('datePicker').showPicker==='function'?$('datePicker').showPicker():$('datePicker').click();$('datePicker').onchange=()=>$('datePicker').value&&setDate($('datePicker').value);$('logout').onclick=()=>{sessionStorage.removeItem(TOKEN);$('app').hidden=true;$('login').hidden=false;$('loginStatus').textContent='';google.accounts.id.disableAutoSelect()};setDate(date);initGoogle();
 </script>
-<script src="./pointage-local.js?v=20260908-3"></script>
+<script src="./pointage-local.js?v=20261008-1"></script>
 <script src="./liaison-local.js?v=20260908-3"></script>
 </body>
 </html>
