@@ -26,7 +26,9 @@
     }
     select.disabled = true;
     const badge = document.querySelector('.pilotBadge');
-    if (badge) badge.textContent = 'Mon planning';
+    // This runs from the body observer: rewriting identical text would trigger
+    // another childList mutation and keep the event loop busy indefinitely.
+    if (badge && badge.textContent !== 'Mon planning') badge.textContent = 'Mon planning';
   }
   function hideAdminUi() {
     const nav = navItems();
@@ -52,7 +54,7 @@
     const select = document.getElementById('employee');
     if (select) select.disabled = false;
     const badge = document.querySelector('.pilotBadge');
-    if (badge) badge.textContent = 'Mode admin';
+    if (badge && badge.textContent !== 'Mode admin') badge.textContent = 'Mode admin';
   }
   function apply(nextRole) {
     role = nextRole === 'admin' ? 'admin' : 'intervenante';
