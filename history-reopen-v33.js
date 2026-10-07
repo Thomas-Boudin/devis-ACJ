@@ -42,6 +42,8 @@
   }
   async function resolveCustomerId(p){
     const known=String(p?.client?.id_customer||'').trim();if(known){exposeOgustClient(p,known);return known}
+    // A local new-client record has no verified Ogust identity yet.
+    if(p?.client?.fiche)return '';
     const query=String(p?.client?.nom||'').trim();if(query.length<2||!['ACJ Services','ACJ Services Lens'].includes(String(p?.societe||'')))return '';
     try{
       const r=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'search',query,company:p.societe})});
