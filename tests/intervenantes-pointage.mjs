@@ -41,10 +41,22 @@ function setup(email='employee@example.test',role='intervenante'){
 }
 async function settle(condition,description){for(let n=0;n<100;n++){if(condition())return;await pause(20);}throw Error('Timeout: '+description);}
 async function readStore(name){const database=await new Promise((resolve,reject)=>{const r=indexedDB.open('acj_intervenantes_pointage_v2',1);r.onsuccess=()=>resolve(r.result);r.onerror=reject;});return new Promise(resolve=>{const r=database.transaction(name).objectStore(name).getAll();r.onsuccess=()=>{database.close();resolve(r.result);};});}
-async function takePhotoAndConfirm(w){const d=w.document.querySelector('dialog'),input=d.querySelector('input[type=file]');assert.equal(input.getAttribute('capture'),'environment');Object.defineProperty(input,'files',{value:[new w.File(['fixture'],'photo.jpg',{type:'image/jpeg'})]});input.dispatchEvent(new w.Event('change'));await settle(()=>!d.querySelector('.confirm').disabled,'photo compression');d.querySelector('.confirm').click();await settle(()=>!w.document.querySelector('dialog'),'capture persisted');}
+function selectPhoto(w,type='image/jpeg'){const input=w.document.querySelector('dialog input[type=file]');Object.defineProperty(input,'files',{configurable:true,value:[new w.File(['fixture'],'photo.jpg',{type})]});input.dispatchEvent(new w.Event('change'));}
+async function takePhotoAndConfirm(w){const d=w.document.querySelector('dialog'),input=d.querySelector('input[type=file]');assert.equal(input.getAttribute('capture'),'environment');assert.equal(input.required,true);assert.match(d.querySelector('label').textContent,/obligatoire/);assert.equal(d.querySelector('.confirm').disabled,true,'Start and end both require a prepared photo');selectPhoto(w);await settle(()=>!d.querySelector('.confirm').disabled,'photo compression');d.querySelector('.confirm').click();await settle(()=>!w.document.querySelector('dialog'),'capture persisted');}
 
 let session=setup();await settle(()=>!session.w.document.querySelector('.pointage').disabled,'first day');
-offline=true;session.w.document.querySelector('.pointage').click();await takePhotoAndConfirm(session.w);
+offline=true;session.w.document.querySelector('.pointage').click();
+{
+  const d=session.w.document.querySelector('dialog'),confirm=d.querySelector('.confirm');
+  assert.equal(confirm.disabled,true);confirm.click();assert.equal(d.isConnected,true,'A photo-less click cannot start the service');
+  await confirm.onclick();assert.match(d.querySelector('.error').textContent,/Prenez une photo/);
+  assert.equal((await readStore('events')).length,0);assert.equal(sent.length,0,'A photo-less start is never queued or transmitted');
+  selectPhoto(session.w);await settle(()=>!confirm.disabled,'valid preview before replacing it');
+  selectPhoto(session.w,'application/pdf');await settle(()=>d.querySelector('.error').textContent.includes('ne peut pas être lue'),'invalid replacement photo');
+  assert.equal(confirm.disabled,true);assert.equal(d.querySelector('img').hidden,true,'A failed replacement cannot reuse the previous photo');
+  await confirm.onclick();assert.equal((await readStore('events')).length,0);
+}
+await takePhotoAndConfirm(session.w);
 assert.match(session.w.document.querySelector('.pointageDescription').textContent,/en attente d’envoi/);assert.equal(sent.length,0);
 let events=await readStore('events');assert.equal(events.length,1);assert.equal(events[0].photo,samplePhoto);assert.equal(events[0].type,'start');
 clock+=120000;session.w.document.querySelector('.pointage').click();await takePhotoAndConfirm(session.w);events=await readStore('events');assert.equal(events.length,2);assert.equal(events[1].photo,samplePhoto);assert.equal(session.w.document.querySelector('.pointage').disabled,true,'A completed service cannot be restarted');
@@ -59,4 +71,4 @@ session=setup('admin@example.test','admin');await settle(()=>session.w.document.
 
 arrivals.clear();finishes.clear();away=true;session=setup('another@example.test');await settle(()=>session.w.document.querySelector('.pointageDescription')?.textContent.includes('Absente'),'absence displayed');assert.equal(session.w.document.querySelector('.pointage').disabled,true);assert.deepEqual(session.errors,[]);session.dom.window.close();
 away=false;rejectPost=true;session=setup('offline-absence@example.test');await settle(()=>!session.w.document.querySelector('.pointage').disabled,'eligible before absence update');session.w.document.querySelector('.pointage').click();await takePhotoAndConfirm(session.w);await settle(()=>session.w.document.querySelector('.pointageDescription').textContent.includes('Envoi bloqué'),'permanent rejection distinguished from network retry');assert.equal(session.w.document.querySelector('.pointage').disabled,true);const retained=(await readStore('events')).filter(e=>e.owner==='offline-absence@example.test');assert.equal(retained.length,1);assert.equal(retained[0].blocked,true);assert.equal(retained[0].photo,samplePhoto,'Rejected clock and photo remain recoverable');rejectPost=false;session.w.document.querySelector('.pointageTools button:last-child').click();await settle(()=>session.w.document.querySelector('.pointageDescription').textContent.includes('Début reçu'),'explicit retry after manager resolves absence');assert.equal((await readStore('events')).filter(e=>e.owner==='offline-absence@example.test').length,0);assert.deepEqual(session.errors,[]);session.dom.window.close();
-console.log('Intervenantes pointage UI: OK (start/end photos, offline persistence, reload, idempotent retry, private photos, manager review, absences)');
+console.log('Intervenantes pointage UI: OK (mandatory start/end photos, invalid-photo rejection, offline persistence, reload, idempotent retry, private photos, manager review, absences)');
