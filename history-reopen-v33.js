@@ -42,6 +42,8 @@
   }
   async function resolveCustomerId(p){
     const known=String(p?.client?.id_customer||'').trim();if(known){exposeOgustClient(p,known);return known}
+    // A local new-client record has no verified Ogust identity yet.
+    if(p?.client?.fiche)return '';
     const query=String(p?.client?.nom||'').trim();if(query.length<2||!['ACJ Services','ACJ Services Lens'].includes(String(p?.societe||'')))return '';
     try{
       const r=await fetch(CUSTOMER_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'search',query,company:p.societe})});
@@ -79,6 +81,7 @@
     window.acjReopenedClientIdV33=String(p?.client?.id_customer||'');
     if(window.acjReopenedClientIdV33)exposeOgustClient(p,window.acjReopenedClientIdV33);
     setInput('client',state.client);setInput('tel',state.tel);setInput('adresse',state.address);setInput('email',p?.client?.email||'');setInput('notes',state.notes);
+    if(p?.client?.fiche&&!window.acjReopenedClientIdV33){window.restoreOgustDraftClientV42?.({mode:'new'},state.company);window.acjClientFormV46?.restore?.(p.client.fiche);}
     const top=document.getElementById('quoteNumberTop');if(top)top.textContent=state.number;
     if(typeof window.renderCompanies==='function')window.renderCompanies();if(typeof window.renderModes==='function')window.renderModes();if(typeof window.renderQuoteLines==='function')window.renderQuoteLines();
     document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(4);reopenNotice(p);

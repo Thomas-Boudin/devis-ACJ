@@ -13,12 +13,13 @@
     return {version:42,state:clone(state),inputs,
       clientChoice:{mode:choice?.mode||'new',selected:choice?.company===state.company&&choice?.selected?clone(choice.selected):null},
       clientDraft:window.acjNotesClientDraft?.company===state.company?clone(window.acjNotesClientDraft):null,
+      clientForm:window.acjClientFormV46?.getDraft?.()||null,
       reopened:window.acjReopenedQuoteV33?.societe===state.company&&window.acjReopenedQuoteV33?.numero_devis===state.number?clone(window.acjReopenedQuoteV33):null,
       aiPending:window.acjAIDraftV42?.get?.()||null,
       picker:window.acjOgustPicker?.getDraft?.()||null,
       availability:window.acjAvailabilityV32?.getDraft?.()||null};
   }
-  function hasWork(d){return !!(d.state.client||d.state.tel||d.state.address||d.state.notes||d.state.lines?.length||d.state.activePreset||d.inputs.aiChantierText?.trim()||d.inputs.noteText?.trim())}
+  function hasWork(d){return !!(d.state.client||d.state.tel||d.state.address||d.state.notes||d.state.lines?.length||d.state.activePreset||d.inputs.aiChantierText?.trim()||d.inputs.noteText?.trim()||Object.entries(d.clientForm||{}).some(([key,value])=>!['company','reference','label','title'].includes(key)&&typeof value==='string'&&value.trim()))}
   function save(){
     clearTimeout(timer);timer=null;if(suspended)return;
     try{
@@ -40,6 +41,7 @@
     window.acjReopenedQuoteV33=reopened?.societe===state.company&&reopened?.numero_devis===state.number?clone(reopened):null;
     window.acjReopenedClientIdV33=String(window.acjReopenedQuoteV33?.id_customer||'');
     for(const id of INPUTS){if(typeof draft.inputs?.[id]==='string'&&byId(id))byId(id).value=draft.inputs[id]}
+    if(draft.clientChoice?.mode==='new')window.acjClientFormV46?.restore?.(draft.clientForm||draft.clientDraft||{company:state.company,label:state.client,last_name:state.client,mobile_phone:state.tel,address:state.address});
     if(byId('quoteNumberTop'))byId('quoteNumberTop').textContent=state.number;
     if(state.activePreset)window.renderServiceBuilder?.();
     // A tariff saved on-device must be reloaded and matched to the current catalogue.
