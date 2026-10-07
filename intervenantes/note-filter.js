@@ -146,7 +146,7 @@ window.meaningfulOgustNote = function (value) {
     const alreadyLoaded = [...document.scripts].some((script) => /(?:^|\/)pointage-local\.js(?:$|\?)/.test(script.src));
     if (!alreadyLoaded) {
       const script = document.createElement('script');
-      script.src = './pointage-local.js';
+      script.src = './pointage-local.js?v=20261008-1';
       script.dataset.acjPointageLocal = '1';
       document.body.appendChild(script);
     }
