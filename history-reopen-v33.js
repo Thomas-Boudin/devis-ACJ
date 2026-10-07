@@ -79,6 +79,7 @@
     window.acjReopenedClientIdV33=String(p?.client?.id_customer||'');
     if(window.acjReopenedClientIdV33)exposeOgustClient(p,window.acjReopenedClientIdV33);
     setInput('client',state.client);setInput('tel',state.tel);setInput('adresse',state.address);setInput('email',p?.client?.email||'');setInput('notes',state.notes);
+    if(p?.client?.fiche&&!window.acjReopenedClientIdV33){window.restoreOgustDraftClientV42?.({mode:'new'},state.company);window.acjClientFormV46?.restore?.(p.client.fiche);}
     const top=document.getElementById('quoteNumberTop');if(top)top.textContent=state.number;
     if(typeof window.renderCompanies==='function')window.renderCompanies();if(typeof window.renderModes==='function')window.renderModes();if(typeof window.renderQuoteLines==='function')window.renderQuoteLines();
     document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(4);reopenNotice(p);
