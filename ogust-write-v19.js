@@ -34,7 +34,7 @@
   }
   function quotationError(data){
     const line=data?.line?` (ligne ${data.line})`:'';
-    const messages={QUOTATION_PRODUCT_REQUIRED:'Prestation Ogust manquante'+line+'. Aucun devis créé.',QUOTATION_RATE_NOT_FOUND:'Aucun tarif Ogust actif compatible avec la prestation, l’unité et la TVA'+line+'. Aucun devis créé.',QUOTATION_RATE_AMBIGUOUS:'Plusieurs tarifs Ogust correspondent'+line+'. Le choix doit être précisé avant l’envoi. Aucun devis créé.',QUOTATION_RATES_INCOMPLETE:'Le catalogue des tarifs Ogust n’a pas pu être lu entièrement. Aucun devis créé.'};
+    const messages={QUOTATION_PRODUCT_REQUIRED:'Prestation Ogust manquante'+line+'. Aucun devis créé.',QUOTATION_RATE_NOT_FOUND:'Aucun tarif Ogust actif compatible avec la prestation, l’unité et la TVA'+line+'. Aucun devis créé.',QUOTATION_RATE_AMBIGUOUS:'Plusieurs tarifs Ogust correspondent'+line+'. Le choix doit être précisé avant l’envoi. Aucun devis créé.',QUOTATION_RATES_INCOMPLETE:'Le catalogue des tarifs Ogust n’a pas pu être lu entièrement. Aucun devis créé.',QUOTATION_DUPLICATE_CHECK_FAILED:'La recherche des devis existants n’a pas pu être vérifiée dans Ogust. Aucun nouveau devis créé. Réessaie lorsque la lecture fonctionne.',QUOTATION_REFERENCE_CONFLICT:'Un devis différent utilise déjà cette référence pour ce client dans Ogust. Aucun nouveau devis créé. Vérifie le devis existant avant de poursuivre.',QUOTATION_DUPLICATE_AMBIGUOUS:'Plusieurs devis Ogust utilisent cette référence pour ce client. Aucun nouveau devis créé. Vérifie les devis existants avant de poursuivre.'};
     return messages[data?.error]||data?.detail||data?.error||'Création du devis refusée.';
   }
   function fmt(v){return typeof money==='function'?money(v):`${Number(v||0).toFixed(2)} €`}
@@ -329,11 +329,13 @@
         const extra=data?.rolled_back?' La création incomplète a été annulée automatiquement.':'';
         throw new Error(`${quotationError(data)}${extra}`);
       }
+      if(data.already_exists&&(data.verified!==true||!data.id_quotation))throw new Error('La correspondance renvoyée par Ogust n’a pas été vérifiée. Aucun nouveau devis créé. Réessaie pour contrôler la référence et le client.');
       active.created=true;
       if(!sessionCurrent(active))return;
       if(data.already_exists){
         const prefix=createdCustomerId?`Le client a été créé et vérifié. `:'';
-        resultBox(`${prefix}Ce devis semble déjà exister dans Ogust. ID : <span class="ogwId">${htmlEsc(data.id_quotation)}</span>. Aucune copie supplémentaire n’a été créée.`,'ok');
+        const number=data.ogust_number?` · N° ${htmlEsc(data.ogust_number)}`:'';
+        resultBox(`${prefix}Devis existant relu et vérifié dans Ogust. ID : <span class="ogwId">${htmlEsc(data.id_quotation)}</span>${number}. Le client, l’établissement et les prestations correspondent. Aucune copie supplémentaire n’a été créée.`,'ok');
         if(typeof showStatus==='function')showStatus('finalStatus',`Devis déjà présent dans Ogust — ID ${data.id_quotation}.`,'ok');
         if(btn){btn.textContent='Déjà présent';btn.disabled=true}return;
       }

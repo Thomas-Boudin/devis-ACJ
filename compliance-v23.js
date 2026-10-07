@@ -149,7 +149,7 @@
         const method=String(init?.method||input?.method||'GET').toUpperCase();
         if(method==='POST'&&url.includes('/api/ogust-quotation')){
           response.clone().json().then(data=>{
-            if(data?.ok&&data?.ogust_number)window.applyOgustQuotationNumber(data.ogust_number,data.id_quotation);
+            if(response.ok&&data?.ok&&data?.id_quotation&&data?.ogust_number&&(!data.already_exists||data.verified===true))window.applyOgustQuotationNumber(data.ogust_number,data.id_quotation);
           }).catch(()=>{});
         }
       }catch(e){}

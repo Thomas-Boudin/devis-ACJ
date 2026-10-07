@@ -209,7 +209,7 @@
       if(target&&requestQuote?.societe&&requestQuote?.numero_devis){
         try{
           const data=await response.clone().json();
-          if(data?.ok&&data?.id_quotation){
+          if(response.ok&&data?.ok&&data?.id_quotation&&(!data.already_exists||data.verified===true)){
             patchMeta(requestQuote.societe,requestQuote.numero_devis,{ogust_id:String(data.id_quotation),ogust_number:String(data.ogust_number||''),ogust_status:String(data.ogust_status||''),ogust_status_label:STATUS_LABELS[data.ogust_status]||''});
             ensureSnapshot(requestQuote);
           }

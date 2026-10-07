@@ -30,7 +30,7 @@ async function boot(saved={},options={}){
   const errors=[],calls=[],alerts=[],configPending=[];let holdConfig=!!options.holdConfig,failedQuotation=false;
   const configFor=company=>options.configForCompany?.(company)||config;
   const vc=new VirtualConsole();vc.on('jsdomError',error=>errors.push(error));vc.on('error',(...items)=>errors.push(new Error(items.map(String).join(' '))));
-  const dom=new JSDOM(html,{url:'https://thomas-boudin.github.io/devis-ACJ/?v=46',resources:new LocalScripts(),runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
+  const dom=new JSDOM(html,{url:'https://thomas-boudin.github.io/devis-ACJ/?v=47',resources:new LocalScripts(),runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
     Object.assign(w,{Response,Request,Headers,AbortController,TextEncoder,TextDecoder});
     w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};
     w.requestAnimationFrame=callback=>w.setTimeout(()=>callback(w.performance.now()),0);w.cancelAnimationFrame=id=>w.clearTimeout(id);
