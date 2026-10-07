@@ -146,8 +146,15 @@ window.meaningfulOgustNote = function (value) {
     const alreadyLoaded = [...document.scripts].some((script) => /(?:^|\/)pointage-local\.js(?:$|\?)/.test(script.src));
     if (!alreadyLoaded) {
       const script = document.createElement('script');
-      script.src = './pointage-local.js?v=20261008-1';
+      script.src = './pointage-local.js?v=20261008-2';
       script.dataset.acjPointageLocal = '1';
+      document.body.appendChild(script);
+    }
+
+    const swipeLoaded = [...document.scripts].some((script) => /(?:^|\/)planning-swipe\.js(?:$|\?)/.test(script.src));
+    if (!swipeLoaded) {
+      const script = document.createElement('script');
+      script.src = './planning-swipe.js?v=20261008-2';
       document.body.appendChild(script);
     }
 

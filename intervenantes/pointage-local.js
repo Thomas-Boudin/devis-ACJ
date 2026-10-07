@@ -26,6 +26,7 @@
     POINTAGE_DURATION_INVALID:'La durée doit être comprise entre une minute et 24 heures.',
     POINTAGE_BILLING_REVIEW_REQUIRED:'Cette prestation exige une vérification manuelle de la quantité à facturer dans Ogust.',
     POINTAGE_PHOTO_TOO_LARGE:'La photo est trop volumineuse. Prenez une nouvelle photo.',
+    POINTAGE_PHOTO_REQUIRED:'Prenez une photo pour confirmer ce pointage.',
     POINTAGE_PHOTO_INVALID:'La photo ne peut pas être lue. Prenez une nouvelle photo.',
     AUTH_REQUIRED:'Reconnectez-vous pour envoyer les pointages.',AUTH_INVALID:'Reconnectez-vous pour envoyer les pointages.'
   };
@@ -35,7 +36,7 @@
   function css(){const s=document.createElement('style');s.id='acj-pointage-css';s.textContent=`
     .pointage{background:#0f766e;color:white;cursor:pointer}.pointage[data-state="active"]{background:#b91c1c}.pointage[data-state="done"]{background:#dcfce7;color:#166534}.pointage:disabled{opacity:.65;cursor:default}
     .pointageMeta{margin-top:9px;padding:11px;border-radius:12px;background:#f0fdf4;font-size:12px;line-height:1.5;color:#166534}.pointageMeta.pending{background:#fff7ed;color:#9a3412}.pointageTools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.pointageTools button{background:white;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:8px 12px;color:#334155;font-weight:800}.pointageTools .pointageValidate{background:#0f766e;color:white;border:0}
-    .pointageDialog{width:min(calc(100% - 24px),520px);max-height:90dvh;border:0;border-radius:22px;padding:22px;color:#0f172a;overflow:auto}.pointageDialog::backdrop{background:rgba(15,23,42,.65)}.pointageDialog h2{font-size:22px;margin:0 0 10px}.pointageDialog p{line-height:1.5}.pointageDialog button{min-height:48px;border-radius:12px;padding:12px;font-weight:800;cursor:pointer}.pointageDialog .photoButton{width:100%;background:white;border:1px solid #cbd5e1}.pointageDialog img{max-width:100%;max-height:55dvh;object-fit:contain;border-radius:12px;margin-top:12px}.pointageDialog footer{display:flex;gap:8px;margin-top:18px}.pointageDialog .confirm{flex:1;background:#0f766e;color:white;border:0}.pointageDialog .cancel{background:#f1f5f9;color:#334155;border:0}.pointageDialog .error{color:#b91c1c;font-size:14px}.pointageDialog label{display:block;font-size:14px;color:#64748b;margin:8px 0}
+    .pointageDialog{width:min(calc(100% - 24px),520px);max-height:90dvh;border:0;border-radius:22px;padding:22px;color:#0f172a;overflow:auto}.pointageDialog::backdrop{background:rgba(15,23,42,.65)}.pointageDialog h2{font-size:22px;margin:0 0 10px}.pointageDialog p{line-height:1.5}.pointageDialog button{min-height:48px;border-radius:12px;padding:12px;font-weight:800;cursor:pointer}.pointageDialog .photoButton{width:100%;background:white;border:1px solid #cbd5e1}.pointageDialog img{max-width:100%;max-height:55dvh;object-fit:contain;border-radius:12px;margin-top:12px}.pointageDialog footer{display:flex;gap:8px;margin-top:18px}.pointageDialog .confirm{flex:1;background:#0f766e;color:white;border:0}.pointageDialog .confirm:disabled{opacity:.45;cursor:default}.pointageDialog .cancel{background:#f1f5f9;color:#334155;border:0}.pointageDialog .error{color:#b91c1c;font-size:14px}.pointageDialog label{display:block;font-size:14px;color:#64748b;margin:8px 0}
   `;document.head.appendChild(s);}
   function dialog(title){const d=document.createElement('dialog');d.className='pointageDialog';const h=document.createElement('h2');h.textContent=title;d.appendChild(h);d.addEventListener('close',()=>d.remove(),{once:true});document.body.appendChild(d);d.showModal();return d;}
   function p(d,text,cls){const n=document.createElement('p');n.textContent=text;if(cls)n.className=cls;d.appendChild(n);return n;}
@@ -46,13 +47,14 @@
     if(busy||!owner())return;busy=true;
     const previous=states.get(String(service.id_service)),phase=previous?.status==='active'?'stop':'start';
     const d=dialog(phase==='start'?'Démarrer l’intervention':'Terminer l’intervention');p(d,service.customer?.name||'Prestation');
-    const label=document.createElement('label');label.textContent=phase==='start'?'Photo de début (facultative)':'Photo de fin (facultative)';d.appendChild(label);
-    const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('capture','environment');input.hidden=true;d.appendChild(input);
+    const label=document.createElement('label');label.textContent=phase==='start'?'Photo de début obligatoire':'Photo de fin obligatoire';d.appendChild(label);
+    const input=document.createElement('input');input.type='file';input.accept='image/*';input.required=true;input.setAttribute('capture','environment');input.hidden=true;d.appendChild(input);
     const photoButton=button('Prendre une photo','photoButton',()=>input.click());d.appendChild(photoButton);
     const preview=document.createElement('img');preview.alt='Photo de la prestation';preview.hidden=true;d.appendChild(preview);
-    const error=p(d,'','error'),footer=document.createElement('footer');let photo=null,processing=false;
+    const error=p(d,'','error'),footer=document.createElement('footer');let photo=null,processing=false,photoAttempt=0;
     const cancel=button('Annuler','cancel',()=>d.close()),confirm=button(phase==='start'?'Démarrer':'Terminer','confirm',async()=>{
       if(processing)return;
+      if(!photo){setText(error,messages.POINTAGE_PHOTO_REQUIRED);return;}
       if(phase==='stop'&&Date.now()-Date.parse(previous.started_at)<60000){setText(error,messages.POINTAGE_DURATION_INVALID);return;}
       processing=true;confirm.disabled=true;cancel.disabled=true;photoButton.disabled=true;const occurred_at=new Date().toISOString();
       try{const selectedOwner=owner();if(!selectedOwner||selectedOwner!==currentOwner)throw new Error('AUTH_REQUIRED');
@@ -60,9 +62,10 @@
         const state={...previous,key:key(service.id_service),owner:selectedOwner,service_id:event.service_id,employee_id:event.employee_id,scheduled_date:event.scheduled_date,status:phase==='start'?'active':'completed',ogust_synced:false,error:null,pending:true};
         if(phase==='start')Object.assign(state,{started_at:occurred_at,start_event_id:event_id,start_photo:!!photo,start_gps_status:event.gps.status});else Object.assign(state,{ended_at:occurred_at,stop_event_id:event_id,end_photo:!!photo,end_gps_status:event.gps.status});
         await save(state,event);d.close();paintAll();flush();
-      }catch(e){setText(error,message(e));confirm.disabled=false;cancel.disabled=false;photoButton.disabled=false;processing=false;}
+      }catch(e){setText(error,message(e));confirm.disabled=!photo;cancel.disabled=false;photoButton.disabled=false;processing=false;}
     });
-    input.onchange=async()=>{if(!input.files?.[0])return;confirm.disabled=true;setText(error,'');try{photo=await compress(input.files[0]);preview.src=photo;preview.hidden=false;setText(photoButton,'Reprendre la photo');}catch(e){setText(error,message(e));}finally{confirm.disabled=false;}};
+    confirm.disabled=true;
+    input.onchange=async()=>{if(processing||!input.files?.[0])return;const attempt=++photoAttempt;photo=null;confirm.disabled=true;photoButton.disabled=true;preview.hidden=true;preview.removeAttribute('src');setText(error,'');setText(photoButton,'Prendre une photo');try{const value=await compress(input.files[0]);if(attempt!==photoAttempt||!d.isConnected)return;photo=value;preview.src=photo;preview.hidden=false;setText(photoButton,'Reprendre la photo');}catch(e){if(attempt===photoAttempt&&d.isConnected)setText(error,message(e));}finally{if(attempt===photoAttempt&&d.isConnected){confirm.disabled=!photo;photoButton.disabled=false;}}};
     footer.append(cancel,confirm);d.appendChild(footer);d.addEventListener('cancel',e=>{if(processing)e.preventDefault();});d.addEventListener('close',()=>{busy=false;paintAll();},{once:true});
   }
   async function viewPhoto(state,phase){const d=dialog(phase==='start'?'Photo de début':'Photo de fin'),status=p(d,'Chargement de la photo…');d.appendChild(button('Fermer','cancel',()=>d.close()));try{const blob=await call('pointage_photo',{service_id:state.service_id,employee_id:state.employee_id,date:state.scheduled_date,type:phase},false,true);const img=document.createElement('img'),url=URL.createObjectURL(blob);img.src=url;img.alt=phase==='start'?'Photo de début':'Photo de fin';d.insertBefore(img,status);status.remove();d.addEventListener('close',()=>URL.revokeObjectURL(url),{once:true});}catch{setText(status,'La photo sera consultable après son envoi.');}}
