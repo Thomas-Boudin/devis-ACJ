@@ -6,13 +6,13 @@ function expect(condition,message){if(!condition)throw new Error(message)}
 const sw=read('sw.js');
 const manifest=JSON.parse(read('manifest.json'));
 
-expect(sw.includes("const CACHE = 'devis-acj-v47';"),'Le cache PWA doit être v47');
+expect(sw.includes("const CACHE = 'devis-acj-v48';"),'Le cache PWA doit être v48');
 expect(sw.includes("const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];"),'Les sous-apps doivent être isolées du Service Worker Devis');
 expect(sw.includes("key.startsWith(CACHE_PREFIX)"),'Le Service Worker Devis ne doit supprimer que ses propres caches');
 expect(sw.includes("if (isIsolatedSubapp(event.request.url)) return;"),'Le Service Worker Devis doit ignorer Terrain et Intervenantes');
 for(const asset of ['index.html','manifest.json','fast-flow-v42.js','draft-v42.js','voice-v43.js','learning-v45.js','ai-v17.js','auth-v29-2.js','ogust-write-v19.js','client-step-v21.js','multi-ogust-v28.js','prestation-sync-v24.js','costs-v28-1.js','ogust-units-v25.js','history-v29.js','history-delete-v29-1.js','ux-v30.js','availability-v31.js','availability-v32.js','history-reopen-v33.js']){
   expect(fs.existsSync(asset),`Asset manquant: ${asset}`);
-  expect(sw.includes(`./${asset}${asset.endsWith('.js')?'?v=47':''}`),`Asset non préchargé dans sw.js: ${asset}`);
+  expect(sw.includes(`./${asset}${asset.endsWith('.js')?'?v=48':''}`),`Asset non préchargé dans sw.js: ${asset}`);
 }
 for(const legacy of ['ai-v12.js','ai-v14.js','ai-v15.js','ai-v16.js']){
   expect(!fs.existsSync(legacy),`Ancien module encore présent: ${legacy}`);
@@ -49,10 +49,10 @@ expect(intervenantesBootstrap.includes("./google-loader.js?v=20260914-1"),'Le bo
 
 console.log('Smoke tests Devis ACJ: OK');
 
-expect(read('index.html').includes('ogust-write-v19.js?v=47'),'Le formulaire doit charger dès la première visite');
-expect(read('index.html').includes('pwa-update-v38.js?v=47'),'Le contrôle de version doit être chargé');
+expect(read('index.html').includes('ogust-write-v19.js?v=48'),'Le formulaire doit charger dès la première visite');
+expect(read('index.html').includes('pwa-update-v38.js?v=48'),'Le contrôle de version doit être chargé');
 
-expect(read('index.html').includes('notes-import-v39.js?v=47'),'Import notes manquant');
-expect(sw.includes('./notes-import-v39.js?v=47'),'Import notes non préchargé');
+expect(read('index.html').includes('notes-import-v39.js?v=48'),'Import notes manquant');
+expect(sw.includes('./notes-import-v39.js?v=48'),'Import notes non préchargé');
 
-expect(read('index.html').includes('learning-v45.js?v=47'),'Mémoire des corrections non chargée');
+expect(read('index.html').includes('learning-v45.js?v=48'),'Mémoire des corrections non chargée');
