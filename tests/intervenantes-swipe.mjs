@@ -38,7 +38,7 @@ for (const mode of ['pointer', 'touch']) {
     if (mode === 'pointer') Object.assign(event, { clientX: x, clientY: y, pointerType: 'touch', pointerId: 1, isPrimary: true }, extra);
     else {
       const point = { identifier: 1, clientX: x, clientY: y };
-      Object.assign(event, { touches: kind === 'up' || kind === 'cancel' ? [] : [point], changedTouches: [point] }, extra);
+      Object.assign(event, { touches: kind === 'up' || kind === 'cancel' ? {length:0} : {0:point,length:1}, changedTouches: {0:point,length:1} }, extra);
     }
     node.dispatchEvent(event);
     return event;
@@ -75,13 +75,41 @@ for (const mode of ['pointer', 'touch']) {
   emit('up', target, 120, 240);
   assert.equal(date(), before, 'A pinch cannot change the day');
 
-  const button = doc.createElement('button'); button.textContent = 'Démarrer'; doc.getElementById('list').appendChild(button);
-  swipe(-100, 0, button); swipe(-100, 0, doc.getElementById('dateButton')); swipe(-100, 0, doc.querySelector('.navItem'));
-  assert.equal(date(), before, 'Buttons and navigation tabs do not start day gestures');
+  const button = doc.createElement('button'); button.textContent = 'Démarrer'; doc.querySelector('.top').appendChild(button);
+  const link = doc.createElement('a'); link.href = '#fixture'; link.textContent = 'Itinéraire'; doc.querySelector('.top').appendChild(link);
+  let buttonClicks = 0, linkClicks = 0;
+  button.addEventListener('click', () => buttonClicks++);
+  link.addEventListener('click', event => { event.preventDefault(); linkClicks++; });
+  const wholePage = [doc.documentElement, doc.body, doc.getElementById('app'), doc.querySelector('.top'), doc.querySelector('.brandRow'), doc.querySelector('.pilot'), doc.getElementById('employee'), doc.querySelector('.bottomNav'), doc.querySelector('.navItem'), doc.getElementById('dateButton')];
+  for (const node of wholePage) {
+    swipe(-100, 0, node); assert.equal(date(), '2028-02-29', `Swiping from ${node.id || node.className || node.tagName} opens the next day`);
+    swipe(100, 0, node); assert.equal(date(), before);
+  }
+  for (const node of [button, link, doc.getElementById('logout')]) {
+    swipe(-100, 0, node); assert.equal(date(), '2028-02-29');
+    node.dispatchEvent(new w.MouseEvent('click', { bubbles:true, cancelable:true, detail:1 }));
+    assert.equal(buttonClicks, 0); assert.equal(linkClicks, 0); assert.equal(doc.getElementById('app').hidden, false, 'A swipe over Quitter does not sign out');
+    swipe(100); assert.equal(date(), before);
+  }
+  emit('down', button, 240, 240); emit('up', button, 240, 240);
+  button.dispatchEvent(new w.MouseEvent('click', { bubbles:true, cancelable:true, detail:1 }));
+  assert.equal(buttonClicks, 1, 'A regular tap still starts the button action');
+  emit('down', link, 240, 240); emit('up', link, 240, 240);
+  link.dispatchEvent(new w.MouseEvent('click', { bubbles:true, cancelable:true, detail:1 }));
+  assert.equal(linkClicks, 1, 'A regular link tap stays usable');
+  assert.equal(date(), before, 'Taps do not change the selected day');
   const dialog = doc.createElement('dialog'); dialog.open = true; doc.body.appendChild(dialog);
-  swipe(-100); assert.equal(date(), before, 'An open photo dialog keeps the selected day'); dialog.remove();
+  swipe(-100); swipe(-100, 0, doc.body); assert.equal(date(), before, 'An open photo dialog keeps the selected day'); dialog.remove();
+  const modal = doc.createElement('section'); modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); doc.body.appendChild(modal);
+  swipe(-100, 0, modal); assert.equal(date(), before, 'A liaison sheet cannot change the selected day'); modal.remove();
   doc.getElementById('app').hidden = true; swipe(-100); assert.equal(date(), before); doc.getElementById('app').hidden = false;
   doc.querySelector('.dayStrip').hidden = true; swipe(-100); assert.equal(date(), before); doc.querySelector('.dayStrip').hidden = false;
+  doc.querySelector('.datebar').hidden = true;
+  swipe(-100, 0, doc.querySelector('.top')); swipe(-100, 0, doc.body); await pause();
+  assert.equal(date(), before, 'The global gesture does not alter the hidden day when another module is open');
+  assert.equal(doc.documentElement.classList.contains('acj-day-swipe'), false, 'Other modules keep their native horizontal scrolling');
+  doc.querySelector('.datebar').hidden = false; await pause();
+  assert.equal(doc.documentElement.classList.contains('acj-day-swipe'), true);
   emit('down', target, 240, 240); doc.getElementById('employee').value = '12'; emit('up', target, 120, 240);
   assert.equal(date(), before, 'Changing the employee cancels an unfinished gesture');
   emit('down', target, 240, 240); doc.getElementById('next').click(); emit('up', target, 120, 240);
@@ -98,5 +126,5 @@ for (const mode of ['pointer', 'touch']) {
   assert.equal(doc.querySelector('#list .client'), null, 'A response after sign-out does not render personal planning');
   assert.deepEqual(errors, []);
   w.close();
-  console.log(`Intervenantes swipe OK: ${mode} (unlimited days, leap date, scroll, controls, cancellation, stale responses)`);
+  console.log(`Intervenantes swipe OK: ${mode} (whole viewport, header, empty space, controls, no accidental clicks, unlimited days, scroll, cancellation, stale responses)`);
 }

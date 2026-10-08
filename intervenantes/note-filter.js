@@ -154,7 +154,7 @@ window.meaningfulOgustNote = function (value) {
     const swipeLoaded = [...document.scripts].some((script) => /(?:^|\/)planning-swipe\.js(?:$|\?)/.test(script.src));
     if (!swipeLoaded) {
       const script = document.createElement('script');
-      script.src = './planning-swipe.js?v=20261008-2';
+      script.src = './planning-swipe.js?v=20261008-3';
       document.body.appendChild(script);
     }
 
