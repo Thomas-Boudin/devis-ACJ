@@ -14,6 +14,7 @@ const response=data=>new Response(JSON.stringify(data),{status:200,headers:{'Con
 const customer={id_customer:'client-planning',label:'Client Planning',phone:'0700000000',address:'Rue du test',zip:'59134',city:'Marquillies'};
 const rates=[{id:'garden-h20',product:'garden',title:"Jardinage à l'heure",unit:'H',vat:20,price:47}];
 const employees=[{id_employee:'jb-id',name:'Jean-Baptiste',source:'google',activity_checked:true},{id_employee:'vincent-id',name:'Vincent',source:'google',activity_checked:true},{id_employee:'yohann-id',name:'Yohann',source:'google',activity_checked:true}];
+const cleaningEmployee={id_employee:'cleaning-id',name:'Aline Test',source:'ogust',activity_checked:false};
 const verification={complete:true,planning_complete:true,feasibility_complete:false,planning_checked:true,absences_checked:true,employee_profile_checked:true,employee_activity_checked:true,employment_checked:false,agency_checked:false,employee_base_checked:true,client_base_checked:true,client_planning_checked:true,travel_checked:false};
 // Hand-built expectations: 16 labor hours = 8 productive hours per person with
 // two people, or two eight-hour days with one person. Lunch never counts.
@@ -34,7 +35,10 @@ const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'h
     if(u.pathname==='/api/ogust-history'&&u.searchParams.get('action')==='availability'){
       const labor=Number(u.searchParams.get('labor_minutes')),persons=Number(u.searchParams.get('persons')),plans=[0,2,4].map(offset=>plan(labor,persons,offset));
       if(corrupt)plans[0].segments.pop();
-      return response({ok:true,planning_mode:'job',plans,labor_minutes:labor,persons,daily_minutes:480,checked_at:new Date().toISOString(),count:plans.length,employee_options:employees,sources:{google:{available:true,queried:true},ogust:{available:true,queried:true}},verification:{...verification,warnings:[]}});
+      const cleaning=u.searchParams.get('activity')==='menage',selected=JSON.parse(u.searchParams.get('employee_ids')||'[]');
+      if(cleaning&&!selected.length)for(let i=0;i<plans.length;i++){plans[i].crew=[employees[i]];for(const segment of plans[i].segments)segment.employee_ids=[employees[i].id_employee]}
+      if(cleaning&&selected.includes(cleaningEmployee.id_employee))for(const proposal of plans){proposal.crew=[cleaningEmployee];for(const segment of proposal.segments)segment.employee_ids=[cleaningEmployee.id_employee]}
+      return response({ok:true,planning_mode:'job',plans,labor_minutes:labor,persons,daily_minutes:480,checked_at:new Date().toISOString(),count:plans.length,employee_options:[...employees,cleaningEmployee],sources:{google:{available:true,queried:!cleaning},ogust:{available:true,queried:true}},verification:{...verification,warnings:[]}});
     }
     if(u.pathname==='/api/ogust-history')return response(u.searchParams.get('rates')==='1'?{ok:true,rates}:{ok:true,prestations:rates.map(r=>({id:r.product,title:r.title})),records:[]});
     if(u.pathname==='/api/ogust-customer'&&body?.action==='search')return response({ok:true,customer_candidates:[customer]});
@@ -62,6 +66,24 @@ try{
   assert.equal(w.acjAvailabilityV32.selected,null,'Adding a forfait invalidates the retained plan');assert.equal(w.document.getElementById('av32Duration').value,'','Hourly plus forfait cannot silently undercount the job');
   const count=searches().length;await w.acjAvailabilityV32.search();assert.equal(searches().length,count,'Unknown labor duration requires input before reading calendars');
   input('av32Duration','2');await w.acjAvailabilityV32.search();assert.equal(w.document.querySelectorAll('.av32Plan').length,3,'Explicit total labor duration allows mixed pricing');
+  w.eval("state.lines=[{id:'cleaning',type:'service',activity:'menage',pricingMethod:'hourly',designation:'Ménage',unit:'h',qty:2,unitPriceTTC:32,vat:10}];renderQuoteLines()");
+  await w.acjAvailabilityV32.search();
+  assert.equal(w.document.querySelectorAll('.av32Plan').length,0,'An older server response cannot propose garden staff for household cleaning');
+  assert.deepEqual([...w.document.querySelectorAll('#av32EmployeeOptions input')].map(input=>input.dataset.employeeId),[cleaningEmployee.id_employee],'JB, Vincent and Yohann are absent from cleaning preferences');
+  assert.match(w.document.getElementById('av32Intro').textContent,/JB, Vincent et Yohann sont exclus/);
+  for(const member of employees){
+    const oldCleaning=w.acjAvailabilityV32.getDraft();oldCleaning.preferences.employee_ids=[member.id_employee];const stale=plan(120,1,0);stale.crew=[member];for(const segment of stale.segments)segment.employee_ids=[member.id_employee];
+    oldCleaning.proposal={context:oldCleaning.context,preferences:oldCleaning.preferences,plan:stale,checked_at:new Date().toISOString()};
+    assert.equal(w.acjAvailabilityV32.restore(oldCleaning),false,`A saved cleaning plan containing ${member.name} is rejected`);
+    assert.equal(w.eval('state.availabilityProposal'),undefined);assert.equal(w.document.getElementById('av32Selected').textContent,'');
+  }
+  await w.acjAvailabilityV32.search();
+  const choice=w.document.querySelector('#av32EmployeeOptions input');choice.checked=true;choice.dispatchEvent(new w.Event('change',{bubbles:true}));
+  await w.acjAvailabilityV32.search();
+  assert.equal(w.document.querySelectorAll('.av32Plan').length,3,'An explicitly selected cleaning worker remains available');
+  assert.ok([...w.document.querySelectorAll('.av32Plan')].every(card=>/Aline Test/.test(card.textContent)&&!/Jean.Baptiste|Vincent|Yohann/.test(card.textContent)));
+  assert.equal(searches().at(-1).u.searchParams.get('employee_ids'),'["cleaning-id"]');
   assert.equal(errors.length,0,errors.map(error=>error.stack||error.message).join('\n'));
   console.log('Availability production DOM: 16-hour job with two people or two days, parallel confirmation, full coverage, invoice unchanged, draft v3 recheck and forfait guard OK; APIs mocked, no booking writes');
 }finally{await wait(10);dom.window.close()}
+

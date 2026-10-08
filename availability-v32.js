@@ -11,6 +11,7 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const norm=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
   const nameMatches=(name,preference)=>norm(preference).split(' ').filter(Boolean).every(token=>norm(name).includes(token));
+  function excludedForCleaning(member){return activity()==='menage'&&(/\b(?:jean ?baptiste|jb|vincent|yohann?)\b/.test(norm(member?.name||member?.intervenant))||['jb','vincent','yohann'].includes(member?.employee_key))}
   function currentState(){try{return typeof state!=='undefined'?state:null}catch{return null}}
   function lineActivity(line){const value=line?.activity||line?.activite||line?.aiProvenance?.mode||line?.ai_provenance?.mode;return Object.hasOwn(ACTIVITIES,value)?value:''}
   function serviceLines(){return (currentState()?.lines||[]).filter(line=>line?.type==='service')}
@@ -32,7 +33,7 @@
   function tomorrow(){const d=new Date();d.setDate(d.getDate()+1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
   function estimateHours(){const work=workModel();return work.automatic?work.billableHours:0}
   function formatDate(iso){try{return new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'short'}).format(new Date(`${iso}T12:00:00`))}catch{return iso}}
-  function ruleText(){return 'JB, Vincent et Yohann : Google Agenda. Les autres : Ogust. Le métier connu doit correspondre à l’intervention ; un métier non confirmé nécessite un intervenant nommé. Horaires de base, interventions et absences connus sont croisés. Une lecture complète du planning ne confirme pas les compétences, le contrat ni les trajets. Aucune réservation n’est effectuée.'}
+  function ruleText(){return activity()==='menage'?'Ménage : plannings et absences Ogust. JB, Vincent et Yohann sont exclus, y compris dans les préférences. Les membres de l’équipe doivent être choisis dans Préférences. Aucune réservation n’est effectuée.':'JB, Vincent et Yohann : Google Agenda. Les autres : Ogust. Le métier connu doit correspondre à l’intervention ; un métier non confirmé nécessite un intervenant nommé. Horaires de base, interventions et absences connus sont croisés. Une lecture complète du planning ne confirme pas les compétences, le contrat ni les trajets. Aucune réservation n’est effectuée.'}
   function context(){const s=currentState()||{};return {company:company(),quote:String(s.number||''),customer:selectedClientId(),client:String(byId('client')?.value??s.client??''),address:String(byId('adresse')?.value??s.address??''),activity:activity(),quote_hours:estimateHours(),work:workSignature()}}
   function contextKey(){return JSON.stringify(context())}
   function preferences(){return {labor_minutes:Math.round(Number(byId('av32Duration')?.value||0)*60),persons:Number(byId('av32Persons')?.value||1),daily_minutes:Math.round(Number(byId('av32DailyHours')?.value||8)*60),parallel_confirmed:byId('av32ParallelConfirm')?.checked===true,employee_ids:[...requiredEmployeeIds].sort(),from:byId('av32From')?.value||tomorrow(),days:Number(byId('av32Days')?.value||14),period:byId('av32Period')?.value||'any',weekday:byId('av32Weekday')?.value||'',scope_activity:byId('av32Scope')?.value||'',manual_duration:manualDuration}}
@@ -111,13 +112,14 @@
   }
   function validDate(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(String(value||'')))return false;const date=new Date(`${value}T12:00:00Z`);return Number.isFinite(date.getTime())&&date.toISOString().slice(0,10)===value}
   function minutes(value){if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))return null;const [h,m]=value.split(':').map(Number);return h*60+m}
-  function validSlot(slot){return slot&&validDate(slot.date)&&minutes(slot.start)!==null&&minutes(slot.end)!==null&&minutes(slot.end)>minutes(slot.start)&&['google','ogust'].includes(slot.source)&&typeof slot.intervenant==='string'&&!!slot.intervenant.trim()}
+  function validSlot(slot){return slot&&!excludedForCleaning(slot)&&validDate(slot.date)&&minutes(slot.start)!==null&&minutes(slot.end)!==null&&minutes(slot.end)>minutes(slot.start)&&['google','ogust'].includes(slot.source)&&typeof slot.intervenant==='string'&&!!slot.intervenant.trim()}
   function parisNow(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date());const part=type=>parts.find(item=>item.type===type)?.value;return {date:`${part('year')}-${part('month')}-${part('day')}`,minutes:Number(part('hour'))*60+Number(part('minute'))+Number(part('second'))/60}}
   function validPreferences(p){return Number.isInteger(p.labor_minutes)&&p.labor_minutes>=p.persons*30&&p.labor_minutes<=28800&&[1,2,3].includes(p.persons)&&Number.isInteger(p.daily_minutes)&&p.daily_minutes>=30&&p.daily_minutes<=540&&validDate(p.from)&&[7,14,21].includes(p.days)&&['any','morning','afternoon'].includes(p.period)&&['','0','1','2','3','4','5','6'].includes(String(p.weekday))&&Array.isArray(p.employee_ids)&&p.employee_ids.length<=p.persons&&new Set(p.employee_ids).size===p.employee_ids.length&&p.employee_ids.every(id=>typeof id==='string'&&id.trim()&&id.length<=50)}
   function matchesRequest(plan,p,allowPast=false){
     if(!validPreferences(p)||!plan||plan.complete!==true||plan.verification?.planning_complete!==true||typeof plan.id!=='string'||!plan.id||plan.id.length>160||plan.persons!==p.persons||plan.requested_labor_minutes!==p.labor_minutes||plan.daily_minutes!==p.daily_minutes)return false;
     if(!Array.isArray(plan.crew)||plan.crew.length!==p.persons||!Array.isArray(plan.segments)||!plan.segments.length||plan.segments.length>500)return false;
     const ids=plan.crew.map(member=>member?.id_employee);if(ids.some(id=>typeof id!=='string'||!id.trim()||id.length>50)||new Set(ids).size!==ids.length||plan.crew.some(member=>typeof member.name!=='string'||!member.name.trim()||!['google','ogust'].includes(member.source)))return false;
+    if(plan.crew.some(excludedForCleaning))return false;
     if(!p.employee_ids.every(id=>ids.includes(id)))return false;
     if(plan.crew.some(member=>member.activity_checked!==true&&!p.employee_ids.includes(member.id_employee)))return false;
     if(!allowPast&&p.persons>1&&!p.parallel_confirmed)return false;
@@ -185,7 +187,7 @@
     for(const slot of distinct)if(chosen.length<3&&!chosen.includes(slot))chosen.push(slot);
     return chosen.sort((a,b)=>a.segments[0].date.localeCompare(b.segments[0].date)||a.segments[0].start.localeCompare(b.segments[0].start));
   }
-  function updateEmployeeOptions(){employeeOptions=(Array.isArray(responseMeta?.employee_options)?responseMeta.employee_options:[]).filter(employee=>employee&&String(employee.id_employee||'').trim()&&typeof employee.name==='string'&&employee.name.trim()).map(employee=>({...employee,id_employee:String(employee.id_employee)}));renderEmployeeOptions()}
+  function updateEmployeeOptions(){const received=(Array.isArray(responseMeta?.employee_options)?responseMeta.employee_options:[]).filter(employee=>employee&&String(employee.id_employee||'').trim()&&typeof employee.name==='string'&&employee.name.trim());const excluded=new Set(received.filter(excludedForCleaning).map(employee=>String(employee.id_employee)));requiredEmployeeIds=requiredEmployeeIds.filter(id=>!excluded.has(id));employeeOptions=received.filter(employee=>!excludedForCleaning(employee)).map(employee=>({...employee,id_employee:String(employee.id_employee)}));renderEmployeeOptions()}
   function renderEmployeeOptions(){
     const list=byId('av32EmployeeOptions');if(!list)return;list.replaceChildren();const query=byId('av32Employee')?.value||'';
     const options=[...employeeOptions,...requiredEmployeeIds.filter(id=>!employeeOptions.some(employee=>employee.id_employee===id)).map(id=>({id_employee:id,name:`Membre ${id} · à revalider`,activity_checked:false}))];
@@ -255,7 +257,8 @@
     if(Number.isInteger(labor)&&labor>=30&&labor<=28800)byId('av32Duration').value=String(labor/60);
     byId('av32Persons').value=String([1,2,3].includes(persons)?persons:1);
     byId('av32DailyHours').value=String(!legacy&&Number.isInteger(p.daily_minutes)&&p.daily_minutes>=30&&p.daily_minutes<=540?p.daily_minutes/60:8);
-    requiredEmployeeIds=!legacy&&Array.isArray(p.employee_ids)?[...new Set(p.employee_ids.filter(id=>typeof id==='string'&&id.trim()&&id.length<=50))].slice(0,3):[];
+    const excluded=new Set((Array.isArray(proposal.plan?.crew)?proposal.plan.crew:[]).filter(excludedForCleaning).map(member=>member.id_employee));
+    requiredEmployeeIds=!legacy&&Array.isArray(p.employee_ids)?[...new Set(p.employee_ids.filter(id=>typeof id==='string'&&id.trim()&&id.length<=50&&!excluded.has(id)))].slice(0,3):[];
     resetParallel();renderEmployeeOptions();
     if(validDate(p.from))byId('av32From').value=p.from;
     if([7,14,21].includes(Number(p.days)))byId('av32Days').value=String(p.days);
