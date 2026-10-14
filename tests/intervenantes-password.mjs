@@ -40,7 +40,7 @@ async function exercise(scenario) {
         assert.equal(url.origin, 'https://acj-ogust-proxy.vercel.app');
         assert.equal(url.searchParams.has('password'), false); assert.equal(url.searchParams.has('token'), false);
         let data = { ok: true }, status = 200;
-        if (action === 'password_status') { assert.equal(method, 'GET'); assert.equal(authorization, ''); data.available = true; }
+        if (action === 'password_status') { assert.equal(method, 'GET'); assert.equal(authorization, ''); data.available = true; data.email_available = true; }
         else if (action === 'password_activation_info') {
           assert.equal(method, 'POST'); assert.equal(authorization, ''); assert.equal(body.token, invitation);
           if (scenario === 'expired') { status = 410; data = { ok: false, error: 'PASSWORD_INVITATION_INVALID' }; }
@@ -62,7 +62,7 @@ async function exercise(scenario) {
           assert.equal(authorization, 'Bearer ' + activeToken);
           if (action === 'password_invite') {
             assert.equal(method, 'POST'); assert.equal(actor, 'admin'); assert.equal(body.employee_id, '11'); assert.equal(body.confirm, true);
-            data = { ok: true, activation_url: 'https://thomas-boudin.github.io/devis-ACJ/intervenantes/?v=20261014-4#activation=' + invitation, employee: { label: 'Intervenante A', email: 'employee@fixture.test' } };
+            data = { ok: true, activation_url: 'https://thomas-boudin.github.io/devis-ACJ/intervenantes/?v=20261014-5#activation=' + invitation, employee: { label: 'Intervenante A', email: 'employee@fixture.test' }, email_sent: scenario !== 'manager-email-failure', email_status: scenario === 'manager-email-failure' ? 'unconfirmed' : 'accepted' };
           } else {
             assert.equal(method, 'GET', 'Authentication and planning never create business writes');
             if (action === 'role') data = { ok: true, role: actor, email: actor + '@fixture.test' };
@@ -88,13 +88,18 @@ async function exercise(scenario) {
       await until(() => doc.getElementById('passwordStatus').textContent.includes('expiré'), 'Expired links have an explanation');
       assert.equal(doc.getElementById('passwordLoginForm').hidden, false); assert.equal(doc.getElementById('passwordActivationForm').hidden, true);
       assert.equal(w.location.hash, '', 'The invitation bearer is removed from browser history');
-    } else if (scenario === 'manager') {
+    } else if (scenario.startsWith('manager')) {
       await w.googleLogin({ credential: 'fixture-google-admin' });
       await until(() => !doc.getElementById('passwordAccessOpen').hidden, 'The confirmed manager can manage accounts');
       doc.getElementById('passwordAccessOpen').click();
       await until(() => doc.querySelectorAll('.passwordAccountRow').length === 2, 'The real account dialog lists employee eligibility');
-      const buttons = [...doc.querySelectorAll('.passwordAccountRow button')]; assert.equal(buttons[1].disabled, true); buttons[0].click();
+      const buttons = [...doc.querySelectorAll('.passwordAccountRow button')]; assert.equal(buttons[1].disabled, true);
+      assert.equal(buttons[0].textContent, 'Créer l’accès et envoyer le mail'); buttons[0].click(); buttons[0].click();
       await until(() => !doc.getElementById('passwordInviteResult').hidden, 'An activation link is ready to hand to the employee');
+      if (scenario === 'manager-email-failure') {
+        assert.match(doc.getElementById('passwordAccountsStatus').textContent, /n’a pas pu être confirmé/);
+        assert.ok(!doc.getElementById('passwordAccountsStatus').textContent.includes('Mail envoyé'));
+      } else assert.match(doc.getElementById('passwordAccountsStatus').textContent, /Mail envoyé à employee@fixture.test/);
       doc.getElementById('passwordInviteCopy').click(); await until(() => clipboard.length === 1, 'The manager can copy their link');
       assert.ok(clipboard[0].includes('#activation=')); assert.equal(calls.filter(c => c.action === 'password_invite').length, 1);
       await w.googleLogin({ credential: 'fixture-google-intervenante' });
@@ -139,7 +144,7 @@ async function exercise(scenario) {
   } finally { w.close(); }
 }
 if (isMainThread) {
-  for (const scenario of ['password', 'activation', 'stale', 'manager', 'expired']) {
+  for (const scenario of ['password', 'activation', 'stale', 'manager', 'manager-email-failure', 'expired']) {
     const result = await new Promise((resolve, reject) => {
       const worker = new Worker(new URL(import.meta.url), { workerData: scenario });
       const timeout = setTimeout(() => { worker.terminate(); reject(Error('Password UI blocked: ' + scenario)); }, 10000);
