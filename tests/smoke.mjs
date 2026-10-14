@@ -45,7 +45,7 @@ expect(intervenantesLoader.includes('acj_retry'),'Intervenantes doit avoir une d
 expect(intervenantesLoader.includes("document.readyState === 'loading'"),'Le secours Google doit démarrer même s’il est injecté après DOMContentLoaded');
 expect(intervenantesLoader.includes('use_fedcm_for_button: true'),'Le bouton Google Intervenantes doit utiliser FedCM sur mobile');
 expect(intervenantesLoader.includes('renderFedCmButton'),'Le secours Google doit rerendre le bouton en mode FedCM');
-expect(intervenantesBootstrap.includes("./google-loader.js?v=20260914-1"),'Le bootstrap Intervenantes doit charger la version FedCM du secours Google');
+expect(intervenantesBootstrap.includes("./google-loader.js?v=20261014-2"),'Le bootstrap Intervenantes doit charger la version FedCM du secours Google');
 
 console.log('Smoke tests Devis ACJ: OK');
 
@@ -56,3 +56,4 @@ expect(read('index.html').includes('notes-import-v39.js?v=51'),'Import notes man
 expect(sw.includes('./notes-import-v39.js?v=51'),'Import notes non préchargé');
 
 expect(read('index.html').includes('learning-v45.js?v=51'),'Mémoire des corrections non chargée');
+
