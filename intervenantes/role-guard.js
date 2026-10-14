@@ -39,7 +39,7 @@
     }
     const panel = document.getElementById('acjPlanningMonthPanel');
     if (panel) panel.hidden = true;
-    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen,.acjReplacePanel').forEach((node) => {
+    document.querySelectorAll('.acjPlanningAdd,#acjDayAdd,#acjEditSave,#acjCancelService,.acjReplaceOpen,.acjReplacePanel,.acjPasswordManager').forEach((node) => {
       node.hidden = true;
       if ('disabled' in node) node.disabled = true;
     });
@@ -53,6 +53,8 @@
     }
     const select = document.getElementById('employee');
     if (select) select.disabled = false;
+    const access = document.getElementById('passwordAccessOpen');
+    if (access) { access.hidden = false; access.disabled = false; }
     const badge = document.querySelector('.pilotBadge');
     if (badge && badge.textContent !== 'Mode admin') badge.textContent = 'Mode admin';
   }
@@ -61,6 +63,7 @@
     window.ACJ_INTERVENANTES_ROLE = role;
     localStorage.setItem(ROLE_KEY, role);
     document.documentElement.dataset.acjIntervenantesRole = role;
+    document.dispatchEvent(new CustomEvent('acj:role-changed', { detail: { role } }));
     if (role === 'admin') showAdminUi();
     else hideAdminUi();
 
@@ -120,3 +123,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
 })();
+
