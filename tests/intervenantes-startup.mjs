@@ -57,6 +57,7 @@ async function exercise(role) {
         calls.push(action);
         assert.equal(init.method || 'GET', 'GET', 'Bootstrap must only read Ogust');
         let data = { ok: true };
+        if (action === 'email_login_status') data.available = true;
         if (action === 'role') data.role = role;
         if (action === 'config') data.employees = role === 'admin'
           ? [{ id_employee: 'employee-a', label: 'Intervenante A' }, { id_employee: 'employee-b', label: 'Intervenante B' }]
@@ -110,7 +111,7 @@ async function exercise(role) {
     if (role === 'signed-out') {
       assert.equal(doc.getElementById('login').hidden, false);
       assert.equal(doc.getElementById('app').hidden, true);
-      assert.equal(calls.length, 0, 'Signed-out boot makes no authenticated requests');
+      assert.equal(calls.filter(action=>action!=='email_login_status').length, 0, 'Signed-out boot makes no authenticated requests');
     } else {
       assert.equal(doc.querySelector('#list .client').textContent, 'Client test');
       assert.equal(select.value, 'employee-a');

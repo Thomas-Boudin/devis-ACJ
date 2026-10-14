@@ -62,7 +62,9 @@ async function exercise(scenario){
         calls.push({action,method,authorization,body});
         assert.equal(url.origin,'https://acj-ogust-proxy.vercel.app');
         let data={ok:true},status=200;
-        if(action==='session'){
+        if(action==='email_login_status'){
+          assert.equal(method,'GET');assert.equal(authorization,'');data.available=true;
+        }else if(action==='session'){
           assert.equal(method,'POST');
           assert.ok(authorization.startsWith('Bearer fixture-google-'));
           if(scenario==='denied'){status=403;data={ok:false,error:'AUTH_FORBIDDEN'};}
@@ -108,7 +110,7 @@ async function exercise(scenario){
     await until(()=>doc.getElementById('acjNotificationEnable'),'The real page loads the activation button');
     await pause(120);
     assert.equal(googleInitializations,1,'The Google sign-in client is initialized only once');
-    assert.equal(calls.length,0,'Signed-out visitors cause no authenticated or subscription requests');
+    assert.equal(calls.filter(c=>c.action!=='email_login_status').length,0,'Signed-out visitors cause no authenticated or subscription requests');
     assert.equal(w.ACJ_INTERVENANTES_ROLE,'intervenante','A cached admin role cannot grant access');
     const desired=scenario==='admin-switch'?'admin':'intervenante';
     await w.googleLogin({credential:'fixture-google-'+desired});
