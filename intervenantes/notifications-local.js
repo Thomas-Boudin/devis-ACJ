@@ -183,7 +183,7 @@
     employee?.addEventListener('change', async () => {
       const [text, type] = permissionLabel();
       setStatus(text, type);
-      if (Notification.permission !== 'granted' || !localStorage.getItem(PUSH_ID_KEY)) return;
+      if (!supported() || window.ACJ_INTERVENANTES_ROLE === 'admin' || Notification.permission !== 'granted' || !localStorage.getItem(PUSH_ID_KEY)) return;
       try {
         await remoteSubscribe({ silent: true });
         const [t, ty] = permissionLabel();

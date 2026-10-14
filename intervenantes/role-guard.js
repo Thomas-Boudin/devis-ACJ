@@ -4,8 +4,8 @@
   const ROLE_KEY = 'acj_intervenantes_role';
   let role = '';
   let observer = null;
-  let checking = false;
-  let confirmed = false;
+  let checkingToken = '';
+  let confirmedToken = '';
 
   function token() {
     return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || '';
@@ -73,34 +73,38 @@
     }
   }
   async function checkRole() {
-    if (checking || confirmed) return;
     const currentToken = token();
-    if (!currentToken) return;
-    checking = true;
+    if (!currentToken || checkingToken === currentToken || confirmedToken === currentToken) return;
+    checkingToken = currentToken;
     try {
       const response = await fetch(`${API}?action=role`, {
         headers: { Authorization: `Bearer ${currentToken}` },
         cache: 'no-store'
       });
       const data = await response.json().catch(() => ({}));
+      if (token() !== currentToken) return;
       if (!response.ok) throw new Error(data?.error || `HTTP_${response.status}`);
       apply(data?.role);
-      confirmed = true;
+      confirmedToken = currentToken;
     } catch {
-      apply('intervenante');
+      if (token() === currentToken) apply('intervenante');
     } finally {
-      checking = false;
+      if (checkingToken === currentToken) checkingToken = '';
     }
   }
 
   function init() {
     apply('intervenante');
+    document.addEventListener('acj:session-changed', () => {
+      confirmedToken = '';checkingToken = '';
+      apply('intervenante');checkRole();
+    });
     checkRole();
     let attempts = 0;
     const timer = setInterval(() => {
       attempts += 1;
       checkRole();
-      if (attempts >= 40 || confirmed) clearInterval(timer);
+      if (attempts >= 40 || confirmedToken === token() && confirmedToken) clearInterval(timer);
     }, 500);
 
     document.addEventListener('click', (event) => {
