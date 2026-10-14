@@ -42,13 +42,17 @@ async function exercise(scenario){
       // Let the old polling period expire before login, without slowing CI.
       const interval=w.setInterval.bind(w);
       w.setInterval=(callback,delay,...args)=>interval(callback,delay===500?1:delay,...args);
+      const timeout=w.setTimeout.bind(w);
+      w.setTimeout=(callback,delay,...args)=>timeout(callback,delay===4500?50:delay===9500?80:delay,...args);
       w.Notification=class{
         static permission='default';
         static async requestPermission(){permissions++;this.permission='granted';return this.permission;}
       };
       w.PushManager=class{};
       Object.defineProperty(w.navigator,'serviceWorker',{value:{register:async()=>registration,ready:Promise.resolve(registration)}});
-      w.google={accounts:{id:{initialize(){googleInitializations++;},renderButton(node){node.textContent='Continuer avec Google';},disableAutoSelect(){}}}};
+      const google={accounts:{id:{initialize(){googleInitializations++;},renderButton(node){node.textContent='Continuer avec Google';},disableAutoSelect(){}}}};
+      if(scenario==='intervenante')timeout(()=>{w.google=google;},20);
+      else w.google=google;
       w.localStorage.setItem('acj_intervenantes_role','admin');
       w.localStorage.setItem('acj_intervenantes_employee','11');
       w.fetch=async(input,init={})=>{

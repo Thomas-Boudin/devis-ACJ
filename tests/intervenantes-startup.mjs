@@ -115,6 +115,7 @@ async function exercise(role) {
       assert.equal(doc.querySelector('#list .client').textContent, 'Client test');
       assert.equal(select.value, 'employee-a');
       assert.ok(calls.includes('role') && calls.includes('config') && calls.includes('planning'));
+      assert.equal(calls.filter(action=>action==='config').length,1,'The saved session is restored by only one bootstrap');
     }
     return { role, calls: calls.length };
   } finally {
@@ -150,3 +151,4 @@ if (isMainThread) {
     error => parentPort.postMessage({ error: error.stack || error.message })
   );
 }
+

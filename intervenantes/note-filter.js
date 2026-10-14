@@ -90,7 +90,7 @@ window.meaningfulOgustNote = function (value) {
     const googleLoaderLoaded = [...document.scripts].some((script) => /(?:^|\/)google-loader\.js(?:$|\?)/.test(script.src));
     if (!googleLoaderLoaded) {
       const script = document.createElement('script');
-      script.src = './google-loader.js?v=20260914-1';
+      script.src = './google-loader.js?v=20261014-2';
       script.dataset.acjGoogleLoader = '1';
       document.body.appendChild(script);
     }
@@ -102,7 +102,7 @@ window.meaningfulOgustNote = function (value) {
     logout?.addEventListener('click', clearSession, { capture: true });
 
     const persistentSession = localStorage.getItem(TOKEN_KEY) || '';
-    if (persistentSession.startsWith(SESSION_PREFIX) && typeof window.loadConfig === 'function') {
+    if (window.ACJ_INTERVENANTES_SESSION_OWNER !== 'page' && persistentSession.startsWith(SESSION_PREFIX) && typeof window.loadConfig === 'function') {
       const status = document.getElementById('loginStatus');
       if (status) status.textContent = 'Ouverture de votre espace…';
 
@@ -215,4 +215,5 @@ window.meaningfulOgustNote = function (value) {
     }
   });
 })();
+
 
