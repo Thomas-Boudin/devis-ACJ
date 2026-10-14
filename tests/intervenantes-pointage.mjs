@@ -24,7 +24,6 @@ function setup(email='employee@example.test',role='intervenante'){
     w.HTMLCanvasElement.prototype.getContext=()=>({drawImage(){}});w.HTMLCanvasElement.prototype.toDataURL=()=>samplePhoto;
     w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
     w.google={accounts:{id:{initialize(){},renderButton(){},disableAutoSelect(){}}}};
-    const token='acjs1.'+Buffer.from(JSON.stringify({email})).toString('base64url')+'.fixture';w.sessionStorage.setItem('acj_intervenantes_google_token',token);
     w.fetch=async(input,init={})=>{const url=new URL(String(input)),action=url.searchParams.get('action');if(offline)throw Error('offline');assert.ok(init.headers.Authorization.startsWith('Bearer acjs1.'));
       if(action==='pointage_day')return new Response(JSON.stringify({ok:true,pointages:[...arrivals.keys()].map(makeState),absences:away?[{start_date:today().replace(/-/g,'')+'0000',end_date:today().replace(/-/g,'')+'2359'}]:[],active:null}));
       if(action==='pointage'){const payload=JSON.parse(init.body);sent.push(payload);if(rejectPost)return new Response(JSON.stringify({ok:false,error:'POINTAGE_EMPLOYEE_ABSENT'}),{status:409});(payload.type==='start'?arrivals:finishes).set(payload.service_id,payload);if(loseNext){loseNext=false;throw Error('response lost');}return new Response(JSON.stringify({ok:true,state:makeState(payload.service_id)}));}
@@ -34,7 +33,8 @@ function setup(email='employee@example.test',role='intervenante'){
     };
     w.addEventListener('error',e=>errors.push(e.message));w.addEventListener('unhandledrejection',e=>errors.push(String(e.reason)));
   }});
-  const w=dom.window;w.document.getElementById('employee').innerHTML='<option value="11">Intervenante test</option>';w.document.getElementById('app').hidden=false;w.ACJ_INTERVENANTES_ROLE=role;w.loadPlanning=()=>{};
+  // This suite mounts an already-authenticated pointage screen; onboarding is tested separately.
+  const w=dom.window;const token='acjs1.'+Buffer.from(JSON.stringify({email})).toString('base64url')+'.fixture';w.sessionStorage.setItem('acj_intervenantes_google_token',token);w.document.getElementById('employee').innerHTML='<option value="11">Intervenante test</option>';w.document.getElementById('app').hidden=false;w.ACJ_INTERVENANTES_ROLE=role;w.loadPlanning=()=>{};
   w.eval(script);
   const render=()=>w.render([{id_service:'101',id_employee:'11',status:'A',start_date:today().replace(/-/g,'')+'0800',end_date:today().replace(/-/g,'')+'1800',start_time:'08:00',end_time:'18:00',customer:{name:'Client test'},product:{label:'Ménage'}}]);render();
   return {dom,w,errors,render};
