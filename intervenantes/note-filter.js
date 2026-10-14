@@ -29,6 +29,7 @@ window.meaningfulOgustNote = function (value) {
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem('acj_intervenantes_role');
+    document.dispatchEvent(new Event('acj:session-changed'));
   }
 
   const remembered = localStorage.getItem(TOKEN_KEY) || '';
@@ -79,7 +80,7 @@ window.meaningfulOgustNote = function (value) {
     }
 
     const response = await nativeFetch(input, init);
-    if (response.status === 401 && bearer.startsWith(SESSION_PREFIX)) clearSession();
+    if (response.status === 401 && bearer.startsWith(SESSION_PREFIX) && (sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY)) === bearer) clearSession();
     return response;
   };
 
