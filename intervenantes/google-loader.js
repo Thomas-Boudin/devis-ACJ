@@ -2,6 +2,8 @@
   const GOOGLE_SRC = 'https://accounts.google.com/gsi/client';
   const CLIENT_ID = '93181159242-i64qf82vtrij5c4b7l5q18ctjj48l3so.apps.googleusercontent.com';
   const MAX_WAIT_MS = 4500;
+  let initialized = false;
+  let rendered = false;
 
   function ready() {
     return Boolean(window.google?.accounts?.id);
@@ -13,16 +15,20 @@
   }
 
   function renderFedCmButton() {
+    if (rendered) return true;
     if (!ready()) return false;
     const box = document.getElementById('googleButton');
     if (!box || typeof window.googleLogin !== 'function') return false;
     try {
-      google.accounts.id.initialize({
-        client_id: CLIENT_ID,
-        callback: window.googleLogin,
-        auto_select: false,
-        use_fedcm_for_button: true
-      });
+      if (!initialized) {
+        google.accounts.id.initialize({
+          client_id: CLIENT_ID,
+          callback: window.googleLogin,
+          auto_select: false,
+          use_fedcm_for_button: true
+        });
+        initialized = true;
+      }
       box.innerHTML = '';
       google.accounts.id.renderButton(box, {
         theme: 'outline',
@@ -32,6 +38,7 @@
         width: 300,
         click_listener: () => status('Connexion Google…')
       });
+      rendered = true;
       status('');
       return true;
     } catch (error) {
@@ -86,3 +93,4 @@
     boot();
   }
 })();
+
