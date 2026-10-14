@@ -17,7 +17,7 @@ async function exercise(scenario){
   const {JSDOM,ResourceLoader,VirtualConsole}=require('jsdom');
   const {IDBFactory}=require('fake-indexeddb');
   const errors=[],calls=[];
-  let actor='intervenante',activeToken='',permissions=0,subscription=null;
+  let actor='intervenante',activeToken='',permissions=0,subscription=null,googleInitializations=0;
   const sessionFor=role=>'acjs1.'+Buffer.from(JSON.stringify({email:role+'@example.test',role})).toString('base64url')+'.fixture-signature';
   const registration={pushManager:{
     async getSubscription(){return subscription;},
@@ -48,7 +48,7 @@ async function exercise(scenario){
       };
       w.PushManager=class{};
       Object.defineProperty(w.navigator,'serviceWorker',{value:{register:async()=>registration,ready:Promise.resolve(registration)}});
-      w.google={accounts:{id:{initialize(){},renderButton(node){node.textContent='Continuer avec Google';},disableAutoSelect(){}}}};
+      w.google={accounts:{id:{initialize(){googleInitializations++;},renderButton(node){node.textContent='Continuer avec Google';},disableAutoSelect(){}}}};
       w.localStorage.setItem('acj_intervenantes_role','admin');
       w.localStorage.setItem('acj_intervenantes_employee','11');
       w.fetch=async(input,init={})=>{
@@ -103,6 +103,7 @@ async function exercise(scenario){
   try{
     await until(()=>doc.getElementById('acjNotificationEnable'),'The real page loads the activation button');
     await pause(120);
+    assert.equal(googleInitializations,1,'The Google sign-in client is initialized only once');
     assert.equal(calls.length,0,'Signed-out visitors cause no authenticated or subscription requests');
     assert.equal(w.ACJ_INTERVENANTES_ROLE,'intervenante','A cached admin role cannot grant access');
     const desired=scenario==='admin-switch'?'admin':'intervenante';
@@ -167,3 +168,4 @@ if(isMainThread){
 }else{
   exercise(workerData).then(result=>parentPort.postMessage(result),error=>parentPort.postMessage({error:error.stack||error.message}));
 }
+
