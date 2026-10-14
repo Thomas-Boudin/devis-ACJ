@@ -1,13 +1,15 @@
 (() => {
   const API='https://acj-ogust-proxy.vercel.app/api/intervenante-pilot',TOKEN='acj_intervenantes_google_token';
   // Never import the old local test queue as actual worked hours.
-  const DB='acj_intervenantes_pointage_v2',states=new Map();
+  const DB='acj_intervenantes_pointage_v2',states=new Map(),syncAttempts=new Set(),syncing=new Set();
   let dbPromise,rows=[],cards=[],currentOwner='',busy=false,flushing=false,remoteActive=null,absences=[],generation=0;
   const $=id=>document.getElementById(id),token=()=>sessionStorage.getItem(TOKEN)||localStorage.getItem(TOKEN)||'';
   function owner(){try{return String(JSON.parse(atob(token().split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).email||'').toLowerCase();}catch{return '';}}
   const employee=()=>String($('employee')?.value||''),date=()=>String($('datePicker')?.value||''),key=id=>`${owner()}:${id}`;
   const today=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Paris'}).format(new Date());
   const time=iso=>iso?new Intl.DateTimeFormat('fr-FR',{timeZone:'Europe/Paris',hour:'2-digit',minute:'2-digit'}).format(new Date(iso)):'';
+  const visibleReceipt=state=>state?.ogust_synced&&state.ogust_destination==='ordre_de_mission';
+  const syncKey=state=>`${state.owner}:${state.service_id}:${state.start_event_id}:${state.stop_event_id||''}`;
   const elapsed=iso=>{const n=Math.max(0,Math.floor((Date.now()-Date.parse(iso))/1000));return [Math.floor(n/3600),Math.floor(n%3600/60),n%60].map(v=>String(v).padStart(2,'0')).join(':');};
   function db(){if(!dbPromise)dbPromise=new Promise((resolve,reject)=>{if(!window.indexedDB)return reject(new Error('POINTAGE_LOCAL_STORAGE_UNAVAILABLE'));const req=indexedDB.open(DB,1);req.onupgradeneeded=()=>{req.result.createObjectStore('states',{keyPath:'key'});req.result.createObjectStore('events',{keyPath:'key'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(new Error('POINTAGE_LOCAL_STORAGE_UNAVAILABLE'));});return dbPromise;}
   async function all(store){const database=await db();return new Promise((resolve,reject)=>{const req=database.transaction(store).objectStore(store).getAll();req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(new Error('POINTAGE_LOCAL_STORAGE_UNAVAILABLE'));});}
@@ -28,6 +30,8 @@
     POINTAGE_PHOTO_TOO_LARGE:'La photo est trop volumineuse. Prenez une nouvelle photo.',
     POINTAGE_PHOTO_REQUIRED:'Prenez une photo pour confirmer ce pointage.',
     POINTAGE_PHOTO_INVALID:'La photo ne peut pas être lue. Prenez une nouvelle photo.',
+    POINTAGE_COMMENT_TOO_LONG:'La note de la prestation Ogust est trop longue pour y ajouter les pointages. Le gestionnaire doit la vérifier.',
+    POINTAGE_OGUST_NOT_CONFIRMED:'Le pointage est conservé. Son affichage dans Ogust n’a pas été confirmé.',
     AUTH_REQUIRED:'Reconnectez-vous pour envoyer les pointages.',AUTH_INVALID:'Reconnectez-vous pour envoyer les pointages.'
   };
   const message=e=>messages[e?.message]||'Envoi indisponible. Le pointage et sa photo sont conservés sur ce téléphone pour réessayer.';
@@ -72,6 +76,15 @@
   async function validate(state){const d=dialog('Valider les heures réelles');p(d,`Prévu : ${state.scheduled_start?.slice(8,10)||'—'}:${state.scheduled_start?.slice(10,12)||'—'} → ${state.scheduled_end?.slice(8,10)||'—'}:${state.scheduled_end?.slice(10,12)||'—'}`);p(d,`Réalisé : ${time(state.started_at)} → ${time(state.ended_at)} · ${state.duration_minutes} min`);p(d,'La validation remplace les horaires de cette prestation dans Ogust, ajuste la quantité en heures et la marque « Réalisée ». Les pointages et le planning d’origine restent conservés.');const error=p(d,'','error'),footer=document.createElement('footer');const cancel=button('Annuler','cancel',()=>d.close()),confirm=button('Valider dans Ogust','confirm',async()=>{confirm.disabled=true;cancel.disabled=true;try{const result=await call('pointage_validate',{service_id:state.service_id,employee_id:state.employee_id,scheduled_date:state.scheduled_date,confirm:true},true);await save({...state,...result.state,key:key(state.service_id),owner:owner()});paintAll();d.close();if(typeof window.loadPlanning==='function')window.loadPlanning();}catch(e){setText(error,message(e));confirm.disabled=false;cancel.disabled=false;}});footer.append(cancel,confirm);d.appendChild(footer);}
   const absent=s=>absences.some(a=>String(a.start_date)<String(s.end_date||'')&&String(a.end_date)>String(s.start_date||''));
   const otherActive=sid=>[...states.values()].some(s=>s.employee_id===employee()&&s.service_id!==sid&&s.status==='active')||(remoteActive?.service_id&&remoteActive.service_id!==sid);
+  async function syncExisting(state,manual=false){
+    const selectedOwner=owner();if(!state||state.owner!==selectedOwner||state.employee_id!==employee()||state.scheduled_date!==date()||state.pending||navigator.onLine===false)return;
+    const attempt=syncKey(state);if(syncing.has(attempt)||(!manual&&syncAttempts.has(attempt)))return;
+    syncAttempts.add(attempt);syncing.add(attempt);paintAll();
+    const stillCurrent=()=>owner()===selectedOwner&&currentOwner===selectedOwner&&employee()===state.employee_id&&date()===state.scheduled_date;
+    try{const result=await call('pointage_sync',{employee_id:state.employee_id,service_id:state.service_id,scheduled_date:state.scheduled_date,confirm:true},true),latest=states.get(state.service_id);if(stillCurrent()&&latest&&!latest.pending&&latest.start_event_id===result.state.start_event_id&&(!latest.stop_event_id||latest.stop_event_id===result.state.stop_event_id))await save({...latest,...result.state,key:`${selectedOwner}:${state.service_id}`,owner:selectedOwner,pending:false,error:null});}
+    catch(e){const latest=states.get(state.service_id);if(stillCurrent()&&latest&&!latest.pending&&!visibleReceipt(latest)&&syncKey(latest)===attempt)await save({...latest,ogust_synced:false,ogust_destination:null,error:message(e)});}
+    finally{syncing.delete(attempt);if(stillCurrent())paintAll();}
+  }
   async function retry(serviceId){const selectedOwner=owner();for(const event of await all('events')){if(event.owner===selectedOwner&&event.service_id===serviceId&&event.blocked)await save(null,{...event,blocked:false});}const state=states.get(serviceId);if(state)await save({...state,blocked:false,error:null,status:state.stop_event_id?'completed':'active'});paintAll();flush();}
   function paint(card,service){
     const sid=String(service.id_service||''),b=card.querySelector('.pointage');if(!b||!sid)return;
@@ -79,11 +92,12 @@
     b.disabled=busy||!currentOwner||state?.blocked||state?.status==='completed'||(!state&&(away||closed||date()!==today()||otherActive(sid)));
     setText(b,state?.blocked?'POINTAGE À VÉRIFIER':state?.status==='active'?`TERMINER · ${elapsed(state.started_at)}`:state?.status==='completed'?`TERMINÉE · ${time(state.ended_at)}`:away?'ABSENCE DÉCLARÉE':closed?'PRESTATION CLÔTURÉE':date()!==today()?'POINTAGE LE JOUR PRÉVU':'DÉMARRER');b.onclick=()=>capture(service);
     let meta=card.querySelector('.pointageMeta');if(!meta){meta=document.createElement('div');meta.className='pointageMeta';card.appendChild(meta);}
-    const text=state?`${time(state.started_at)}${state.ended_at?` → ${time(state.ended_at)}`:''} · ${state.blocked?'Envoi bloqué · vérification par le gestionnaire':state.validated?'Heures validées dans Ogust':state.pending||!state.ogust_synced?'Enregistré sur ce téléphone · en attente d’envoi':state.status==='active'?'Début reçu par Ogust':'Pointages reçus par Ogust · heures à valider'}${state.error?` — ${state.error}`:''}`:away?'Absente · prestation à remplacer dans le planning.':'';
+    const text=state?`${time(state.started_at)}${state.ended_at?` → ${time(state.ended_at)}`:''} · ${state.blocked?'Envoi bloqué · vérification par le gestionnaire':state.validated?'Heures validées dans Ogust':state.pending?'Enregistré sur ce téléphone · en attente d’envoi':!visibleReceipt(state)?'Pointage enregistré · transmission à Ogust à confirmer':state.status==='active'?'Début transmis · Ogust : Ordre de mission':'Pointages transmis · Ogust : Ordre de mission · heures à valider'}${state.error?` — ${state.error}`:''}`:away?'Absente · prestation à remplacer dans le planning.':'';
     let desc=meta.querySelector('.pointageDescription');if(!desc){desc=document.createElement('div');desc.className='pointageDescription';meta.appendChild(desc);}setText(desc,text);meta.hidden=!text;meta.classList.toggle('pending',away||!!state?.pending||!!state?.error);
     let tools=meta.querySelector('.pointageTools');if(!tools){tools=document.createElement('div');tools.className='pointageTools';meta.appendChild(tools);}
-    const signature=JSON.stringify([state?.status,state?.blocked,state?.start_photo,state?.end_photo,state?.pending,state?.ogust_synced,state?.validated,window.ACJ_INTERVENANTES_ROLE]);
-    if(tools.dataset.signature!==signature){tools.dataset.signature=signature;tools.replaceChildren();if(state?.start_photo)tools.appendChild(button('Photo début','',()=>viewPhoto(states.get(sid),'start')));if(state?.end_photo)tools.appendChild(button('Photo fin','',()=>viewPhoto(states.get(sid),'stop')));if(state?.pending)tools.appendChild(button('Réessayer l’envoi','',()=>retry(sid)));if(state?.status==='completed'&&state.ogust_synced&&!state.pending&&!state.validated&&window.ACJ_INTERVENANTES_ROLE==='admin')tools.appendChild(button('Valider les heures réelles','pointageValidate',()=>validate(states.get(sid))));}
+    const transmitting=state?syncing.has(syncKey(state)):false;
+    const signature=JSON.stringify([state?.status,state?.blocked,state?.start_photo,state?.end_photo,state?.pending,visibleReceipt(state),state?.validated,transmitting,window.ACJ_INTERVENANTES_ROLE]);
+    if(tools.dataset.signature!==signature){tools.dataset.signature=signature;tools.replaceChildren();if(state?.start_photo)tools.appendChild(button('Photo début','',()=>viewPhoto(states.get(sid),'start')));if(state?.end_photo)tools.appendChild(button('Photo fin','',()=>viewPhoto(states.get(sid),'stop')));if(state?.pending)tools.appendChild(button('Réessayer l’envoi','',()=>retry(sid)));if(state&&!state.pending&&!visibleReceipt(state)){const send=button(transmitting?'Transmission…':'Transmettre à Ogust','pointageSync',()=>syncExisting(states.get(sid),true));send.disabled=transmitting;tools.appendChild(send);}if(state?.status==='completed'&&visibleReceipt(state)&&!state.pending&&!state.validated&&window.ACJ_INTERVENANTES_ROLE==='admin')tools.appendChild(button('Valider les heures réelles','pointageValidate',()=>validate(states.get(sid))));}
   }
   function paintAll(){cards.forEach((card,i)=>{if(card.isConnected)paint(card,rows[i]||{});});}
   async function flush(){
@@ -96,8 +110,9 @@
     const attempt=++generation,selectedOwner=owner(),eid=employee(),selectedDate=date();if(!selectedOwner||!eid||!selectedDate)return;
     try{currentOwner=selectedOwner;const cached=await all('states');if(attempt!==generation)return;states.clear();cached.filter(s=>s.owner===selectedOwner).forEach(s=>states.set(s.service_id,s));paintAll();
       const data=await call('pointage_day',{employee_id:eid,date:selectedDate});if(attempt!==generation||owner()!==selectedOwner||employee()!==eid||date()!==selectedDate)return;remoteActive=data.active||null;absences=data.absences||[];
-      for(const state of data.pointages||[]){const local=states.get(state.service_id),differentStart=local?.blocked&&state.start_event_id!==local.start_event_id;if(local?.pending&&!differentStart)continue;await save({...local,...state,key:`${selectedOwner}:${state.service_id}`,owner:selectedOwner,pending:false,blocked:false,error:null});}
-      banner('Pointage avec photos · envoi à Ogust et validation des heures réelles.');paintAll();flush();
+      for(const state of data.pointages||[]){const local=states.get(state.service_id),differentStart=local?.blocked&&state.start_event_id!==local.start_event_id;if(local?.pending&&!differentStart)continue;await save({...local,...state,key:`${selectedOwner}:${state.service_id}`,owner:selectedOwner,pending:false,blocked:false,error:visibleReceipt(state)?null:local?.error||null});}
+      banner('Dans Ogust : ouvrir l’intervention, puis « Ordre de mission ». Les heures réelles restent à valider par l’agence.');paintAll();flush();
+      for(const state of data.pointages||[]){if(attempt!==generation||owner()!==selectedOwner||employee()!==eid||date()!==selectedDate)break;const current=states.get(state.service_id);if(current&&!current.pending&&!visibleReceipt(current))await syncExisting(current);}
     }catch(e){if(attempt===generation){banner(message(e));if(e.message==='POINTAGE_LOCAL_STORAGE_UNAVAILABLE')currentOwner='';paintAll();}}
   }
   function decorate(value){rows=Array.isArray(value)?value:[];cards=[...document.querySelectorAll('#list .card')];remoteActive=null;absences=[];paintAll();refresh();}
@@ -107,3 +122,4 @@
   window.addEventListener('online',()=>{flush();refresh();});document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();refresh();}});
   setInterval(()=>{if(!document.hidden)paintAll();},1000);setInterval(()=>{if(!$('app')?.hidden&&owner()&&!busy){flush();refresh();}},60000);deepLink();
 })();
+
