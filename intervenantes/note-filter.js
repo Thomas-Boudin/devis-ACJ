@@ -91,7 +91,7 @@ window.meaningfulOgustNote = function (value) {
     const googleLoaderLoaded = [...document.scripts].some((script) => /(?:^|\/)google-loader\.js(?:$|\?)/.test(script.src));
     if (!googleLoaderLoaded) {
       const script = document.createElement('script');
-      script.src = './google-loader.js?v=20261014-2';
+      script.src = './google-loader.js?v=20261015-3';
       script.dataset.acjGoogleLoader = '1';
       document.body.appendChild(script);
     }
