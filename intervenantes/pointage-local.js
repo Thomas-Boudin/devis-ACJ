@@ -41,6 +41,7 @@
     .pointage{background:#0f766e;color:white;cursor:pointer}.pointage[data-state="active"]{background:#b91c1c}.pointage[data-state="done"]{background:#dcfce7;color:#166534}.pointage:disabled{opacity:.65;cursor:default}
     .pointageMeta{margin-top:9px;padding:11px;border-radius:12px;background:#f0fdf4;font-size:12px;line-height:1.5;color:#166534}.pointageMeta.pending{background:#fff7ed;color:#9a3412}.pointageTools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.pointageTools button{background:white;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:8px 12px;color:#334155;font-weight:800}.pointageTools .pointageValidate{background:#0f766e;color:white;border:0}
     .pointageDialog{width:min(calc(100% - 24px),520px);max-height:90dvh;border:0;border-radius:22px;padding:22px;color:#0f172a;overflow:auto}.pointageDialog::backdrop{background:rgba(15,23,42,.65)}.pointageDialog h2{font-size:22px;margin:0 0 10px}.pointageDialog p{line-height:1.5}.pointageDialog button{min-height:48px;border-radius:12px;padding:12px;font-weight:800;cursor:pointer}.pointageDialog .photoButton{width:100%;background:white;border:1px solid #cbd5e1}.pointageDialog img{max-width:100%;max-height:55dvh;object-fit:contain;border-radius:12px;margin-top:12px}.pointageDialog footer{display:flex;gap:8px;margin-top:18px}.pointageDialog .confirm{flex:1;background:#0f766e;color:white;border:0}.pointageDialog .confirm:disabled{opacity:.45;cursor:default}.pointageDialog .cancel{background:#f1f5f9;color:#334155;border:0}.pointageDialog .error{color:#b91c1c;font-size:14px}.pointageDialog label{display:block;font-size:14px;color:#64748b;margin:8px 0}
+    .pointageHistory{background:white;border:1px solid #dbe3ee;border-radius:19px;padding:16px}.pointageHistory h2{font-size:19px;margin:0 0 8px}.pointageHistory>p{font-size:13px;line-height:1.5;color:#64748b}.pointageHistoryEntry{border-top:1px solid #dbe3ee;padding:14px 0 0;margin-top:14px}.pointageHistoryEntry h3{font-size:15px;margin:0}
   `;document.head.appendChild(s);}
   function dialog(title){const d=document.createElement('dialog');d.className='pointageDialog';const h=document.createElement('h2');h.textContent=title;d.appendChild(h);d.addEventListener('close',()=>d.remove(),{once:true});document.body.appendChild(d);d.showModal();return d;}
   function p(d,text,cls){const n=document.createElement('p');n.textContent=text;if(cls)n.className=cls;d.appendChild(n);return n;}
@@ -86,20 +87,40 @@
     finally{syncing.delete(attempt);if(stillCurrent())paintAll();}
   }
   async function retry(serviceId){const selectedOwner=owner();for(const event of await all('events')){if(event.owner===selectedOwner&&event.service_id===serviceId&&event.blocked)await save(null,{...event,blocked:false});}const state=states.get(serviceId);if(state)await save({...state,blocked:false,error:null,status:state.stop_event_id?'completed':'active'});paintAll();flush();}
+  const description=state=>`${time(state.started_at)}${state.ended_at?` → ${time(state.ended_at)}`:''} · ${state.blocked?'Envoi bloqué · vérification par le gestionnaire':state.validated?'Heures validées dans Ogust':state.pending?'Enregistré sur ce téléphone · en attente d’envoi':!visibleReceipt(state)?'Pointage enregistré · transmission à Ogust à confirmer':state.status==='active'?'Début transmis · Ogust : Ordre de mission':'Pointages transmis · Ogust : Ordre de mission · heures à valider'}${state.error?` — ${state.error}`:''}`;
+  function paintTools(tools,sid,state,allowValidation=true){
+    const transmitting=state?syncing.has(syncKey(state)):false;
+    const signature=JSON.stringify([state?.status,state?.blocked,state?.start_photo,state?.end_photo,state?.pending,visibleReceipt(state),state?.validated,transmitting,window.ACJ_INTERVENANTES_ROLE,allowValidation]);
+    if(tools.dataset.signature===signature)return;
+    tools.dataset.signature=signature;tools.replaceChildren();if(state?.start_photo)tools.appendChild(button('Photo début','',()=>viewPhoto(states.get(sid),'start')));if(state?.end_photo)tools.appendChild(button('Photo fin','',()=>viewPhoto(states.get(sid),'stop')));if(state?.pending)tools.appendChild(button('Réessayer l’envoi','',()=>retry(sid)));if(state&&!state.pending&&!visibleReceipt(state)){const send=button(transmitting?'Transmission…':'Transmettre à Ogust','pointageSync',()=>syncExisting(states.get(sid),true));send.disabled=transmitting;tools.appendChild(send);}if(allowValidation&&state?.status==='completed'&&visibleReceipt(state)&&!state.pending&&!state.validated&&window.ACJ_INTERVENANTES_ROLE==='admin')tools.appendChild(button('Valider les heures réelles','pointageValidate',()=>validate(states.get(sid))));
+  }
   function paint(card,service){
     const sid=String(service.id_service||''),b=card.querySelector('.pointage');if(!b||!sid)return;
     const state=states.get(sid),away=absent(service),closed=!!service.status&&service.status!=='A';b.dataset.state=state?.status==='completed'?'done':state?.status==='active'?'active':'ready';
     b.disabled=busy||!currentOwner||state?.blocked||state?.status==='completed'||(!state&&(away||closed||date()!==today()||otherActive(sid)));
     setText(b,state?.blocked?'POINTAGE À VÉRIFIER':state?.status==='active'?`TERMINER · ${elapsed(state.started_at)}`:state?.status==='completed'?`TERMINÉE · ${time(state.ended_at)}`:away?'ABSENCE DÉCLARÉE':closed?'PRESTATION CLÔTURÉE':date()!==today()?'POINTAGE LE JOUR PRÉVU':'DÉMARRER');b.onclick=()=>capture(service);
     let meta=card.querySelector('.pointageMeta');if(!meta){meta=document.createElement('div');meta.className='pointageMeta';card.appendChild(meta);}
-    const text=state?`${time(state.started_at)}${state.ended_at?` → ${time(state.ended_at)}`:''} · ${state.blocked?'Envoi bloqué · vérification par le gestionnaire':state.validated?'Heures validées dans Ogust':state.pending?'Enregistré sur ce téléphone · en attente d’envoi':!visibleReceipt(state)?'Pointage enregistré · transmission à Ogust à confirmer':state.status==='active'?'Début transmis · Ogust : Ordre de mission':'Pointages transmis · Ogust : Ordre de mission · heures à valider'}${state.error?` — ${state.error}`:''}`:away?'Absente · prestation à remplacer dans le planning.':'';
+    const text=state?description(state):away?'Absente · prestation à remplacer dans le planning.':'';
     let desc=meta.querySelector('.pointageDescription');if(!desc){desc=document.createElement('div');desc.className='pointageDescription';meta.appendChild(desc);}setText(desc,text);meta.hidden=!text;meta.classList.toggle('pending',away||!!state?.pending||!!state?.error);
     let tools=meta.querySelector('.pointageTools');if(!tools){tools=document.createElement('div');tools.className='pointageTools';meta.appendChild(tools);}
-    const transmitting=state?syncing.has(syncKey(state)):false;
-    const signature=JSON.stringify([state?.status,state?.blocked,state?.start_photo,state?.end_photo,state?.pending,visibleReceipt(state),state?.validated,transmitting,window.ACJ_INTERVENANTES_ROLE]);
-    if(tools.dataset.signature!==signature){tools.dataset.signature=signature;tools.replaceChildren();if(state?.start_photo)tools.appendChild(button('Photo début','',()=>viewPhoto(states.get(sid),'start')));if(state?.end_photo)tools.appendChild(button('Photo fin','',()=>viewPhoto(states.get(sid),'stop')));if(state?.pending)tools.appendChild(button('Réessayer l’envoi','',()=>retry(sid)));if(state&&!state.pending&&!visibleReceipt(state)){const send=button(transmitting?'Transmission…':'Transmettre à Ogust','pointageSync',()=>syncExisting(states.get(sid),true));send.disabled=transmitting;tools.appendChild(send);}if(state?.status==='completed'&&visibleReceipt(state)&&!state.pending&&!state.validated&&window.ACJ_INTERVENANTES_ROLE==='admin')tools.appendChild(button('Valider les heures réelles','pointageValidate',()=>validate(states.get(sid))));}
+    paintTools(tools,sid,state);
   }
-  function paintAll(){cards.forEach((card,i)=>{if(card.isConnected)paint(card,rows[i]||{});});}
+  function paintHistory(){
+    const list=$('list');if(!list)return;
+    const planned=new Set(rows.map(service=>String(service.id_service))),selectedOwner=owner();
+    const recorded=$('app')?.hidden?[]:[...states.values()].filter(state=>selectedOwner&&state.owner===selectedOwner&&state.employee_id===employee()&&state.scheduled_date===date()&&!planned.has(state.service_id)).sort((a,b)=>String(a.started_at).localeCompare(String(b.started_at)));
+    let history=$('pointageHistory');const empty=list.querySelector('.empty');if(empty)empty.hidden=recorded.length>0;
+    if(!recorded.length){history?.remove();return;}
+    if(!history){history=document.createElement('section');history.id='pointageHistory';history.className='pointageHistory';history.setAttribute('aria-label','Pointages enregistrés');list.appendChild(history);}
+    const signature=JSON.stringify(recorded.map(state=>[state.service_id,state.scheduled_start,state.scheduled_end,description(state),state.start_photo,state.end_photo,syncing.has(syncKey(state))]));
+    if(history.dataset.signature===signature)return;history.dataset.signature=signature;history.replaceChildren();
+    const title=document.createElement('h2');title.textContent='Pointages enregistrés';history.appendChild(title);p(history,'Ces interventions n’apparaissent pas dans le planning de cette journée. Leurs pointages et leurs photos restent consultables.');
+    for(const state of recorded){
+      const entry=document.createElement('article');entry.className='pointageHistoryEntry';const heading=document.createElement('h3'),start=String(state.scheduled_start||''),end=String(state.scheduled_end||'');heading.textContent=start.length>=12&&end.length>=12?`Intervention prévue de ${start.slice(8,10)}:${start.slice(10,12)} à ${end.slice(8,10)}:${end.slice(10,12)}`:'Intervention pointée';entry.appendChild(heading);
+      const meta=document.createElement('div');meta.className='pointageMeta';meta.classList.toggle('pending',!!state.pending||!!state.error);p(meta,description(state),'pointageDescription');const tools=document.createElement('div');tools.className='pointageTools';paintTools(tools,state.service_id,state,false);meta.appendChild(tools);entry.appendChild(meta);history.appendChild(entry);
+    }
+  }
+  function paintAll(){cards.forEach((card,i)=>{if(card.isConnected)paint(card,rows[i]||{});});paintHistory();}
   async function flush(){
     if(flushing||!owner()||navigator.onLine===false)return;flushing=true;const selectedOwner=owner();
     try{const events=(await all('events')).filter(e=>e.owner===selectedOwner&&!e.blocked).sort((a,b)=>Date.parse(a.occurred_at)-Date.parse(b.occurred_at)||(a.type==='start'?-1:1));const blockedServices=new Set();
