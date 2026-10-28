@@ -1,6 +1,6 @@
 // Visible version and a user-triggered reload: never discard a quote automatically.
 (function(){
-  const version='51';
+  const version='52';
   function init(){
     const bar=document.createElement('div');bar.id='acjVersion';
     bar.style.cssText='display:flex;justify-content:center;align-items:center;gap:12px;padding:12px;font-size:12px;color:#64748b';
@@ -21,4 +21,5 @@
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
+
 

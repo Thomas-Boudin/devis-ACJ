@@ -1,6 +1,6 @@
 // Explicit tariff selection, scoped to the current Ogust account.
 (function(){
-  let rates=[],company='',pending=null;
+  let rates=[],company='',pending=null,validationRequested=false;
   const searches=new Map();
   const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
   const unit=l=>{const u=norm(l.unit);return u==='h'||u.includes('heure')?'H':u==='km'?'K':u==='forfait'?'F':'Q'};
@@ -33,6 +33,17 @@
     if(candidates.length>1){const exact=candidates.filter(r=>norm(r.title)===norm(l.ogustProductLevelTitle));if(exact.length===1)candidates=exact}
     if(candidates.length===1)assign(l,candidates[0]);
   }
+  function missingRateMessage(index){return `Choisis la prestation et le tarif Ogust de la ligne ${index+1} (« ${state.lines[index].designation} ») avant de finaliser le devis.`}
+  function renderValidation(){
+    const previous=document.getElementById?.('ogRateStatus40');
+    if(!validationRequested){previous?.remove();return}
+    const index=state.lines.findIndex(line=>!choice(line));
+    if(index<0){validationRequested=false;previous?.remove();return}
+    const editor=document.getElementById?.('quoteLines');if(!editor)return;
+    const notice=previous||document.createElement('div');
+    if(!previous){notice.id='ogRateStatus40';notice.className='status show err';notice.setAttribute('role','alert');editor.insertAdjacentElement('beforebegin',notice)}
+    notice.textContent=missingRateMessage(index);
+  }
   function render(){
     document.querySelectorAll('#quoteLines .quoteLine').forEach((card,i)=>{
       card.querySelector('.ogRate40')?.remove();const l=state.lines[i];if(!l)return;
@@ -49,11 +60,14 @@
         for(const r of shown){const o=document.createElement('option');o.value=r.id;o.textContent=`${r.title} · ${unitLabel(r.unit)} · TVA ${r.vat} % · ${Number(r.price).toFixed(2)} € TTC`;select.append(o)}
         select.value=selected?.id||'';
         hint.textContent=selected?`Tarif associé · ${unitLabel(selected.unit)} · TVA ${selected.vat} %. Quantité et prix TTC conservés.`:company===state.company&&!found.length?'Aucun tarif actif ne correspond à cette recherche dans cette société.':`La sélection applique l’unité et la TVA du tarif Ogust. Quantité et prix TTC conservés. Ligne actuelle : ${l.unit}, TVA ${l.vat} %.`;
+        if(validationRequested&&!selected){select.setAttribute('aria-invalid','true');hint.textContent=missingRateMessage(i);hint.style.color='#96373d';hint.setAttribute('role','alert')}
+        else{select.removeAttribute('aria-invalid');hint.style.color='';hint.removeAttribute('role')}
       }
       search.oninput=()=>{searches.set(key,search.value);options()};
       select.onchange=()=>{if(scope!==state.company||!state.lines.includes(l)||!card.isConnected)return;const r=company===state.company?rates.find(r=>r.id===select.value):null;if(r)selectRate(l,r);else delete l.ogustRateId;window.renderQuoteLines()};
       box.append(select,hint);options();card.append(box);
     });
+    renderValidation();
   }
   async function load(){
     const c=state.company;if(company===c)return true;
@@ -65,9 +79,19 @@
   function init(){
     const originalRender=window.renderQuoteLines;window.renderQuoteLines=function(){const out=originalRender.apply(this,arguments);render();load();return out};
     const originalPayload=window.quotePayload;window.quotePayload=function(){const p=originalPayload.apply(this,arguments);p.lignes.forEach((l,i)=>{const src=state.lines[i];automatic(src);const r=choice(src);delete l.ogust_rate_id;if(r){l.ogust_rate_id=r.id;l.ogust_product_level_id=r.product;l.ogust_product_level_title=r.title;l.ogust_unit=r.unit}});return p};
-    const originalSend=window.sendToOgust;window.sendToOgust=async function(){if(!await load()){showStatus('finalStatus','Lecture des tarifs Ogust impossible. Aucun devis créé.','err');return}render();const i=state.lines.findIndex(l=>!choice(l));if(i>=0){goStep(3);showStatus('finalStatus',`Choisis la prestation et le tarif Ogust de la ligne ${i+1} dans le devis avant l’envoi.`,'err');return}return originalSend.apply(this,arguments)};
-    const originalNew=window.newQuote;if(typeof originalNew==='function')window.newQuote=function(){searches.clear();return originalNew.apply(this,arguments)};
-    window.addEventListener('acj:company-changed',()=>{searches.clear();rates=[];company='';pending=null;for(const l of state.lines)delete l.ogustRateId;render();load()});render();load();
+    const originalSend=window.sendToOgust;window.sendToOgust=async function(){
+      if(!await load()){showStatus('finalStatus','Lecture des tarifs Ogust impossible. Aucun devis créé.','err');return}
+      render();const i=state.lines.findIndex(l=>!choice(l));
+      if(i>=0){
+        validationRequested=true;goStep(3);render();showStatus('finalStatus',missingRateMessage(i),'err');
+        const select=document.getElementById?.('quoteLines')?.querySelectorAll('.ogRateSelect40')[i];
+        select?.scrollIntoView?.({behavior:'smooth',block:'center'});select?.focus?.({preventScroll:true});return;
+      }
+      return originalSend.apply(this,arguments);
+    };
+    const originalNew=window.newQuote;if(typeof originalNew==='function')window.newQuote=function(){searches.clear();validationRequested=false;renderValidation();return originalNew.apply(this,arguments)};
+    window.addEventListener('acj:company-changed',()=>{searches.clear();validationRequested=false;rates=[];company='';pending=null;for(const l of state.lines)delete l.ogustRateId;render();load()});render();load();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+
