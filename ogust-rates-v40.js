@@ -83,7 +83,7 @@
       if(!await load()){showStatus('finalStatus','Lecture des tarifs Ogust impossible. Aucun devis créé.','err');return}
       render();const i=state.lines.findIndex(l=>!choice(l));
       if(i>=0){
-        validationRequested=true;goStep(3);render();showStatus('finalStatus',missingRateMessage(i),'err');
+        validationRequested=true;goStep(3);render();showStatus('ogRateStatus40',missingRateMessage(i),'err');
         const select=document.getElementById?.('quoteLines')?.querySelectorAll('.ogRateSelect40')[i];
         select?.scrollIntoView?.({behavior:'smooth',block:'center'});select?.focus?.({preventScroll:true});return;
       }

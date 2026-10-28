@@ -97,6 +97,7 @@ try{
   assert.equal(a.w.totals().ttc,165);assert.equal(line.qty,3);assert.equal(line.unitPriceTTC,55,'Existing quantity and price are retained');
   rateSelect.value=rates[0].id;rateSelect.dispatchEvent(new a.w.Event('change',{bubbles:true}));
   assert.equal(a.doc.getElementById('ogRateStatus40'),null,'Selecting a valid tariff clears the blocking message');
+  assert.ok(!a.doc.getElementById('finalStatus').textContent.includes('Choisis la prestation'),'The review does not retain an obsolete tariff error');
   assert.equal(a.doc.querySelector('#quoteLines .ogRateSelect40').hasAttribute('aria-invalid'),false);
   assert.equal(line.ogustRateId,linkedRate.ogustRateId);assert.equal(a.w.totals().ttc,165);
   a.w.goStep(4);await a.w.sendToOgust();await until(()=>a.doc.getElementById('ogwCreateBtn'),'finalization resumes after choosing a current tariff');
