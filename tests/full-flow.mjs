@@ -79,6 +79,30 @@ try{
   assert.equal(prepared.body.id_customer,customer.id_customer);assert.equal(prepared.body.quote.totaux.ttc,165);assert.equal(prepared.body.quote.lignes[0].ogust_rate_id,'rate-garden');
   assert.equal(a.doc.querySelector('input[name="ogwCustomer"]'),null,'No repeated client choice');assert.equal(a.doc.getElementById('ogwConfirmCheck'),null,'Known verified customer uses the final action for confirmation');assert.equal(a.doc.getElementById('ogwCreateBtn').disabled,false);
   assert.equal(a.calls.filter(c=>c.body?.action==='create').length,0,'Preparing does not create');a.w.closeOgustWriteModal();a.w.goStep(3);assert.equal(getState(a.w).step,2);
+  // A restored quote can reference a tariff removed from the current catalogue.
+  // Finalization must point to the offending editor instead of returning to the
+  // workspace with the explanation hidden in the inactive review section.
+  const linkedRate={ogustRateId:line.ogustRateId,ogustProductLevelId:line.ogustProductLevelId,ogustProductLevelTitle:line.ogustProductLevelTitle};
+  Object.assign(line,{ogustRateId:'retired-rate',ogustProductLevelId:'retired-product',ogustProductLevelTitle:'Ancien tarif'});
+  a.w.goStep(4);const preparations=a.calls.filter(call=>call.body?.action==='prepare').length;
+  await a.w.sendToOgust();
+  assert.equal(getState(a.w).step,2);
+  const rateError=a.doc.getElementById('ogRateStatus40');
+  assert.equal(rateError?.closest('.step.active')?.dataset.step,'2','The blocking explanation is in the visible workspace');
+  assert.match(rateError.textContent,/ligne 1/i);
+  const rateSelect=a.doc.querySelector('#quoteLines .ogRateSelect40');
+  assert.equal(a.doc.activeElement,rateSelect,'The missing tariff selector receives focus');
+  assert.equal(rateSelect.getAttribute('aria-invalid'),'true');
+  assert.equal(a.calls.filter(call=>call.body?.action==='prepare').length,preparations,'An unmatched tariff never reaches Ogust');
+  assert.equal(a.w.totals().ttc,165);assert.equal(line.qty,3);assert.equal(line.unitPriceTTC,55,'Existing quantity and price are retained');
+  rateSelect.value=rates[0].id;rateSelect.dispatchEvent(new a.w.Event('change',{bubbles:true}));
+  assert.equal(a.doc.getElementById('ogRateStatus40'),null,'Selecting a valid tariff clears the blocking message');
+  assert.ok(!a.doc.getElementById('finalStatus').textContent.includes('Choisis la prestation'),'The review does not retain an obsolete tariff error');
+  assert.equal(a.doc.querySelector('#quoteLines .ogRateSelect40').hasAttribute('aria-invalid'),false);
+  assert.equal(line.ogustRateId,linkedRate.ogustRateId);assert.equal(a.w.totals().ttc,165);
+  a.w.goStep(4);await a.w.sendToOgust();await until(()=>a.doc.getElementById('ogwCreateBtn'),'finalization resumes after choosing a current tariff');
+  assert.equal(a.calls.filter(call=>call.body?.action==='prepare').length,preparations+1);
+  assert.equal(a.calls.filter(call=>call.body?.action==='create').length,0);a.w.closeOgustWriteModal();a.w.goStep(2);
   input(a,'aiChantierText','Jardinage : tailler le saule et enlever le romarin.');input(a,'noteText','Ancienne note à importer');
   pickGarden(a);input(a,'builderHours',2.5);input(a,'builderRate',61);input(a,'builderDesignation','Jardinage du fond');a.w.acjDraftV42.save();
   const quoteNumber=getState(a.w).number,saved=a.snapshot();const draft=JSON.parse(saved[a.w.acjDraftV42.key]);
@@ -141,3 +165,4 @@ try{
   assert.equal(c.calls.filter(call=>call.body?.action==='create').length,0);assert.equal(c.errors.length,0,c.errors.map(error=>error.stack||error.message).join('\n'));
   console.log('Full flow with all production scripts: known client → hourly tariff → 165 € → exact-ID prepare; 3-step workspace, draft reload/builder and unconfirmed AI review, AI confirmation/missing values/stale response, dictation final/interim/reload/manual-context protection, new-quote reset. APIs fully mocked; no actual writes.');
 }finally{await wait(100);a?.dom.window.close();b?.dom.window.close();c?.dom.window.close()}
+
