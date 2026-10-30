@@ -109,6 +109,12 @@
 
       .top{padding-top:calc(8px + env(safe-area-inset-top))!important;padding-bottom:6px!important;backdrop-filter:none!important}
       .toprow{min-height:40px!important}.mark{width:36px!important;height:36px!important;background-size:30px!important}.brand strong{font-size:17px!important}
+      .brand .pill{display:block!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;margin-top:2px;font-size:9px!important;line-height:1.3;color:#718197!important}
+      #newQuoteHeader55{flex-shrink:0;min-height:42px;border:1px solid #b9ddef;border-radius:12px;padding:9px 11px;background:#edf8ff;color:#0b6fae;font-size:12px;font-weight:800;white-space:nowrap}
+      #newQuoteHeader55:hover{background:#dff2ff}#newQuoteHeader55:focus-visible{outline:2px solid #0b78c9;outline-offset:2px}
+      .headerActions55{display:flex;gap:6px;flex-shrink:0}.headerHome55{min-height:42px;padding:9px 8px;border:0;border-radius:10px;background:transparent;color:#466079;font-size:12px;font-weight:750}
+      .headerHome55:hover{background:#f0f5f9}.headerHome55:focus-visible{outline:2px solid #0b78c9;outline-offset:1px}
+      @media(max-width:350px){.toprow .mark{display:none!important}.toprow{gap:7px!important}}
       #draftStatus42{padding:3px 0 0!important;font-size:10px!important;line-height:14px}
       .fastHeader42 h2{font-size:23px!important;margin:0 0 12px!important}.fastHeader42 p{display:none}
       #companyChoices{grid-template-columns:repeat(3,minmax(0,1fr))}.choice small{line-height:1.4}
@@ -168,6 +174,17 @@
     document.head.appendChild(s);
   }
 
+  function mountHeaderActions(){
+    const button=document.querySelector('.finalActions button[onclick="newQuote()"]');
+    const row=document.querySelector('.toprow');if(!button||!row)return;
+    button.id='newQuoteHeader55';button.className='newQuoteHeader55';button.type='button';button.textContent='+ Nouveau devis';button.setAttribute('aria-label','Nouveau devis');
+    button.setAttribute('onclick',"newQuote();document.getElementById('ogcSearch')?.focus()");
+    const actions=document.createElement('div');actions.className='headerActions55';
+    const home=document.createElement('button');home.type='button';home.className='headerHome55';home.textContent='Accueil';home.setAttribute('aria-label','Revenir à l’accueil');home.addEventListener('click',()=>window.goStep?.(1));
+    actions.append(home,button);row.appendChild(actions);
+    const title=document.querySelector('.brand strong'),reference=document.getElementById('quoteNumberTop');if(title&&reference)title.parentElement.appendChild(reference);
+  }
+
   function mountActions(){
     const box=document.querySelector('.step[data-step="4"] .finalActions');
     if(!box||document.getElementById('reviewActions53'))return;
@@ -193,7 +210,7 @@
   }
 
   function init(){
-    addStyles();themeMeta();mountActions();
+    addStyles();themeMeta();mountHeaderActions();mountActions();
     const title=document.querySelector('.step[data-step="1"] h1');if(title)title.textContent='Choisir le client';
     const lead=document.querySelector('.step[data-step="1"] .lead');if(lead)lead.textContent='Sélectionne ta société, puis le client.';
     document.querySelectorAll('.status,.ogcStatus').forEach(node=>node.setAttribute('aria-live','polite'));
