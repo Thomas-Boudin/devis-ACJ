@@ -122,6 +122,7 @@
       #companyChoices .choice strong{font-size:11px!important}
       #historyLaunchV29{padding:9px 12px!important;margin-bottom:12px!important;border:0!important;box-shadow:none!important;background:#edf4f9!important}
       #historyLaunchV29 small{display:none}#historyLaunchV29 .btn{min-height:36px!important;padding:7px 14px!important;font-size:12px!important}
+      #historyLaunchV29 .histLaunchText strong{color:#315069!important}
       #modeChoices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
       #modeChoices .choice{min-height:42px!important;padding:8px 4px!important;text-align:center;border-radius:10px!important}
       #modeChoices .choice strong{font-size:11px!important}#modeChoices small,#modeChoices .choice.active:after{display:none}
