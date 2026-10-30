@@ -110,16 +110,23 @@
       .top{padding-top:calc(8px + env(safe-area-inset-top))!important;padding-bottom:6px!important;backdrop-filter:none!important}
       .toprow{min-height:40px!important}.mark{width:36px!important;height:36px!important;background-size:30px!important}.brand strong{font-size:17px!important}
       .brand .pill{display:block!important;border:0!important;background:transparent!important;box-shadow:none!important;padding:0!important;margin-top:2px;font-size:9px!important;line-height:1.3;color:#718197!important}
-      .headerActions55{display:flex;gap:6px;flex-shrink:0}.headerHome55{min-height:42px;padding:9px 8px;border:0;border-radius:10px;background:transparent;color:#466079;font-size:12px;font-weight:750}
-      .headerHome55:hover{background:#f0f5f9}.headerHome55:focus-visible{outline:2px solid #0b78c9;outline-offset:1px}
+      .appMenu57{position:relative;flex-shrink:0}
+      .appMenuToggle57{width:44px;height:44px;display:grid;place-content:center;gap:5px;border:1px solid #dce6ee;border-radius:12px;background:#fff;color:#315069}
+      .appMenuToggle57 span{display:block;width:19px;height:2px;border-radius:2px;background:currentColor}
+      .appMenuToggle57:hover,.appMenuToggle57[aria-expanded="true"]{background:#edf7fd;color:#0b6fae;border-color:#b9ddef}
+      .appMenuPanel57{position:absolute;top:calc(100% + 8px);right:0;width:min(270px,calc(100vw - 24px));padding:6px;border:1px solid #d9e4ee;border-radius:16px;background:#fff;box-shadow:0 12px 40px rgba(25,55,86,.18);z-index:40}
+      .appMenuPanel57[hidden]{display:none!important}
+      .appMenuItem57{display:block;width:100%;min-height:48px;padding:12px 14px;text-align:left;border:0;border-radius:10px;background:transparent;color:#27445f;font-size:14px;font-weight:750}
+      .appMenuItem57:hover{background:#edf7fd;color:#0b6fae}
+      .appMenuToggle57:focus-visible,.appMenuItem57:focus-visible{outline:2px solid #0b78c9;outline-offset:1px}
+      #appMenu57 #acjVersion{display:flex!important;flex-direction:column;align-items:stretch!important;gap:7px!important;padding:12px 8px 6px!important;margin-top:5px;border-top:1px solid #e6edf3;font-size:10px!important;text-align:center}
+      #appMenu57 #acjVersion button{min-height:40px;font-size:11px}
       #draftStatus42{padding:3px 0 0!important;font-size:10px!important;line-height:14px}
       .fastHeader42 h2{font-size:23px!important;margin:0 0 12px!important}.fastHeader42 p{display:none}
       #companyChoices{grid-template-columns:repeat(3,minmax(0,1fr))}.choice small{line-height:1.4}
       #companyChoices .choice{padding:10px 7px!important;min-height:52px!important;text-align:center}#companyChoices .choice small,#companyChoices .choice.active:after{display:none}
       #companyChoices .choice strong{font-size:11px!important}
-      #historyLaunchV29{display:grid!important;grid-template-columns:1fr 1fr;gap:10px!important;padding:0!important;margin:0 0 18px!important;border:0!important;box-shadow:none!important;background:transparent!important}
-      #historyLaunchV29 .btn{width:100%;min-width:0;min-height:54px!important;padding:12px 10px!important;font-size:13px!important}
-      #historyLaunchV29 .btn:focus-visible{outline:2px solid #0b78c9;outline-offset:3px}
+      .step[data-step="1"]>h1{margin-bottom:16px!important}
       #modeChoices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
       #modeChoices .choice{min-height:42px!important;padding:8px 4px!important;text-align:center;border-radius:10px!important}
       #modeChoices .choice strong{font-size:11px!important}#modeChoices small,#modeChoices .choice.active:after{display:none}
@@ -143,6 +150,10 @@
       .lineEdit>div{grid-column:auto!important;min-width:0}.lineEdit input{width:100%;font-size:16px!important}
       .quickCosts{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
       .quickCosts .btn{min-height:42px!important;padding:7px 5px!important;font-size:11px!important;line-height:1.35}
+      .extraCosts57{margin-top:12px!important;padding:0!important;background:#f9fbfd!important;border-color:#e1e9f0!important}
+      .extraCosts57>summary{padding:11px 12px;font-size:12px!important;min-height:44px}
+      .extraCosts57 .quickCosts{margin:0!important;padding:0 10px 10px}
+      .extraCosts57>details{margin:0 10px 10px!important}.extraCosts57>details>summary{font-size:11px!important;padding:10px 12px}
       .lineEdit .lineDetails53{grid-column:1/-1;margin:0!important;padding:0!important;background:transparent!important;border-color:#e2eaf1!important}
       .lineDetails53>summary{padding:9px 11px;font-size:12px!important;min-height:38px}
       .lineMoreGrid53{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 11px 10px}
@@ -159,7 +170,7 @@
       .secondaryActionGrid53{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding-top:6px}
       #reviewActions53 .secondaryActionGrid53 .btn{min-height:42px!important;background:#f7fafc!important;color:#315069!important;border:1px solid #d7e2eb!important;box-shadow:none!important;font-size:12px!important}
       input,select,textarea{scroll-margin-top:125px}details[open]>summary{margin-bottom:4px}
-      @media print{#reviewActions53{display:none!important}}
+      @media print{#reviewActions53,.appMenu57{display:none!important}}
 
       @media(max-width:640px){
         .app{max-width:none!important}.top{padding-left:12px!important;padding-right:12px!important}.brand span{display:none!important}main{padding:15px 12px 28px!important}
@@ -173,20 +184,26 @@
   }
 
   function mountNavigation(){
+    const row=document.querySelector('.toprow');if(!row)return;
     const button=document.querySelector('.finalActions button[onclick="newQuote()"]');
     const launcher=document.getElementById('historyLaunchV29');
     const history=document.getElementById('historyOpenBtn');
-    if(button&&launcher&&history){
-      button.id='newQuoteHome56';button.className='btn primary';button.type='button';button.textContent='+ Nouveau devis';button.setAttribute('aria-label','Nouveau devis');
-      button.setAttribute('onclick',"newQuote();document.getElementById('ogcSearch')?.focus()");
-      history.textContent='Mes devis';history.setAttribute('aria-label','Mes devis');
-      launcher.className='homeActions56';launcher.setAttribute('role','group');launcher.setAttribute('aria-label','Gérer les devis');
-      launcher.replaceChildren(button,history);
+    const container=document.createElement('div');container.className='appMenu57';
+    const toggle=document.createElement('button');toggle.id='appMenuToggle57';toggle.type='button';toggle.className='appMenuToggle57';toggle.setAttribute('aria-label','Ouvrir le menu');toggle.setAttribute('aria-controls','appMenu57');toggle.setAttribute('aria-expanded','false');
+    for(let i=0;i<3;i++){const bar=document.createElement('span');bar.setAttribute('aria-hidden','true');toggle.appendChild(bar)}
+    const panel=document.createElement('nav');panel.id='appMenu57';panel.className='appMenuPanel57';panel.hidden=true;panel.setAttribute('aria-label','Navigation principale');
+    function setOpen(open,restoreFocus=false){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Fermer le menu':'Ouvrir le menu');if(restoreFocus)toggle.focus()}
+    toggle.addEventListener('click',()=>setOpen(panel.hidden));
+    const home=document.createElement('button');home.type='button';home.className='appMenuItem57';home.textContent='Accueil';home.addEventListener('click',()=>{setOpen(false);window.goStep?.(1)});panel.appendChild(home);
+    if(button){
+      button.id='newQuoteMenu57';button.className='appMenuItem57';button.type='button';button.textContent='Nouveau devis';button.removeAttribute('onclick');
+      button.addEventListener('click',()=>{setOpen(false);window.newQuote?.();document.getElementById('ogcSearch')?.focus()});panel.appendChild(button);
     }
-    const row=document.querySelector('.toprow');if(!row)return;
-    const actions=document.createElement('div');actions.className='headerActions55';
-    const home=document.createElement('button');home.type='button';home.className='headerHome55';home.textContent='Accueil';home.setAttribute('aria-label','Revenir à l’accueil');home.addEventListener('click',()=>window.goStep?.(1));
-    actions.appendChild(home);row.appendChild(actions);
+    if(history){history.className='appMenuItem57';history.textContent='Mes devis';history.setAttribute('aria-label','Mes devis');history.addEventListener('click',()=>{setOpen(false);document.getElementById('historySearch')?.focus();document.getElementById('historyCloseBtn')?.addEventListener('click',()=>toggle.focus(),{once:true})});panel.appendChild(history);launcher?.remove()}
+    container.append(toggle,panel);row.appendChild(container);
+    document.addEventListener('click',event=>{if(!panel.hidden&&!container.contains(event.target))setOpen(false)});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!panel.hidden){event.preventDefault();setOpen(false,true)}});
+    container.addEventListener('focusout',event=>{if(event.relatedTarget&&!container.contains(event.relatedTarget))setOpen(false)});
     const title=document.querySelector('.brand strong'),reference=document.getElementById('quoteNumberTop');if(title&&reference)title.parentElement.appendChild(reference);
   }
 
@@ -208,6 +225,15 @@
     document.querySelector('.step[data-step="4"]').appendChild(footer);
   }
 
+  function foldExtraCosts(){
+    const costs=document.querySelector('.quickCosts');if(!costs)return;
+    const details=document.createElement('details');details.className='extraCosts57';
+    const summary=document.createElement('summary');summary.textContent='Ajouter des frais';
+    costs.insertAdjacentElement('beforebegin',details);details.append(summary,costs);
+    const settings=document.getElementById('kmRate')?.closest('details');
+    if(settings){const heading=settings.querySelector('summary');if(heading)heading.textContent='Tarifs des frais';settings.querySelector('.tiny')?.remove();details.appendChild(settings)}
+  }
+
   function themeMeta(){
     let meta=document.querySelector('meta[name="theme-color"]');
     if(!meta){meta=document.createElement('meta');meta.name='theme-color';document.head.appendChild(meta)}
@@ -215,9 +241,9 @@
   }
 
   function init(){
-    addStyles();themeMeta();mountNavigation();mountActions();
+    addStyles();themeMeta();mountNavigation();mountActions();foldExtraCosts();
     const title=document.querySelector('.step[data-step="1"] h1');if(title)title.textContent='Choisir le client';
-    const lead=document.querySelector('.step[data-step="1"] .lead');if(lead)lead.textContent='Sélectionne ta société, puis le client.';
+    document.querySelector('.step[data-step="1"] .lead')?.remove();
     document.querySelectorAll('.status,.ogcStatus').forEach(node=>node.setAttribute('aria-live','polite'));
   }
 

@@ -185,7 +185,7 @@
       <div class="ogcTabs"><button id="ogcExistingBtn" class="ogcTab active" type="button">Existant dans Ogust</button><button id="ogcNewBtn" class="ogcTab" type="button">Nouveau client</button></div>
       <div id="ogcExistingPanel"><div class="field"><label>Rechercher dans Ogust</label><input id="ogcSearch" autocomplete="off" placeholder="Nom, prénom ou téléphone"></div><div id="ogcResults" class="ogcResults"></div><div id="ogcStatus" class="ogcStatus"></div></div>
       <div id="ogcNewPanel46" hidden><div id="ogcNewFields46"></div><div id="ogcFormStatus46" class="ogcStatus" role="status"></div><button id="ogcRetryConfig46" class="btn" type="button" hidden>Recharger les choix Ogust</button><label class="ogwConfirm"><input id="ogcConfirmClient46" type="checkbox"><span>Je confirme la création de cette fiche dans Ogust.</span></label><button id="ogcCreateClient46" class="btn good" type="button" disabled>Créer le client dans Ogust</button><div class="ogcHint">Tu peux aussi préparer le devis : la fiche sera créée avec le devis après confirmation.</div></div>
-      <div class="ogcHint">La recherche utilise automatiquement le compte Ogust de la société choisie. Changer de société efface la sélection pour éviter tout mélange de clients.</div>`;
+      `;
     companyCard.insertAdjacentElement('afterend',card);
     document.getElementById('ogcExistingBtn').addEventListener('click',()=>applyMode('existing'));
     document.getElementById('ogcNewBtn').addEventListener('click',()=>applyMode('new'));
@@ -227,3 +227,4 @@
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',inject);else inject();
 })();
+
