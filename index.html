@@ -45,7 +45,29 @@ function setBuilderMethod(method){state.builderMethod=method;renderServiceBuilde
 function addBuiltService(){const p=findPreset(state.activePreset);if(!p)return;const m=MODES[state.mode];let designation=p.kind==='custom'?(el('builderDesignation')?.value||'Autre prestation').trim():p.label;if(!designation)designation='Autre prestation';let qty=1,unit='forfait',price=0,meta='Forfait';if(state.builderMethod==='flat'){price=num(el('builderFlat')?.value);if(price<=0){alert('Renseigne le montant du forfait.');return}}else{qty=num(el('builderHours')?.value);price=num(el('builderRate')?.value||m.rate);unit='h';if(qty<=0){alert('Renseigne le nombre d’heures.');return}if(state.builderMethod==='auto'&&p.kind==='surface'){const metric=num(el('builderMetric')?.value);if(metric<=0){alert('Renseigne la quantité à traiter.');return}meta=`${metric} ${p.unitLabel} · ${qty} h de main-d’œuvre estimées`}else{meta=`${qty} h de main-d’œuvre`}}state.lines.push({id:uid(),type:'service',designation,meta,pricingMethod:state.builderMethod,activity:state.mode,qty,unit,unitPriceTTC:price,vat:m.vat});state.activePreset=null;state.builderMethod='hourly';renderPresets();el('serviceBuilder').className='builder';el('serviceBuilder').innerHTML='';renderQuoteLines()}
 function addQuickCost(type){persistSettings();const m=MODES[state.mode];if(type==='fournitures')state.lines.push({id:uid(),type:'cost',designation:'Fournitures / matériel',meta:'',activity:state.mode,qty:1,unit:'forfait',unitPriceTTC:0,vat:m.vat});if(type==='dechets')state.lines.push({id:uid(),type:'cost',designation:'Évacuation / déchetterie',meta:'',activity:state.mode,qty:1,unit:'m³',unitPriceTTC:settings.wasteRate,vat:m.vat});if(type==='deplacement')state.lines.push({id:uid(),type:'cost',designation:'Déplacement',meta:'Aller-retour',activity:state.mode,qty:1,unit:'km',unitPriceTTC:settings.kmRate,vat:m.vat});renderQuoteLines()}
 function lineAmounts(l){const ttc=num(l.qty)*num(l.unitPriceTTC),ht=l.vat?ttc/(1+num(l.vat)/100):ttc;return{ttc,ht,tva:ttc-ht}}function totals(){return state.lines.reduce((a,l)=>{const x=lineAmounts(l);a.ht+=x.ht;a.tva+=x.tva;a.ttc+=x.ttc;return a},{ht:0,tva:0,ttc:0})}function vatBreakdown(lines){const byRate={};lines.forEach(l=>{const r=num(l.vat),a=lineAmounts(l);byRate[r]=(byRate[r]||0)+a.tva});return Object.entries(byRate).sort((a,b)=>Number(a[0])-Number(b[0])).map(([rate,amount])=>({rate:Number(rate),amount}))}
-function renderQuoteLines(){const t=el('quoteLines');if(!state.lines.length)t.innerHTML='<div class="empty">Aucune prestation ajoutée. Reviens à l’étape 2 pour commencer.</div>';else t.innerHTML=state.lines.map(l=>{const a=lineAmounts(l);return`<div class="quoteLine"><div class="quoteTop"><div><div class="quoteTitle">${esc(l.designation)}</div><div class="quoteMeta">${esc(l.meta||`${l.qty} ${l.unit}`)}</div></div><div class="lineTotal">${money(a.ttc)}</div></div><div class="lineEdit"><div><label>Désignation</label><textarea rows="3" aria-label="Désignation" oninput="patchLine('${l.id}','designation',this.value,{render:false})" onchange="patchLine('${l.id}','designation',this.value)">${esc(l.designation)}</textarea></div><div><label>Quantité</label><input type="number" min="0" step="0.01" value="${l.qty}" onchange="patchLine('${l.id}','qty',this.value)"></div><div><label>Unité</label><input value="${esc(l.unit)}" onchange="patchLine('${l.id}','unit',this.value)"></div><div><label>PU TTC</label><input type="number" min="0" step="0.01" value="${l.unitPriceTTC}" onchange="patchLine('${l.id}','unitPriceTTC',this.value)"></div><div><label>TVA %</label><input type="number" min="0" step="0.1" value="${l.vat}" onchange="patchLine('${l.id}','vat',this.value)"></div></div><div class="lineButtons"><button class="btn small danger" onclick="removeLine('${l.id}')">Supprimer</button></div></div>`}).join('');renderTotals()}function patchLine(id,k,v,options={}){const l=state.lines.find(x=>x.id===id);if(!l)return;l[k]=['qty','unitPriceTTC','vat'].includes(k)?num(v):v;if(k==='qty'&&l.type==='service'&&l.unit==='h'&&l.pricingMethod==='hourly')l.meta=`${l.qty} h de main-d’œuvre`;if(options.render===false){const card=el('quoteLines').querySelectorAll('.quoteLine')[state.lines.indexOf(l)];const title=card?.querySelector('.quoteTitle');if(title)title.textContent=l.designation}else renderQuoteLines()}function removeLine(id){state.lines=state.lines.filter(x=>x.id!==id);renderQuoteLines()}function renderTotals(){const t=totals();['sumHT','reviewHT'].forEach(id=>el(id).textContent=money(t.ht));['sumTVA','reviewTVA'].forEach(id=>el(id).textContent=money(t.tva));['sumTTC','reviewTTC'].forEach(id=>el(id).textContent=money(t.ttc))}
+function renderQuoteLines(){
+  const target=el('quoteLines');
+  const opened=new Set([...target.querySelectorAll('.quoteLine')].filter(card=>card.querySelector('.lineDetails53')?.open).map(card=>card.dataset.lineId));
+  if(!state.lines.length)target.innerHTML='<div class="empty">Ajoute une prestation pour commencer.</div>';
+  else target.innerHTML=state.lines.map(line=>{
+    const amounts=lineAmounts(line);
+    return `<div class="quoteLine" data-line-id="${esc(line.id)}">
+      <div class="quoteTop"><div><div class="quoteTitle">${esc(line.designation)}</div><div class="quoteMeta">${esc(line.meta||`${line.qty} ${line.unit}`)}</div></div><div class="lineTotal">${money(amounts.ttc)}</div></div>
+      <div class="lineEdit">
+        <div><label>Quantité (${esc(line.unit)})</label><input aria-label="Quantité" type="number" min="0" step="0.01" value="${line.qty}" inputmode="decimal" oninput="patchLine('${line.id}','qty',this.value,{render:false})" onchange="patchLine('${line.id}','qty',this.value)"></div>
+        <div><label>Prix unitaire TTC</label><input aria-label="Prix unitaire TTC" type="number" min="0" step="0.01" value="${line.unitPriceTTC}" inputmode="decimal" oninput="patchLine('${line.id}','unitPriceTTC',this.value,{render:false})" onchange="patchLine('${line.id}','unitPriceTTC',this.value)"></div>
+        <details class="lineDetails53"${opened.has(line.id)?' open':''}><summary>Libellé, TVA et tarif Ogust</summary><div class="lineMoreGrid53">
+          <div><label>Désignation</label><textarea rows="3" aria-label="Désignation" oninput="patchLine('${line.id}','designation',this.value,{render:false})" onchange="patchLine('${line.id}','designation',this.value)">${esc(line.designation)}</textarea></div>
+          <div><label>Unité</label><input aria-label="Unité" value="${esc(line.unit)}" onchange="patchLine('${line.id}','unit',this.value)"></div>
+          <div><label>TVA %</label><input aria-label="TVA %" type="number" min="0" step="0.1" value="${line.vat}" onchange="patchLine('${line.id}','vat',this.value)"></div>
+        </div></details>
+      </div>
+      <div class="lineButtons"><button class="btn small danger" type="button" onclick="removeLine('${line.id}')">Supprimer</button></div>
+    </div>`;
+  }).join('');
+  renderTotals();
+}
+function patchLine(id,k,v,options={}){const l=state.lines.find(x=>x.id===id);if(!l)return;l[k]=['qty','unitPriceTTC','vat'].includes(k)?num(v):v;if(k==='qty'&&l.type==='service'&&l.unit==='h'&&l.pricingMethod==='hourly')l.meta=`${l.qty} h de main-d’œuvre`;if(options.render===false){const card=el('quoteLines').querySelectorAll('.quoteLine')[state.lines.indexOf(l)];const title=card?.querySelector('.quoteTitle');if(title&&title.textContent!==l.designation)title.textContent=l.designation;const amount=card?.querySelector('.lineTotal'),meta=card?.querySelector('.quoteMeta');if(amount)amount.textContent=money(lineAmounts(l).ttc);if(meta)meta.textContent=l.meta||`${l.qty} ${l.unit}`;renderTotals()}else renderQuoteLines()}function removeLine(id){state.lines=state.lines.filter(x=>x.id!==id);renderQuoteLines()}function renderTotals(){const t=totals();['sumHT','reviewHT'].forEach(id=>el(id).textContent=money(t.ht));['sumTVA','reviewTVA'].forEach(id=>el(id).textContent=money(t.tva));['sumTTC','reviewTTC'].forEach(id=>el(id).textContent=money(t.ttc))}
 function syncClient(){state.client=el('client').value.trim();state.tel=el('tel').value.trim();state.address=el('adresse').value.trim()}function syncNotes(){state.notes=el('notes').value.trim()}function validateStep(step){if(step===2){syncClient();if(!state.client){el('client').focus();return false}}if(step===4&&!state.lines.length)return false;return true}function goStep(step){if(step>state.step&&!validateStep(step)){if(step===4)alert('Ajoute au moins une prestation avant de finaliser le devis.');return}syncClient();if(el('notes'))syncNotes();state.step=step;document.querySelectorAll('.step').forEach(s=>s.classList.toggle('active',Number(s.dataset.step)===step));const labels=['','1. Client','2. Prestations','3. Chiffrage','4. Devis prêt'];el('stepLabel').textContent=labels[step];for(let i=1;i<=4;i++)el('p'+i).classList.toggle('done',i<=step);if(step===3){renderQuoteLines();el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate}if(step===4)renderReview();window.scrollTo({top:0,behavior:'smooth'})}
 function renderReview(){syncClient();syncNotes();el('clientSummary').innerHTML=`<strong>${esc(state.client||'—')}</strong><span>${esc(state.tel||'Téléphone non renseigné')}</span><span>${esc(state.address||'Adresse non renseignée')}</span><span>${esc(state.company)} · ${esc(state.number)}</span>`;el('reviewLines').innerHTML=state.lines.map(l=>{const a=lineAmounts(l);return`<div class="reviewLine"><div><div class="name">${esc(l.designation)}</div><div class="meta">${esc(l.meta||`${l.qty} ${l.unit}`)} · TVA ${l.vat}%</div></div><div class="price">${money(a.ttc)}</div></div>`}).join('')||'<div class="empty">Aucune ligne</div>';renderTotals()}
 function quotePayload(){syncClient();syncNotes();const t=totals();return{version:6,societe:state.company,numero_devis:state.number,date:new Date().toISOString().slice(0,10),client:{nom:state.client,telephone:state.tel,adresse:state.address},mode:state.mode,lignes:state.lines.map(l=>{const a=lineAmounts(l);return{designation:l.designation,detail:l.meta,methode_chiffrage:l.pricingMethod||'',activite:l.activity||'',type:l.type,quantite:num(l.qty),unite:l.unit,prix_unitaire_ttc:num(l.unitPriceTTC),tva_rate:num(l.vat),total_ht:Number(a.ht.toFixed(2)),total_ttc:Number(a.ttc.toFixed(2))}}),totaux:{ht:Number(t.ht.toFixed(2)),tva:Number(t.tva.toFixed(2)),ttc:Number(t.ttc.toFixed(2))},notes:state.notes}}function saveQuote(){const p=quotePayload();let saved=[];try{saved=JSON.parse(localStorage.getItem(LS_SAVED)||'[]')}catch(e){}saved.unshift(p);saved=saved.slice(0,50);localStorage.setItem(LS_SAVED,JSON.stringify(saved));showStatus('finalStatus',`Devis ${state.number} enregistré sur cet appareil.`,'ok')}
@@ -54,38 +76,34 @@ function buildPrintHTML(){const p=quotePayload();const date=new Date().toLocaleD
 async function sendToOgust(){const p=quotePayload();if(!p.client.nom||!p.lignes.length){showStatus('finalStatus','Client ou prestation manquante.','err');return}showStatus('finalStatus','Envoi vers Ogust…','info');const payload={quotation:{method:'quotation.create',numero_devis:p.numero_devis,societe:p.societe,client:p.client,lignes:p.lignes.map(l=>({designation:l.designation,quantite:l.quantite,unite:l.unite,prix_unitaire:l.prix_unitaire_ttc,tva:l.tva_rate})),total_ttc:p.totaux.ttc,notes:p.notes}};try{const resp=await fetch('https://acj-ogust-proxy.vercel.app/api/ogust-devis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data={};try{data=await resp.json()}catch(e){}if(resp.ok&&data.ok){saveQuote();showStatus('finalStatus','Devis envoyé à Ogust.','ok')}else{showStatus('finalStatus','Ogust n’a pas confirmé la création du devis. Le devis reste enregistré localement.','err');console.error(data)}}catch(e){showStatus('finalStatus','Connexion Ogust impossible. Le devis n’a pas été perdu.','err');console.error(e)}}function showStatus(id,msg,type='info'){const b=el(id);if(!b)return;b.textContent=msg;b.className=`status show ${type}`}function newQuote(){state={step:1,number:nextQuoteNumber(),company:state.company,client:'',tel:'',address:'',mode:'jardin',activePreset:null,builderMethod:'hourly',lines:[],notes:''};el('client').value='';el('tel').value='';el('adresse').value='';el('notes').value='';el('quoteNumberTop').textContent=state.number;renderCompanies();renderModes();renderQuoteLines();goStep(1);showStatus('finalStatus','','info')}function init(){initQuoteNumber();renderCompanies();renderModes();renderQuoteLines();el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate;['kmRate','wasteRate'].forEach(id=>el(id).addEventListener('change',persistSettings));goStep(1);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error)}document.addEventListener('DOMContentLoaded',init);
 </script>
 
-<script src="./sap-v7.js?v=52"></script>
-<script src="./print-v9.js?v=52"></script>
-<script src="./details-v10.js?v=52"></script>
-<script src="./print-v11.js?v=52"></script>
-<script src="./ai-v17.js?v=52"></script>
-<script src="./ai-policy-v18.js?v=52"></script>
-<script src="./ogust-write-v19.js?v=52"></script>
-<script src="./client-step-v21.js?v=52"></script>
-<script src="./navigation-v22.js?v=52"></script>
-<script src="./compliance-v23.js?v=52"></script>
-<script src="./multi-ogust-v28.js?v=52"></script>
-<script src="./auth-v29-2.js?v=52"></script>
-<script src="./prestation-sync-v24.js?v=52"></script>
-<script src="./costs-v28-1.js?v=52"></script>
-<script src="./ogust-units-v25.js?v=52"></script>
-<script src="./history-v29.js?v=52"></script>
-<script src="./history-delete-v29-1.js?v=52"></script>
-<script src="./ux-v26.js?v=52"></script>
-<script src="./ux-v27.js?v=52"></script>
-<script src="./ux-v30.js?v=52"></script>
-<script src="./availability-v31.js?v=52"></script>
-<script src="./availability-v32.js?v=52"></script>
-<script src="./history-reopen-v33.js?v=52"></script>
-<script src="./quotation-update-v34.js?v=52"></script>
-<script src="./notes-import-v39.js?v=52"></script>
-<script src="./ogust-rates-v40.js?v=52"></script>
-<script src="./ogust-picker-v41.js?v=52"></script>
-<script src="./fast-flow-v42.js?v=52"></script>
-<script src="./draft-v42.js?v=52"></script>
-<script src="./voice-v43.js?v=52"></script>
-<script src="./learning-v45.js?v=52"></script>
-<script src="./pwa-update-v38.js?v=52"></script>
+<script src="./sap-v7.js?v=53"></script>
+<script src="./print-v9.js?v=53"></script>
+<script src="./details-v10.js?v=53"></script>
+<script src="./print-v11.js?v=53"></script>
+<script src="./ai-v17.js?v=53"></script>
+<script src="./ai-policy-v18.js?v=53"></script>
+<script src="./ogust-write-v19.js?v=53"></script>
+<script src="./client-step-v21.js?v=53"></script>
+<script src="./compliance-v23.js?v=53"></script>
+<script src="./multi-ogust-v28.js?v=53"></script>
+<script src="./auth-v29-2.js?v=53"></script>
+<script src="./prestation-sync-v24.js?v=53"></script>
+<script src="./costs-v28-1.js?v=53"></script>
+<script src="./ogust-units-v25.js?v=53"></script>
+<script src="./history-v29.js?v=53"></script>
+<script src="./history-delete-v29-1.js?v=53"></script>
+<script src="./ux-v30.js?v=53"></script>
+<script src="./availability-v32.js?v=53"></script>
+<script src="./history-reopen-v33.js?v=53"></script>
+<script src="./quotation-update-v34.js?v=53"></script>
+<script src="./notes-import-v39.js?v=53"></script>
+<script src="./ogust-rates-v40.js?v=53"></script>
+<script src="./ogust-picker-v41.js?v=53"></script>
+<script src="./fast-flow-v42.js?v=53"></script>
+<script src="./draft-v42.js?v=53"></script>
+<script src="./voice-v43.js?v=53"></script>
+<script src="./learning-v45.js?v=53"></script>
+<script src="./pwa-update-v38.js?v=53"></script>
 </body>
 </html>
 

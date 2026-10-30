@@ -65,7 +65,7 @@
       }
       search.oninput=()=>{searches.set(key,search.value);options()};
       select.onchange=()=>{if(scope!==state.company||!state.lines.includes(l)||!card.isConnected)return;const r=company===state.company?rates.find(r=>r.id===select.value):null;if(r)selectRate(l,r);else delete l.ogustRateId;window.renderQuoteLines()};
-      box.append(select,hint);options();card.append(box);
+      box.append(select,hint);options();(card.querySelector('.lineDetails53')||card).append(box);
     });
     renderValidation();
   }
@@ -85,6 +85,7 @@
       if(i>=0){
         validationRequested=true;goStep(3);render();showStatus('ogRateStatus40',missingRateMessage(i),'err');
         const select=document.getElementById?.('quoteLines')?.querySelectorAll('.ogRateSelect40')[i];
+        const details=select?.closest?.('details');if(details)details.open=true;
         select?.scrollIntoView?.({behavior:'smooth',block:'center'});select?.focus?.({preventScroll:true});return;
       }
       return originalSend.apply(this,arguments);

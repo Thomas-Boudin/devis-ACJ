@@ -146,13 +146,13 @@
     if(document.getElementById('aiChantierCard')) return;
     const step=document.querySelector('section[data-step="2"]'),lead=step?.querySelector('.lead');
     if(!step||!lead) return;
-    const card=document.createElement('div');
+    const card=document.createElement('details');card.open=true;
     card.id='aiChantierCard';card.className='card aiCard';
     card.innerHTML=`
-      <div class="aiTitleRow"><div class="aiTitle">Décrire le chantier</div><span class="aiBadge">Assistant ACJ</span></div>
-      <div class="aiHelp">Écris ou dicte les travaux ici, avec les quantités connues. L’assistant prépare des propositions à vérifier. Les photos aident à décrire le chantier ; leurs dimensions et durées restent des estimations à confirmer.</div>
-      <div class="field"><textarea id="aiChantierText" maxlength="2500" placeholder="Ex. haie à tailler, une face + dessus, évacuation… Tu peux aussi envoyer seulement des photos."></textarea></div>
-      <div class="aiPhotoZone">
+      <summary class="aiTitleRow"><span class="aiTitle">Décrire le chantier</span><span class="aiBadge">Assistant ACJ</span></summary>
+      <div class="aiHelp">Décris les travaux et les quantités. Vérifie les propositions avant de les ajouter.</div>
+      <div class="field"><textarea id="aiChantierText" maxlength="2500" placeholder="Ex. tailler 15 m de haie, dessus et côtés, avec évacuation…"></textarea></div>
+      <details class="aiPhotosDetails"><summary id="aiPhotoSummary53">Ajouter des photos</summary><div class="aiPhotoZone">
         <div class="aiPhotoHelp">Photos facultatives · maximum ${MAX_PHOTOS} · compression automatique · elles ne sont pas enregistrées dans le devis.</div>
         <div class="aiPhotoActions">
           <button id="aiCameraBtn" class="btn" type="button" onclick="openAICamera()">Prendre une photo</button>
@@ -162,7 +162,7 @@
         <input id="aiGalleryInput" type="file" accept="image/*" multiple hidden>
         <div id="aiPhotoCount" class="aiPhotoCount">Aucune photo ajoutée</div>
         <div id="aiPhotoPreview" class="aiPhotoPreview"></div>
-      </div>
+      </div></details>
       <div class="aiActions"><button id="aiAnalyseBtn" class="btn primary" type="button" onclick="analyseChantierAI()">Analyser le chantier</button><div id="aiLoader" class="aiLoader">Analyse du chantier, des dimensions visuelles et de l’historique…</div></div>
       <div id="aiError" class="aiError"></div><div id="aiResult" class="aiResult"></div>`;
     lead.insertAdjacentElement('afterend',card);
@@ -175,6 +175,8 @@
 
   function renderPhotos(){
     const box=document.getElementById('aiPhotoPreview'),count=document.getElementById('aiPhotoCount');
+    const summary=document.getElementById('aiPhotoSummary53');if(summary)summary.textContent=selectedPhotos.length?`Photos (${selectedPhotos.length})`:'Ajouter des photos';
+    if(count)count.hidden=!selectedPhotos.length&&!photoImport;
     if(count) count.textContent=photoImport?`Préparation de ${photoImport.count} photo${photoImport.count>1?'s':''}…`:selectedPhotos.length?`${selectedPhotos.length} photo${selectedPhotos.length>1?'s':''} ajoutée${selectedPhotos.length>1?'s':''} sur ${MAX_PHOTOS}`:'Aucune photo ajoutée';
     if(!box) return;
     box.innerHTML=selectedPhotos.map((photo,i)=>`<div class="aiPhotoThumb"><img src="${photo.dataUrl}" alt="Photo ${i+1}"><button class="aiPhotoRemove" type="button" aria-label="Retirer la photo ${i+1}" onclick="removeAIPhoto(${i})">×</button><span class="aiPhotoLabel">Photo ${i+1}</span></div>`).join('');
@@ -401,3 +403,4 @@
 
   addStyles();injectCard();renderPhotos();wrap();
 })();
+

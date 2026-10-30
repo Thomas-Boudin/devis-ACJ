@@ -70,9 +70,9 @@
     const box=document.createElement('div');box.className='voiceTools43';
     const button=document.createElement('button');button.id='voiceToggle43';button.className='btn small';button.type='button';button.textContent=supported?'Dicter':'Dicter avec le clavier';button.setAttribute('aria-controls','aiChantierText');button.setAttribute('aria-pressed','false');
     const status=document.createElement('div');status.id='voiceStatus43';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
-    status.textContent=supported?'Dicte les travaux, puis vérifie le texte avant l’analyse.':'Utilise le micro du clavier de ton téléphone.';
+    status.textContent=supported?'Vérifie le texte avant l’analyse.':'Utilise le micro du clavier.';
     const draft=document.createElement('div');draft.id='voicePreview43';draft.hidden=true;draft.setAttribute('aria-label','Transcription provisoire');
-    box.append(button,status,draft);input.parentElement.insertAdjacentElement('beforebegin',box);
+    box.append(button,status,draft);input.parentElement.insertAdjacentElement('afterend',box);
     const style=document.createElement('style');style.textContent='.voiceTools43{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}.voiceTools43 .btn{min-width:104px}.voiceTools43 .btn[aria-pressed="true"]{color:#991b1b!important;background:#fff1f2!important;border-color:#fca5a5!important}#voiceStatus43{flex:1;min-width:160px;font-size:12px;line-height:1.45;color:#64748b}#voicePreview43{flex-basis:100%;font-size:13px;padding:9px 11px;border-radius:10px;background:#f1f5f9;color:#475569}#voicePreview43[hidden]{display:none}@media print{.voiceTools43{display:none!important}}';document.head.appendChild(style);
     button.addEventListener('click',()=>start(supported?Recognition:null));
     input.addEventListener('input',()=>{if(!writing)abort('Dictée arrêtée pour conserver ta correction.');});
@@ -86,3 +86,4 @@
   const ready=()=>queueMicrotask(init);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ready,{once:true});else ready();
 })();
+
