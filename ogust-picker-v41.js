@@ -6,8 +6,8 @@
   const fieldIds=['builderDesignation','builderHours','builderRate','builderFlat','builderMetric','detailMetric','detailHeight','detailFaces','detailTop','detailCutType','detailWaste','detailGrass','detailCollection','detailDensity','detailZone','detailMethod','detailSupport','detailExtra'];
   const byId=id=>document.getElementById(id);
   function current(){return selected?.company===state.company&&selected.preset===state.activePreset?selected.rate:null}
-  // The catalogue has no activity field. Hide only positively identified other
-  // trades; ambiguous services stay available and never change the chosen trade.
+  // Recognize explicit trades after selection; ambiguous services keep the
+  // current trade. Searching the account catalogue needs no preceding filter.
   function category(r){
     const title=norm(r.title);
     if(/\b(frais|fourniture|fournitures|materiel|consommable|consommables|dechet|dechets|dechetterie|deplacement|deplacements)\b/.test(title))return 'cost';
@@ -17,7 +17,7 @@
     if(/\b(menage|menager|menagere|repassage|logement|domicile)\b/.test(title))return 'menage';
     return '';
   }
-  function allowed(r){const activity=category(r);return ['H','F','Q','K'].includes(r.unit)&&(!activity||activity==='cost'||activity===state.mode)}
+  function allowed(r){return ['H','F','Q','K'].includes(r.unit)}
   function values(){const out={};for(const id of fieldIds){const input=byId(id);if(input)out[id]=String(input.value??'')}return out}
   function changed(){window.dispatchEvent?.(new CustomEvent('acj:ogust-picker-changed'))}
   function fillBuilder(){
@@ -37,6 +37,7 @@
   }
   function pick(r,options={}){
     if(!allowed(r))return false;
+    const activity=category(r);if(activity&&activity!=='cost'&&activity!==state.mode)window.setMode(activity);
     const preset=MODES[state.mode]?.presets.find(p=>p.kind==='custom');if(!preset)return false;
     selected={company:state.company,preset:preset.id,rate:r,values:options.values||{}};picking=true;
     try{window.choosePreset(preset.id);state.builderMethod=r.unit==='F'?'flat':'hourly';window.renderServiceBuilder()}finally{picking=false}
@@ -47,7 +48,7 @@
     const list=byId('ogPickerResults41');if(!list)return;list.replaceChildren();
     const catalog=window.acjOgustRates?.rates||[],query=norm(search).split(' ').filter(Boolean);
     const found=catalog.filter(r=>allowed(r)&&query.every(word=>norm(r.title).includes(word))).sort((a,b)=>a.title.localeCompare(b.title,'fr'));
-    if(!found.length){list.textContent=catalog.length?'Aucune prestation trouvée pour ce métier.':'Les tarifs Ogust ne sont pas encore disponibles.';return}
+    if(!found.length){list.textContent=catalog.length?'Aucune prestation trouvée.':'Les tarifs Ogust ne sont pas encore disponibles.';return}
     for(const r of found){const button=document.createElement('button');button.type='button';button.className='choice';button.style.cssText='width:100%;text-align:left;margin-bottom:6px';const title=document.createElement('strong');title.textContent=r.title;const detail=document.createElement('small');detail.textContent=`${Number(r.price).toFixed(2)} € TTC / ${unitLabel(r.unit)} · TVA ${r.vat} %`;button.append(title,detail);button.onclick=()=>pick(r);list.append(button)}
   }
   async function panel(){
@@ -94,3 +95,4 @@
   window.acjOgustPicker={getDraft,restoreDraft};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+

@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v57';
+const CACHE = 'devis-acj-v58';
 const CACHE_PREFIX = 'devis-acj-';
 const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];
 
@@ -8,34 +8,34 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './sap-v7.js?v=57',
-  './print-v9.js?v=57',
-  './details-v10.js?v=57',
-  './print-v11.js?v=57',
-  './ai-v17.js?v=57',
-  './ai-policy-v18.js?v=57',
-  './ogust-write-v19.js?v=57',
-  './client-step-v21.js?v=57',
-  './compliance-v23.js?v=57',
-  './multi-ogust-v28.js?v=57',
-  './auth-v29-2.js?v=57',
-  './prestation-sync-v24.js?v=57',
-  './costs-v28-1.js?v=57',
-  './ogust-units-v25.js?v=57',
-  './history-v29.js?v=57',
-  './history-delete-v29-1.js?v=57',
-  './ux-v30.js?v=57',
-  './availability-v32.js?v=57',
-  './history-reopen-v33.js?v=57',
-  './quotation-update-v34.js?v=57',
-  './ogust-rates-v40.js?v=57',
-  './ogust-picker-v41.js?v=57',
-  './notes-import-v39.js?v=57',
-  './fast-flow-v42.js?v=57',
-  './draft-v42.js?v=57',
-  './voice-v43.js?v=57',
-  './learning-v45.js?v=57',
-  './pwa-update-v38.js?v=57'
+  './sap-v7.js?v=58',
+  './print-v9.js?v=58',
+  './details-v10.js?v=58',
+  './print-v11.js?v=58',
+  './ai-v17.js?v=58',
+  './ai-policy-v18.js?v=58',
+  './ogust-write-v19.js?v=58',
+  './client-step-v21.js?v=58',
+  './compliance-v23.js?v=58',
+  './multi-ogust-v28.js?v=58',
+  './auth-v29-2.js?v=58',
+  './prestation-sync-v24.js?v=58',
+  './costs-v28-1.js?v=58',
+  './ogust-units-v25.js?v=58',
+  './history-v29.js?v=58',
+  './history-delete-v29-1.js?v=58',
+  './ux-v30.js?v=58',
+  './availability-v32.js?v=58',
+  './history-reopen-v33.js?v=58',
+  './quotation-update-v34.js?v=58',
+  './ogust-rates-v40.js?v=58',
+  './ogust-picker-v41.js?v=58',
+  './notes-import-v39.js?v=58',
+  './fast-flow-v42.js?v=58',
+  './draft-v42.js?v=58',
+  './voice-v43.js?v=58',
+  './learning-v45.js?v=58',
+  './pwa-update-v38.js?v=58'
 ];
 
 function relativePath(urlValue) {
@@ -75,26 +75,26 @@ async function withV292(response) {
   if (!type.includes('text/html')) return response;
   const text = await response.text();
   let html = text;
-  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=57"></script></body>');
-  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=57"></script></body>');
-  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=57"></script></body>');
-  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=57"></script></body>');
-  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=57"></script></body>');
-  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=57"></script></body>');
-  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=57"></script></body>');
-  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=57"></script></body>');
-  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=57"></script></body>');
-  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=57"></script></body>');
-  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=57"></script></body>');
-  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=57"></script></body>');
-  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=57"></script></body>');
-  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=57"></script></body>');
-  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=57"></script></body>');
-  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=57"></script></body>');
-  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=57"></script></body>');
-  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=57"></script></body>');
-  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=57"></script></body>');
-  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=57"></script></body>');
+  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=58"></script></body>');
+  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=58"></script></body>');
+  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=58"></script></body>');
+  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=58"></script></body>');
+  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=58"></script></body>');
+  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=58"></script></body>');
+  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=58"></script></body>');
+  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=58"></script></body>');
+  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=58"></script></body>');
+  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=58"></script></body>');
+  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=58"></script></body>');
+  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=58"></script></body>');
+  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=58"></script></body>');
+  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=58"></script></body>');
+  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=58"></script></body>');
+  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=58"></script></body>');
+  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=58"></script></body>');
+  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=58"></script></body>');
+  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=58"></script></body>');
+  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=58"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });

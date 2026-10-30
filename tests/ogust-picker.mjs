@@ -46,9 +46,9 @@ function search(query){input.value=query;input.oninput();return nodes.get('ogPic
 function select(query){const buttons=search(query);assert.equal(buttons.length,1,query);buttons[0].onclick()}
 function label(id){return nodes.get(id).parentElement.label.textContent}
 assert.equal(nodes.get('serviceBuilder').inserted.node,box,'Picker anchors to the visible builder, not the collapsed presets');
-assert.equal(search('logement').length,0,'Domestic cleaning is excluded in gardening');
-assert.equal(search('professionnel').length,0,'Professional cleaning is excluded in gardening');
-assert.equal(search('bricolage').length,0);
+assert.equal(search('logement').length,1,'Domestic cleaning is searchable without changing trade first');
+assert.equal(search('professionnel').length,1,'All account services share the same search');
+assert.equal(search('bricolage').length,1);
 assert.equal(search('vitres').length,1,'Ambiguous services remain searchable');
 assert.equal(search('déplacement').length,1,'Generic costs remain searchable');
 select('jard heure');assert.equal(nodes.get('builderRate').value,'47');
@@ -58,8 +58,9 @@ ctx.addBuiltService();let line=state.lines.at(-1);assert.equal(line.qty,3);asser
 select('forfait');assert.equal(state.builderMethod,'flat');assert.equal(nodes.get('builderFlat').value,'90');nodes.get('builderFlat').value='125';ctx.renderServiceBuilder();assert.equal(nodes.get('builderFlat').value,'125');ctx.addBuiltService();line=state.lines.at(-1);assert.equal(line.unit,'forfait');assert.equal(line.unitPriceTTC,125);assert.equal(line.ogustRateId,'flat');
 select('option');assert.equal(label('builderHours'),'Quantité (unité)');assert.equal(label('builderRate'),'Tarif TTC / unité');assert.equal(nodes.get('builderHours').step,'1');assert.equal(selectors.get('#serviceBuilder .quickHours').removed,true);assert.equal(selectors.get('#serviceBuilder .methodGrid').removed,true);nodes.get('builderHours').value='2';ctx.addBuiltService();line=state.lines.at(-1);assert.equal(line.unit,'unité');assert.equal(line.meta,'2 unité');assert.equal(line.pricingMethod,'quantity');assert.equal(line.ogustRateId,'unit');
 select('déplacement');assert.equal(label('builderHours'),'Quantité (km)');assert.equal(label('builderRate'),'Tarif TTC / km');nodes.get('builderHours').value='12.5';ctx.addBuiltService();line=state.lines.at(-1);assert.equal(line.unit,'km');assert.equal(line.meta,'12.5 km');assert.equal(line.type,'cost');assert.equal(line.activity,'jardin');assert.equal(line.unitPriceTTC,.7);
-ctx.setMode('menage');await new Promise(r=>setImmediate(r));assert.equal(search('jardin').length,0);assert.equal(search('professionnel').length,0);select('logement');assert.equal(nodes.get('builderRate').value,'32');assert.equal(state.mode,'menage');
-ctx.setMode('nettoyagePro');await new Promise(r=>setImmediate(r));assert.equal(search('logement').length,0);select('professionnel');assert.equal(state.mode,'nettoyagePro');
+select('logement');assert.equal(nodes.get('builderRate').value,'32');assert.equal(state.mode,'menage','A known domestic tariff selects its own trade');ctx.addBuiltService();assert.equal(state.lines.at(-1).vat,10);assert.equal(state.lines.at(-1).activity,'menage');
+select('professionnel');assert.equal(state.mode,'nettoyagePro');ctx.addBuiltService();assert.equal(state.lines.at(-1).vat,20);assert.equal(state.lines.at(-1).activity,'nettoyagePro');
+select('vitres');assert.equal(state.mode,'nettoyagePro','An ambiguous service retains the current trade');
 ctx.setMode('jardin');await new Promise(r=>setImmediate(r));select('jard heure');nodes.get('builderHours').value='2.5';nodes.get('builderRate').value='49';nodes.get('builderDesignation').value='Visite Laurent';
 const draft=JSON.parse(JSON.stringify(ctx.acjOgustPicker.getDraft()));assert.equal(draft.selected.rateId,'hour');assert.equal(draft.company,'ACJ Services');assert.equal(draft.search,'jard heure');
 ctx.newQuote();assert.equal(await ctx.acjOgustPicker.restoreDraft(draft),true);assert.equal(nodes.get('builderHours').value,'2.5');assert.equal(nodes.get('builderRate').value,'49');assert.equal(nodes.get('builderDesignation').value,'Visite Laurent');assert.equal(input.value,'jard heure');
@@ -70,4 +71,5 @@ state.company='ACJ Services';events['acj:company-changed']();let resolveLoad;ctx
 state.company='ACJ Services';events['acj:company-changed']();pending=ctx.acjOgustPicker.restoreDraft(draft);field('builderHours','6',"Nombre d’heures");domEvents.input({target:nodes.get('builderHours')});resolveLoad(true);assert.equal(await pending,false);assert.equal(nodes.get('builderHours').value,'6');
 ctx.acjOgustRates.load=async()=>true;ctx.choosePreset('autre_jardin');nodes.get('builderDesignation').value='Travail libre';nodes.get('builderHours').value='7';const genericDraft=JSON.parse(JSON.stringify(ctx.acjOgustPicker.getDraft()));assert.equal(genericDraft.selected,null);ctx.newQuote();assert.equal(await ctx.acjOgustPicker.restoreDraft(genericDraft),true);assert.equal(nodes.get('builderHours').value,'7');assert.equal(nodes.get('builderDesignation').value,'Travail libre');
 assert.ok(dispatched.includes('acj:ogust-picker-changed'));assert.ok(renders>=4);
-console.log('Ogust picker: retained edits, actual unit labels/details, trade filtering, generic costs and account-safe verified drafts OK');
+console.log('Ogust picker: all-trade search, exact tariff VAT/activity, retained edits/units, generic costs and account-safe verified drafts OK');
+

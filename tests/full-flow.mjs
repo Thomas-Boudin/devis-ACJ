@@ -59,7 +59,7 @@ const fixture=fields=>({prestations:[{mode:'jardin',preset:'autre_jardin',design
 const getState=w=>w.eval('state');
 function input(app,id,value){const el=app.doc.getElementById(id);assert.ok(el,`Input ${id} exists`);el.value=String(value);el.dispatchEvent(new app.w.Event('input',{bubbles:true}));return el}
 async function knownClient(app){input(app,'ogcSearch','Alex');await until(()=>app.doc.querySelector('#ogcResults .ogcResult'),'known client search');app.doc.querySelector('#ogcResults .ogcResult').click();assert.equal(app.w.ogustClientChoiceV21.selected.id_customer,customer.id_customer);app.w.goStep(2);assert.equal(getState(app.w).step,2)}
-function pickGarden(app){const button=[...app.doc.querySelectorAll('#ogPickerResults41 button')].find(b=>b.querySelector('strong')?.textContent===rates[0].title);assert.ok(button,'Hourly garden service in catalogue');button.click();assert.equal(app.doc.getElementById('builderRate').value,'47');assert.equal(app.doc.querySelector('#serviceBuilder .methodGrid'),null)}
+function pickGarden(app){app.w.acjWorkspace58.open('catalogue');const button=[...app.doc.querySelectorAll('#ogPickerResults41 button')].find(b=>b.querySelector('strong')?.textContent===rates[0].title);assert.ok(button,'Hourly garden service in catalogue');button.click();assert.equal(app.doc.getElementById('builderRate').value,'47');assert.equal(app.doc.querySelector('#serviceBuilder .methodGrid'),null)}
 let a,b,c;
 try{
   a=await boot();assert.equal(a.doc.querySelectorAll('.fastProgress42 button').length,3);
@@ -107,12 +107,15 @@ try{
   pickGarden(a);input(a,'builderHours',2.5);input(a,'builderRate',61);input(a,'builderDesignation','Jardinage du fond');a.w.acjDraftV42.save();
   const quoteNumber=getState(a.w).number,saved=a.snapshot();const draft=JSON.parse(saved[a.w.acjDraftV42.key]);
   assert.equal(draft.clientChoice.selected.id_customer,customer.id_customer);assert.equal(draft.picker.selected.rateId,'rate-garden');assert.equal(draft.inputs.builderRate,'61');
+  assert.equal(draft.workspace.open,true);assert.equal(draft.workspace.method,'catalogue');
   await wait(80);a.dom.window.close();a=null;
   b=await boot(saved);await until(()=>b.w.acjOgustPicker.getDraft().selected?.rateId==='rate-garden','saved builder tariff matched current catalogue');
   assert.equal(getState(b.w).step,2);assert.equal(getState(b.w).number,quoteNumber);assert.equal(b.w.ogustClientChoiceV21.selected.id_customer,customer.id_customer);assert.equal(getState(b.w).lines.length,1);assert.equal(b.w.totals().ttc,165);
+  assert.equal(b.doc.getElementById('addService58').open,true,'Reload restores the unfinished add form');
   assert.equal(b.doc.getElementById('aiChantierText').value,'Jardinage : tailler le saule et enlever le romarin.');assert.equal(b.doc.getElementById('noteText').value,'Ancienne note à importer');assert.equal(b.doc.getElementById('builderHours').value,'2.5');assert.equal(b.doc.getElementById('builderRate').value,'61');assert.equal(b.doc.getElementById('builderDesignation').value,'Jardinage du fond');
   // An AI estimate is reviewable but cannot be added until explicitly accepted.
-  b.setAnalysis(fixture({}));await b.w.analyseChantierAI();b.w.applyAIProposal(0);const before=getState(b.w).lines.length;
+  b.w.acjWorkspace58.open('description');b.setAnalysis(fixture({}));await b.w.analyseChantierAI();b.w.applyAIProposal(0);const before=getState(b.w).lines.length;
+  assert.equal(b.doc.getElementById('descriptionPanel58').hidden,false);assert.equal(b.doc.getElementById('addService58').open,true,'AI review keeps the shared quantity editor visible');
   assert.equal(b.doc.getElementById('builderHours').value,'2');assert.ok(b.doc.getElementById('aiDurationConfirm'));
   b.w.addBuiltService();assert.equal(getState(b.w).lines.length,before);assert.match(b.doc.getElementById('aiError').textContent,/Confirme/);
   // Closing/reloading during review must not turn an unconfirmed suggestion
