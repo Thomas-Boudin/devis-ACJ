@@ -143,7 +143,9 @@
       .lineDetails53>summary{padding:9px 11px;font-size:12px!important;min-height:38px}
       .lineMoreGrid53{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 11px 10px}
       .lineMoreGrid53>div:first-child{grid-column:1/-1}.lineDetails53 .ogRate40{margin:0!important;padding:10px 11px!important;border:0!important;border-top:1px solid #e5edf3!important;border-radius:0!important}
-      .lineButtons{margin-top:8px}.lineButtons .btn{min-height:34px!important;font-size:11px!important;padding:5px 10px!important}
+      .quoteLine{position:relative}.quoteTop{padding-right:34px}.quoteTop>div:first-child{min-width:0}.quoteTitle{overflow-wrap:anywhere}
+      .lineRemove54{position:absolute;top:2px;right:2px;width:44px;height:44px;border:0;border-radius:10px;background:transparent;color:#8495a7;display:grid;place-items:center;font-size:24px;font-weight:500;line-height:1;padding:0}
+      .lineRemove54:hover{background:#fff1f2;color:#c14652}.lineRemove54:focus-visible{outline:2px solid #0b78c9;outline-offset:-4px}.lineRemove54:active{background:#ffe4e6;color:#b42335}
       #av32Panel{padding:0!important}#av32Panel>summary{padding:14px;font-weight:750;min-height:48px}.av32Body53{padding:0 14px 14px}
       #reviewActions53{position:sticky;bottom:calc(6px + env(safe-area-inset-bottom));z-index:20;padding:11px;background:#fff;border:1px solid #dbe6ef;border-radius:16px;box-shadow:0 5px 22px rgba(25,55,86,.12);margin-top:14px}
       .reviewTotal53{display:flex;justify-content:space-between;align-items:center;color:#547087;font-size:12px;margin-bottom:8px}.reviewTotal53 strong{font-size:20px;color:#0b6fae}
