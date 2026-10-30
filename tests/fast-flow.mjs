@@ -67,7 +67,7 @@ assert.equal(document.getElementById('fastPricing42'),null,'Waits for preceding 
 docEvents.get('DOMContentLoaded')();await new Promise(resolve=>queueMicrotask(resolve));
 assert.equal(ctx.__acjFastFlowV42,true);
 assert.equal(quoteLines.closest('.step'),sections.get(2),'Same quote editor is on the unified workspace');
-assert.equal(summary.parentElement.id,'fastPricing42');assert.equal(km.closest('.step'),sections.get(2));
+assert.equal(summary.closest('details').className,'fastTaxDetails53');assert.equal(summary.closest('.step'),sections.get(2));assert.equal(km.closest('.step'),sections.get(2));
 assert.equal(builder.closest('.step'),sections.get(2));builder.click();assert.equal(builderClicks,1,'Moving nodes preserves event listeners');
 assert.equal(picker.closest('details'),null,'Search stays visible');assert.equal(builder.closest('details'),null,'Chosen Ogust quantities stay visible');
 assert.equal(presets.closest('details').id,'fastDetailed42');assert.equal(modeChoices.closest('details'),null,'Mode is visible so the Ogust search can filter the selected trade');
@@ -90,3 +90,4 @@ assert.equal(finalBack.textContent,'Modifier le devis');assert.equal(clientButto
 oldLabel.textContent='Chiffrage';progress.children[1].textContent='Chantier';sections.get(2).querySelector('h1').textContent='Chantier';ctx.renderTotals();
 assert.equal(document.getElementById('fastStepLabel42').textContent,'Devis');assert.equal(sections.get(2).querySelector('.fastHeader42').children[0].textContent,'Devis');
 console.log('Fast flow: 3 visible steps, client validation, same editor/listeners, live total, legacy routes, late history notices, and no Ogust writes OK');
+

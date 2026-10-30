@@ -74,7 +74,7 @@
   function ensurePanel(){
     addStyles();const old=byId('av31Panel');if(old)old.style.display='none';const step=document.querySelector('.step[data-step="4"]');if(!step)return null;
     let panel=byId('av32Panel');if(panel)return panel;
-    panel=document.createElement('div');panel.id='av32Panel';panel.className='av32Card';panel.innerHTML=panelHtml();
+    panel=document.createElement('details');panel.id='av32Panel';panel.className='av32Card';panel.innerHTML='<summary>Planifier ce chantier (facultatif)</summary><div class="av32Body53">'+panelHtml()+'</div>';
     const cards=Array.from(step.children).filter(el=>el.classList.contains('card'));if(cards.at(-1))step.insertBefore(panel,cards.at(-1));else step.appendChild(panel);
     byId('av32Search').addEventListener('click',search);
     byId('av32Duration').addEventListener('input',()=>{manualDuration=true;resetParallel();reset('Temps de travail modifié. Recherche de nouvelles propositions.')});
@@ -265,7 +265,7 @@
     if(['any','morning','afternoon'].includes(p.period))byId('av32Period').value=p.period;
     if(['','0','1','2','3','4','5','6'].includes(String(p.weekday??'')))byId('av32Weekday').value=String(p.weekday??'');byId('av32Employee').value='';updateDurationHint();
     updateConditions();const oldSlot=legacy?proposal.slot:proposal.legacy_slot,plan=!legacy&&matchesRequest(proposal.plan,preferences(),true)?proposal.plan:null;
-    if(plan||validSlot(oldSlot)){currentState().availabilityProposal={version:3,planning_mode:plan?'job':'legacy_slot',context:context(),preferences:preferences(),...(plan?{plan:JSON.parse(JSON.stringify(plan))}:{legacy_slot:JSON.parse(JSON.stringify(oldSlot))}),checked_at:proposal.checked_at||'',needs_recheck:true};selectedSlot=null;renderProposal(currentState().availabilityProposal);status('Proposition mémorisée. Tout le chantier doit être contrôlé à nouveau.','warn')}
+    if(plan||validSlot(oldSlot)){byId('av32Panel').open=true;currentState().availabilityProposal={version:3,planning_mode:plan?'job':'legacy_slot',context:context(),preferences:preferences(),...(plan?{plan:JSON.parse(JSON.stringify(plan))}:{legacy_slot:JSON.parse(JSON.stringify(oldSlot))}),checked_at:proposal.checked_at||'',needs_recheck:true};selectedSlot=null;renderProposal(currentState().availabilityProposal);status('Proposition mémorisée. Tout le chantier doit être contrôlé à nouveau.','warn')}
     else if(proposal.plan)return reject();
     return true;
   }
@@ -278,3 +278,4 @@
   window.acjAvailabilityV32={search,get selected(){expireSelection();return selectedSlot&&contextStamp===contextKey()&&matchesRequest(selectedSlot,preferences())?selectedSlot:null},getDraft,restore,clear:()=>reset('Proposition retirée.'),get rules(){return {base:'client ∩ équipe',scheduled:'Google pour JB/Vincent/Yohann, Ogust pour les autres',absences:'Ogust',staffing:'équipe constante de 1 à 3 personnes',travel:'non vérifié',pause:'12:00–13:00 exclue'}}};
   window.__acjAvailabilityV32=true;const start=()=>queueMicrotask(init);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+

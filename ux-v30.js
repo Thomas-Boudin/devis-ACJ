@@ -1,7 +1,6 @@
-// Devis ACJ v30 — refonte visuelle mobile-first, claire et cohérente avec ACJ Terrain.
+// Single presentation layer. Layout mounts once; business modules own their updates.
 (function(){
   if(window.__acjUxV30)return;
-  const STEP_LABELS=['Client','Chantier','Chiffrage','Validation'];
 
   function addStyles(){
     if(document.getElementById('ux-v30-style'))return;
@@ -25,16 +24,10 @@
       .brand span{color:#718197!important;font-size:11px!important;font-weight:650!important}
       .pill{background:#f5f9fc!important;border:1px solid #dce6ef!important;color:#52667c!important;box-shadow:none!important;font-weight:760!important;padding:7px 10px!important}
 
-      .progress{position:relative!important;display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:0!important;margin-top:11px!important;overflow:visible!important}
-      .progress:before{content:''!important;position:absolute!important;left:11%!important;right:11%!important;top:14px!important;height:2px!important;background:#dbe6ef!important;z-index:0!important}
-      .progress>span{height:44px!important;border:0!important;background:transparent!important;border-radius:0!important;box-shadow:none!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:flex-start!important;gap:4px!important;color:#8291a4!important;position:relative!important;z-index:1!important;padding:0!important}
-      .uxStepNo{width:29px!important;height:29px!important;min-width:29px!important;border-radius:50%!important;background:#eef3f7!important;border:1px solid #d7e2eb!important;color:#6d7f93!important;font-size:11px!important;font-weight:850!important;display:grid!important;place-items:center!important;box-shadow:0 0 0 4px rgba(255,255,255,.95)!important}
-      .progress>span.done:not(.uxCurrent) .uxStepNo{background:#e1f6ef!important;border-color:#a7ddc6!important;color:#17784a!important}
-      .progress>span.uxCurrent .uxStepNo{background:linear-gradient(135deg,#0b78c9,#14a5c8)!important;border-color:transparent!important;color:#fff!important;box-shadow:0 0 0 4px #fff,0 5px 14px rgba(11,120,201,.22)!important}
-      .uxStepText{font-size:9px!important;font-weight:760!important;color:inherit!important;max-width:76px!important;line-height:1.1!important}
-      .progress>span.uxCurrent .uxStepText{color:#0d5e9e!important}
-      .progress>span.done:not(.uxCurrent) .uxStepText{color:#3c715b!important}
-
+      .fastProgress42{gap:5px!important;margin-top:6px!important}
+      .fastProgress42:before{display:none!important}
+      .fastProgress42 button{flex-direction:row!important;justify-content:center;gap:6px!important;min-height:32px!important;font-size:11px!important}
+      .fastProgress42 .fastStepNo42{width:25px!important;height:25px!important;box-shadow:none!important;font-size:10px!important}
       main{padding:18px 16px 30px!important}
       .eyebrow{display:none!important}
       h1{color:#10233c!important;font-size:27px!important;line-height:1.08!important;margin:4px 0 6px!important;letter-spacing:-.035em!important;font-weight:920!important}
@@ -114,6 +107,54 @@
 
       .acjAuthGate{background:linear-gradient(180deg,#eef6fb,#f8fbfd)!important;color:#183149!important}.acjAuthCard{background:#fff!important;border:1px solid #d8e5ee!important;box-shadow:0 28px 80px rgba(27,57,83,.16)!important;color:#183149!important}.acjAuthLogo{background:#fff url('./icon-192.png') center/46px 46px no-repeat!important;border:1px solid #dce7ef!important;color:transparent!important}.acjAuthTitle{color:#17314b!important}.acjAuthText,.acjAuthStatus,.acjAuthSession{color:#718397!important}.acjAuthRetry,.acjAuthLogout{background:#f7fafc!important;border-color:#d8e3ec!important;color:#35516a!important}.acjAuthSession{border-top-color:#e5edf3!important}
 
+      .top{padding-top:calc(8px + env(safe-area-inset-top))!important;padding-bottom:6px!important;backdrop-filter:none!important}
+      .toprow{min-height:40px!important}.mark{width:36px!important;height:36px!important;background-size:30px!important}.brand strong{font-size:17px!important}
+      #draftStatus42{padding:3px 0 0!important;font-size:10px!important;line-height:14px}
+      .fastHeader42 h2{font-size:23px!important;margin:0 0 12px!important}.fastHeader42 p{display:none}
+      #companyChoices{grid-template-columns:repeat(3,minmax(0,1fr))}.choice small{line-height:1.4}
+      #companyChoices .choice{padding:10px 7px!important;min-height:52px!important;text-align:center}#companyChoices .choice small,#companyChoices .choice.active:after{display:none}
+      #companyChoices .choice strong{font-size:11px!important}
+      #historyLaunchV29{padding:9px 12px!important;margin-bottom:12px!important;border:0!important;box-shadow:none!important;background:#edf4f9!important}
+      #historyLaunchV29 small{display:none}#historyLaunchV29 .btn{min-height:36px!important;padding:7px 14px!important;font-size:12px!important}
+      #modeChoices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+      #modeChoices .choice{min-height:42px!important;padding:8px 4px!important;text-align:center;border-radius:10px!important}
+      #modeChoices .choice strong{font-size:11px!important}#modeChoices small,#modeChoices .choice.active:after{display:none}
+      .sapScreenBox{background:#f0faf4!important;border:1px solid #c8e6d4!important;color:#315d43!important}.sapScreenTitle,.sapScreenRow,.sapScreenRow strong{color:#315d43!important}.sapScreenNote{color:#5b7666!important}
+      .aiCard>summary{display:list-item!important;padding:0!important;list-style:disclosure-closed;font-size:14px!important;min-height:30px;cursor:pointer}.aiCard>summary .aiBadge{float:right}.aiCard[open]>summary{margin-bottom:10px}.aiCard:not([open]){padding-top:11px!important;padding-bottom:11px!important}.aiCard:not([open]) .aiBadge{display:none}
+      .fastTaxDetails53{margin:8px 0!important;padding:0!important}.fastTaxDetails53>summary{padding:10px 12px}.fastTaxDetails53>.summary{margin:0!important;border:0!important;box-shadow:none!important}
+      .aiHelp{margin:8px 0 10px!important;font-size:12px!important;line-height:1.45!important}
+      #aiChantierText{min-height:90px!important;height:90px;font-size:16px!important;resize:vertical}
+      .aiPhotoZone{border:0!important;background:transparent!important;padding:10px 0 0!important;margin:0!important}
+      .aiPhotoHelp{font-size:11px!important;color:#64748b!important}.aiPhotoActions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important}
+      .aiPhotosDetails{padding:0!important;margin:10px 0!important;border:0!important;background:transparent!important}
+      .aiPhotosDetails>summary{font-size:12px!important;padding:6px 0!important;color:#126d9f!important;min-height:32px}
+      .aiPhotoZone .btn{font-size:12px!important;min-height:42px!important}
+      .aiCard .aiActions{margin-top:10px!important}.aiCard .aiActions .btn{min-height:44px!important;font-size:13px!important}
+      .voiceTools43{margin:8px 0!important;gap:8px!important}.voiceTools43 .btn{min-height:36px!important;padding:6px 12px!important;font-size:12px!important}
+      #voiceStatus43{font-size:11px!important;min-width:130px!important}
+      #ogPicker41{margin-bottom:10px!important}#ogPicker41>.hint{font-size:11px!important}
+      #fastDetailed42,#fastNotesImport42{margin:8px 0!important}#fastDetailed42>summary,#fastNotesImport42>summary{padding:10px 12px!important}
+      #fastPricing42{margin-top:12px!important}.quoteTop{gap:10px}.quoteTitle{white-space:pre-wrap}.lineTotal{white-space:nowrap}
+      .lineEdit{display:grid!important;grid-template-columns:1fr 1fr!important;gap:9px!important}
+      .lineEdit>div{grid-column:auto!important;min-width:0}.lineEdit input{width:100%;font-size:16px!important}
+      .quickCosts{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+      .quickCosts .btn{min-height:42px!important;padding:7px 5px!important;font-size:11px!important;line-height:1.35}
+      .lineEdit .lineDetails53{grid-column:1/-1;margin:0!important;padding:0!important;background:transparent!important;border-color:#e2eaf1!important}
+      .lineDetails53>summary{padding:9px 11px;font-size:12px!important;min-height:38px}
+      .lineMoreGrid53{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 11px 10px}
+      .lineMoreGrid53>div:first-child{grid-column:1/-1}.lineDetails53 .ogRate40{margin:0!important;padding:10px 11px!important;border:0!important;border-top:1px solid #e5edf3!important;border-radius:0!important}
+      .lineButtons{margin-top:8px}.lineButtons .btn{min-height:34px!important;font-size:11px!important;padding:5px 10px!important}
+      #av32Panel{padding:0!important}#av32Panel>summary{padding:14px;font-weight:750;min-height:48px}.av32Body53{padding:0 14px 14px}
+      #reviewActions53{position:sticky;bottom:calc(6px + env(safe-area-inset-bottom));z-index:20;padding:11px;background:#fff;border:1px solid #dbe6ef;border-radius:16px;box-shadow:0 5px 22px rgba(25,55,86,.12);margin-top:14px}
+      .reviewTotal53{display:flex;justify-content:space-between;align-items:center;color:#547087;font-size:12px;margin-bottom:8px}.reviewTotal53 strong{font-size:20px;color:#0b6fae}
+      #reviewActions53 .finalActions{display:block!important;margin:0!important}#reviewActions53 .uxFinalPrimary{min-height:48px!important}
+      #reviewActions53 .secondaryActions53{padding:0!important;border:0!important;margin:6px 0 0!important;background:transparent!important}
+      .secondaryActions53>summary{text-align:center;padding:8px;font-size:12px!important;min-height:32px}
+      .secondaryActionGrid53{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding-top:6px}
+      #reviewActions53 .secondaryActionGrid53 .btn{min-height:42px!important;background:#f7fafc!important;color:#315069!important;border:1px solid #d7e2eb!important;box-shadow:none!important;font-size:12px!important}
+      input,select,textarea{scroll-margin-top:125px}details[open]>summary{margin-bottom:4px}
+      @media print{#reviewActions53{display:none!important}}
+
       @media(max-width:640px){
         .app{max-width:none!important}.top{padding-left:12px!important;padding-right:12px!important}.brand span{display:none!important}main{padding:15px 12px 28px!important}
         .card{padding:14px!important;border-radius:16px!important}.choice{padding:11px 12px!important}.progress:before{left:10%!important;right:10%!important}
@@ -125,35 +166,22 @@
     document.head.appendChild(s);
   }
 
-  function currentStep(){return Number(document.querySelector('.step.active')?.dataset?.step||1)||1}
-  function ensureStepUi(){
-    const current=currentStep();
-    for(let i=1;i<=4;i++){
-      const p=document.getElementById(`p${i}`);if(!p)continue;
-      p.classList.toggle('uxCurrent',i===current);
-      let no=p.querySelector('.uxStepNo');
-      let label=p.querySelector('.uxStepText');
-      if(!no){no=document.createElement('span');no.className='uxStepNo';p.appendChild(no)}
-      if(!label){label=document.createElement('span');label.className='uxStepText';p.appendChild(label)}
-      no.textContent=i<current?'✓':String(i);
-      label.textContent=STEP_LABELS[i-1];
-    }
-  }
-
-  function polishCopy(){
-    const copy={
-      1:['Client','Recherchez ou sélectionnez le client concerné par le devis.'],
-      2:['Chantier','Décrivez le besoin puis choisissez les prestations à chiffrer.'],
-      3:['Chiffrage','Ajustez les quantités, les prix et les frais avant validation.'],
-      4:['Validation du devis','Vérifiez une dernière fois le devis avant PDF, partage ou création dans Ogust.']
-    };
-    document.querySelectorAll('.step').forEach(step=>{
-      const n=Number(step.dataset.step||0),vals=copy[n];if(!vals)return;
-      const h=step.querySelector('h1'),lead=step.querySelector('.lead');
-      if(h)h.textContent=vals[0];if(lead)lead.textContent=vals[1];
-    });
-    const brand=document.querySelector('.brand strong');if(brand)brand.textContent='Devis ACJ';
-    const label=document.getElementById('stepLabel');if(label)label.textContent=STEP_LABELS[currentStep()-1]||'Devis';
+  function mountActions(){
+    const box=document.querySelector('.step[data-step="4"] .finalActions');
+    if(!box||document.getElementById('reviewActions53'))return;
+    const primary=box.querySelector('button[onclick="sendToOgust()"]');if(!primary)return;
+    primary.classList.add('uxFinalPrimary','good');
+    const details=document.createElement('details');details.className='secondaryActions53';
+    const summary=document.createElement('summary');summary.textContent='PDF et autres actions';
+    const body=document.createElement('div');body.className='secondaryActionGrid53';
+    for(const button of [...box.children])if(button!==primary)body.appendChild(button);
+    details.append(summary,body);box.appendChild(details);
+    const footer=document.createElement('div');footer.id='reviewActions53';
+    const total=document.createElement('div');total.className='reviewTotal53';
+    const label=document.createElement('span');label.textContent='Total TTC';
+    const amount=document.createElement('strong');amount.id='reviewLiveTotal53';amount.textContent=window.money?.(window.totals?.().ttc||0)||'';
+    total.append(label,amount);footer.append(total,box);
+    document.querySelector('.step[data-step="4"]').appendChild(footer);
   }
 
   function themeMeta(){
@@ -162,19 +190,14 @@
     meta.content='#ffffff';
   }
 
-  function refresh(){ensureStepUi();polishCopy()}
-  function wrapGoStep(){
-    if(window.__acjUxV30GoStep||typeof window.goStep!=='function')return;
-    const original=window.goStep;
-    window.goStep=function(){const out=original.apply(this,arguments);requestAnimationFrame(refresh);return out};
-    window.__acjUxV30GoStep=true;
-  }
   function init(){
-    addStyles();themeMeta();wrapGoStep();refresh();
-    const observer=new MutationObserver(()=>{clearTimeout(observer._t);observer._t=setTimeout(refresh,70)});
-    observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+    addStyles();themeMeta();mountActions();
+    const title=document.querySelector('.step[data-step="1"] h1');if(title)title.textContent='Choisir le client';
+    const lead=document.querySelector('.step[data-step="1"] .lead');if(lead)lead.textContent='Sélectionne ta société, puis le client.';
+    document.querySelectorAll('.status,.ogcStatus').forEach(node=>node.setAttribute('aria-live','polite'));
   }
 
   window.__acjUxV30=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
+

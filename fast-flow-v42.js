@@ -4,7 +4,7 @@
   const steps=[{id:1,label:'Client'},{id:2,label:'Devis'},{id:4,label:'Vérifier'}];
   const getState=()=>typeof state!=='undefined'?state:(window.state||{});
   const byId=id=>document.getElementById(id);
-  let pricing,step3,buttons=[],lastStep=0,lastSummary='';
+  let pricing,step3,buttons=[],lastStep=0,lastSummary='',lastLineCount=0;
 
   function styles(){
     const style=document.createElement('style');style.id='fast-flow-v42-style';
@@ -102,6 +102,8 @@
       }else step2.appendChild(details);
     }
     pricing=document.createElement('div');pricing.id='fastPricing42';step2.appendChild(pricing);movePricing();
+    const tax=Array.from(pricing.children).find(node=>node.matches('.summary'));
+    if(tax){const details=document.createElement('details');details.className='fastTaxDetails53';const title=document.createElement('summary');title.textContent='Détail HT et TVA';tax.insertAdjacentElement('beforebegin',details);details.append(title,tax)}
     const actions=document.createElement('div');actions.id='fastActions42';actions.className='actions uxStepActions';
     const total=document.createElement('div');total.className='fastLiveTotal42';
     const caption=document.createElement('span');caption.textContent='Total TTC';
@@ -146,9 +148,16 @@
       });
       const label=byId('fastStepLabel42');if(label)label.textContent=steps[index]?.label||'Devis';
     }
-    const s=getState(),total=typeof window.totals==='function'?window.totals().ttc:0;
+    const s=getState(),lineCount=s.lines?.length||0;
+    const header=document.querySelector('.step[data-step="2"] .fastHeader42'),actions=byId('fastActions42');
+    if(lineCount&&header&&pricing.previousElementSibling!==header)header.insertAdjacentElement('afterend',pricing);
+    else if(!lineCount&&actions&&pricing.nextElementSibling!==actions)actions.insertAdjacentElement('beforebegin',pricing);
+    const assistant=byId('aiChantierCard');
+    if(lineCount!==lastLineCount){if(assistant){if(!lineCount)assistant.open=true;else if(!byId('aiChantierText')?.value?.trim()&&!byId('aiResult')?.textContent?.trim())assistant.open=false}lastLineCount=lineCount}
+    const total=typeof window.totals==='function'?window.totals().ttc:0;
     const summary=typeof window.money==='function'?window.money(total):new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(Number(total)||0);
     if(lastSummary!==summary){lastSummary=summary;const node=byId('fastLiveTotal42');if(node)node.textContent=summary}
+    const review=byId('reviewLiveTotal53');if(review&&review.textContent!==summary)review.textContent=summary;
     const next=byId('fastVerify42');if(next)next.disabled=!(s.lines?.length);
     const empty=byId('quoteLines')?.querySelector('.empty');
     if(empty&&empty.textContent!=='Le devis est vide. Ajoute une prestation ci-dessus.')empty.textContent='Le devis est vide. Ajoute une prestation ci-dessus.';
@@ -181,3 +190,4 @@
   const start=()=>queueMicrotask(init);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+
