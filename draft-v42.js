@@ -17,7 +17,8 @@
       reopened:window.acjReopenedQuoteV33?.societe===state.company&&window.acjReopenedQuoteV33?.numero_devis===state.number?clone(window.acjReopenedQuoteV33):null,
       aiPending:window.acjAIDraftV42?.get?.()||null,
       picker:window.acjOgustPicker?.getDraft?.()||null,
-      availability:window.acjAvailabilityV32?.getDraft?.()||null};
+      availability:window.acjAvailabilityV32?.getDraft?.()||null,
+      workspace:window.acjWorkspace58?.getDraft?.()||null};
   }
   function hasWork(d){return !!(d.state.client||d.state.tel||d.state.address||d.state.notes||d.state.lines?.length||d.state.activePreset||d.inputs.aiChantierText?.trim()||d.inputs.noteText?.trim()||Object.entries(d.clientForm||{}).some(([key,value])=>!['company','reference','label','title'].includes(key)&&typeof value==='string'&&value.trim()))}
   function save(){
@@ -51,6 +52,7 @@
     window.syncClient?.();window.syncNotes?.();window.renderQuoteLines?.();
     if(window.acjReopenedQuoteV33)window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:window.acjReopenedQuoteV33.snapshot}}));
     if(draft.availability)window.acjAvailabilityV32?.restore?.(draft.availability);
+    window.acjWorkspace58?.restore?.(draft.workspace);
     const step=Number(draft.state.step);window.goStep?.([2,3,4].includes(step)?step:1);
     restored=true;status('Saisie reprise · enregistrée sur cet appareil');
   }
@@ -73,3 +75,4 @@
   const start=()=>queueMicrotask(init);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+

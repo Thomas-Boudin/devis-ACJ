@@ -4,7 +4,7 @@
   const steps=[{id:1,label:'Client'},{id:2,label:'Devis'},{id:4,label:'Vérifier'}];
   const getState=()=>typeof state!=='undefined'?state:(window.state||{});
   const byId=id=>document.getElementById(id);
-  let pricing,step3,buttons=[],lastStep=0,lastSummary='',lastLineCount=0;
+  let pricing,step3,buttons=[],lastStep=0,lastSummary='',composer,method='catalogue',optionsPanel,optionsButton;
 
   function styles(){
     const style=document.createElement('style');style.id='fast-flow-v42-style';
@@ -28,12 +28,34 @@
       #fastDetailed42 .notice{margin:0}
       #fastNotesImport42{margin:0 0 14px}#fastNotesImport42>#notesImportCard{margin:0!important;border:0!important;box-shadow:none!important}
       #fastPricing42{margin-top:16px}#fastPricing42>.summary{margin-bottom:12px}
-      #fastActions42{display:grid;grid-template-columns:1fr 1.5fr;gap:8px;align-items:center}
+      #fastActions42{display:grid;grid-template-columns:1fr;gap:8px;align-items:center}
       #fastActions42 .fastLiveTotal42{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;color:#547087;font-size:12px;padding:0 3px 3px}
       #fastLiveTotal42{font-size:20px;color:#0b6fae;font-weight:900}
       #fastActions42 .btn{width:100%;min-height:48px!important}
+      #addService58{margin:12px 0 16px;border:1px solid #bcdbea;background:#fff;border-radius:16px}
+      #addService58>summary{min-height:52px;display:flex;align-items:center;justify-content:center;padding:14px;color:#0b6fae;font-size:14px;list-style:none}
+      #addService58>summary::-webkit-details-marker{display:none}
+      #addService58:not([open])>summary{background:#edf8ff;color:#0b6fae!important}
+      #addService58[open]>summary{border-bottom:1px solid #e3edf4;margin-bottom:0}
+      .addServiceBody58{padding:12px}.addServiceMethods58{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:4px;background:#eef4f8;border-radius:12px;margin-bottom:14px}
+      .addServiceMethods58 button{border:0;border-radius:9px;min-height:44px;padding:8px 5px;background:transparent;color:#647b90;font-size:12px;font-weight:750}
+      .addServiceMethods58 button[aria-pressed="true"]{background:#fff;color:#0b6fae;box-shadow:0 2px 6px rgba(25,55,86,.07)}
+      .addServiceMethods58 button:focus-visible,#addService58>summary:focus-visible{outline:2px solid #0b78c9;outline-offset:2px}
+      .addServicePanel58[hidden]{display:none!important}
+      #addService58 .catalogueCard58,#addService58 #aiChantierCard{padding:0!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+      #addService58 .catalogueCard58>.cardTitle,#addService58 #ogPicker41>.cardTitle,#addService58 #ogPicker41>.hint,#addService58 #aiChantierCard>summary{display:none!important}
+      #addService58 #serviceBuilder{margin-top:12px}#addService58 .addedMini{display:none}
+      #workspaceOptions58[hidden],#workspaceOptionsButton58[hidden]{display:none!important}
+      #workspaceOptionsButton58{border-top:1px solid #e6edf3;margin-top:5px;border-radius:0 0 10px 10px;font-size:12px;font-weight:650}
+      #workspaceOptions58{position:fixed;inset:0;z-index:1500;background:rgba(15,35,54,.35);display:flex;align-items:center;justify-content:center;padding:12px}
+      .workspaceOptionsCard58{width:min(600px,100%);max-height:85dvh;overflow:auto;background:#f7fafc;border:1px solid #dce6ee;border-radius:20px;padding:16px;box-shadow:0 20px 60px rgba(20,45,68,.2)}
+      .workspaceOptionsHead58{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.workspaceOptionsHead58 h2{font-size:18px;margin:0}.workspaceOptionsHead58 button{min-width:44px;min-height:44px;border:1px solid #d5e0e9;border-radius:12px;background:#fff;color:#315069;font-size:22px}
+      .workspaceOptionsCard58 .fastTaxDetails53{margin-bottom:14px!important}
+      #workspaceStatus58{font-size:12px;color:#246744;min-height:0}#workspaceStatus58:not(:empty){margin:8px 2px}
+      .step[data-step="2"]{padding-bottom:110px}
+      .step[data-step="2"].active #fastActions42{position:fixed!important;bottom:calc(6px + env(safe-area-inset-bottom))!important;left:50%;transform:translateX(-50%);width:min(728px,calc(100% - 24px));margin:0!important;padding:10px!important;border:1px solid #d7e3ed;border-radius:16px;background:#fff;box-shadow:0 4px 24px rgba(25,55,86,.12);z-index:30}
       @media(max-width:640px){#fastStepLabel42{display:none}#fastActions42{position:sticky!important;bottom:calc(6px + env(safe-area-inset-bottom))!important}.fastHeader42 h2{font-size:25px}}
-      @media print{.fastProgress42,#fastStepLabel42,#fastActions42{display:none!important}}
+      @media print{.fastProgress42,#fastStepLabel42,#fastActions42,#addService58,#workspaceOptions58{display:none!important}}
     `;
     document.head.appendChild(style);document.body.classList.add('acjFastFlow42');
   }
@@ -55,6 +77,50 @@
       if(node.matches('h1,.lead,.eyebrow,.actions'))continue;
       pricing.appendChild(node);
     }
+  }
+
+  function selectMethod(value,focus=false){
+    method=value==='description'?'description':'catalogue';
+    const catalogue=byId('cataloguePanel58'),description=byId('descriptionPanel58');
+    if(catalogue)catalogue.hidden=method!=='catalogue';if(description)description.hidden=method!=='description';
+    for(const button of byId('addServiceMethods58')?.children||[])button.setAttribute('aria-pressed',String(button.dataset.method===method));
+    const assistant=byId('aiChantierCard');if(assistant)assistant.open=true;
+    if(focus)(method==='catalogue'?document.querySelector('#ogPicker41 input'):byId('aiChantierText'))?.focus();
+  }
+
+  function closeOptions(restoreFocus=true){if(optionsPanel){optionsPanel.hidden=true;if(restoreFocus)byId('appMenuToggle57')?.focus()}}
+
+  function makeComposer(step2){
+    const builder=byId('serviceBuilder'),catalogue=builder?.closest('.card'),assistant=byId('aiChantierCard');
+    composer=document.createElement('details');composer.id='addService58';
+    const summary=document.createElement('summary');summary.textContent='+ Ajouter une prestation';
+    const body=document.createElement('div');body.className='addServiceBody58';
+    const methods=document.createElement('div');methods.id='addServiceMethods58';methods.className='addServiceMethods58';methods.setAttribute('role','group');methods.setAttribute('aria-label','Mode d’ajout');
+    for(const [key,label] of [['catalogue','Catalogue Ogust'],['description','Décrire les travaux']]){const button=document.createElement('button');button.type='button';button.dataset.method=key;button.textContent=label;button.addEventListener('click',()=>selectMethod(key,true));methods.appendChild(button)}
+    const catalogPanel=document.createElement('div');catalogPanel.id='cataloguePanel58';catalogPanel.className='addServicePanel58';
+    const description=document.createElement('div');description.id='descriptionPanel58';description.className='addServicePanel58';
+    if(catalogue){catalogue.classList.add('catalogueCard58');catalogPanel.appendChild(catalogue)}
+    if(assistant)description.appendChild(assistant);
+    const notes=byId('fastNotesImport42');if(notes)description.appendChild(notes);
+    body.append(methods,catalogPanel,description);if(builder)body.appendChild(builder);
+    composer.append(summary,body);pricing.insertAdjacentElement('afterend',composer);
+    summary.addEventListener('click',event=>{event.preventDefault();composer.open=!composer.open;if(composer.open){const status=byId('workspaceStatus58');if(status)status.textContent='';selectMethod(method,true)}});
+    const status=document.createElement('div');status.id='workspaceStatus58';status.setAttribute('role','status');composer.insertAdjacentElement('afterend',status);
+    selectMethod('catalogue');
+
+    optionsPanel=document.createElement('div');optionsPanel.id='workspaceOptions58';optionsPanel.hidden=true;
+    const card=document.createElement('section');card.className='workspaceOptionsCard58';card.setAttribute('role','dialog');card.setAttribute('aria-modal','true');card.setAttribute('aria-label','Options de chiffrage');
+    const head=document.createElement('div');head.className='workspaceOptionsHead58';const title=document.createElement('h2');title.textContent='Options de chiffrage';
+    const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Fermer les options');close.addEventListener('click',()=>closeOptions());head.append(title,close);card.appendChild(head);
+    for(const node of [pricing.querySelector('.fastTaxDetails53'),byId('modeChoices')?.closest('.card'),byId('fastDetailed42')])if(node)card.appendChild(node);
+    optionsPanel.appendChild(card);document.body.appendChild(optionsPanel);
+    optionsPanel.addEventListener('click',event=>{if(event.target===optionsPanel)closeOptions()});
+    optionsPanel.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeOptions()}
+      if(event.key==='Tab'){const controls=Array.from(card.querySelectorAll('button,input,select,textarea,summary')).filter(node=>!node.disabled&&node.getClientRects().length),first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}}
+    });
+    const menu=byId('appMenu57');if(menu){optionsButton=document.createElement('button');optionsButton.id='workspaceOptionsButton58';optionsButton.type='button';optionsButton.className='appMenuItem57';optionsButton.textContent='Options de chiffrage';optionsButton.addEventListener('click',()=>{optionsPanel.hidden=false;close.focus()});const version=byId('acjVersion');if(version?.parentElement===menu)version.insertAdjacentElement('beforebegin',optionsButton);else menu.appendChild(optionsButton)}
+    window.acjWorkspace58={open(value='catalogue'){composer.open=true;selectMethod(value,true)},close(){composer.open=false},get isOpen(){return composer.open},getDraft(){return{open:composer.open,method}},restore(draft){if(draft&&typeof draft.open==='boolean'){composer.open=draft.open;selectMethod(draft.method)}}};
   }
 
   function mergeWorkspace(){
@@ -104,14 +170,14 @@
     pricing=document.createElement('div');pricing.id='fastPricing42';step2.appendChild(pricing);movePricing();
     const tax=Array.from(pricing.children).find(node=>node.matches('.summary'));
     if(tax){const details=document.createElement('details');details.className='fastTaxDetails53';const title=document.createElement('summary');title.textContent='Détail HT et TVA';tax.insertAdjacentElement('beforebegin',details);details.append(title,tax)}
+    const header=step2.querySelector('.fastHeader42');header.insertAdjacentElement('afterend',pricing);makeComposer(step2);
     const actions=document.createElement('div');actions.id='fastActions42';actions.className='actions uxStepActions';
     const total=document.createElement('div');total.className='fastLiveTotal42';
     const caption=document.createElement('span');caption.textContent='Total TTC';
     const amount=document.createElement('strong');amount.id='fastLiveTotal42';amount.textContent='0,00 €';
     total.append(caption,amount);
-    const back=document.createElement('button');back.type='button';back.className='btn';back.textContent='Client';back.addEventListener('click',()=>window.goStep(1));
     const next=document.createElement('button');next.type='button';next.className='btn primary';next.id='fastVerify42';next.textContent='Vérifier le devis';next.addEventListener('click',()=>window.goStep(4));
-    actions.append(total,back,next);step2.appendChild(actions);
+    actions.append(total,next);step2.appendChild(actions);
     const finalBack=Array.from(final.querySelectorAll('button')).find(node=>/goStep\(3\)/.test(node.getAttribute('onclick')||''));
     if(finalBack)finalBack.textContent='Modifier le devis';
     const clientNext=document.querySelector('.step[data-step="1"] button[onclick="goStep(2)"]');if(clientNext)clientNext.textContent='Préparer le devis';
@@ -148,19 +214,14 @@
       });
       const label=byId('fastStepLabel42');if(label)label.textContent=steps[index]?.label||'Devis';
     }
-    const s=getState(),lineCount=s.lines?.length||0;
-    const header=document.querySelector('.step[data-step="2"] .fastHeader42'),actions=byId('fastActions42');
-    if(lineCount&&header&&pricing.previousElementSibling!==header)header.insertAdjacentElement('afterend',pricing);
-    else if(!lineCount&&actions&&pricing.nextElementSibling!==actions)actions.insertAdjacentElement('beforebegin',pricing);
-    const assistant=byId('aiChantierCard');
-    if(lineCount!==lastLineCount){if(assistant){if(!lineCount)assistant.open=true;else if(!byId('aiChantierText')?.value?.trim()&&!byId('aiResult')?.textContent?.trim())assistant.open=false}lastLineCount=lineCount}
+    const s=getState();if(optionsButton)optionsButton.hidden=current!==2;
     const total=typeof window.totals==='function'?window.totals().ttc:0;
     const summary=typeof window.money==='function'?window.money(total):new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(Number(total)||0);
     if(lastSummary!==summary){lastSummary=summary;const node=byId('fastLiveTotal42');if(node)node.textContent=summary}
     const review=byId('reviewLiveTotal53');if(review&&review.textContent!==summary)review.textContent=summary;
     const next=byId('fastVerify42');if(next)next.disabled=!(s.lines?.length);
     const empty=byId('quoteLines')?.querySelector('.empty');
-    if(empty&&empty.textContent!=='Le devis est vide. Ajoute une prestation ci-dessus.')empty.textContent='Le devis est vide. Ajoute une prestation ci-dessus.';
+    if(empty&&empty.textContent!=='Le devis est vide. Ajoute ta première prestation.')empty.textContent='Le devis est vide. Ajoute ta première prestation.';
   }
 
   function wrapFunctions(){
@@ -178,6 +239,9 @@
     for(const name of ['renderTotals','renderQuoteLines']){
       const fn=window[name];if(typeof fn==='function')window[name]=function(){const result=fn.apply(this,arguments);refresh();return result};
     }
+    const builder=window.renderServiceBuilder;if(typeof builder==='function')window.renderServiceBuilder=function(){const result=builder.apply(this,arguments);if(getState().activePreset){composer.open=true;closeOptions(false)}return result};
+    const add=window.addBuiltService;if(typeof add==='function')window.addBuiltService=function(){const before=getState().lines?.length||0,result=add.apply(this,arguments);if((getState().lines?.length||0)>before){composer.open=false;const status=byId('workspaceStatus58');if(status)status.textContent='Prestation ajoutée au devis.';composer.querySelector('summary')?.focus();byId('quoteLines')?.lastElementChild?.scrollIntoView({behavior:'smooth',block:'nearest'})}return result};
+    const fresh=window.newQuote;if(typeof fresh==='function')window.newQuote=function(){const result=fresh.apply(this,arguments);composer.open=false;selectMethod('catalogue');closeOptions(false);const status=byId('workspaceStatus58');if(status)status.textContent='';return result};
   }
 
   function init(){

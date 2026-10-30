@@ -67,11 +67,11 @@ assert.equal(document.getElementById('fastPricing42'),null,'Waits for preceding 
 docEvents.get('DOMContentLoaded')();await new Promise(resolve=>queueMicrotask(resolve));
 assert.equal(ctx.__acjFastFlowV42,true);
 assert.equal(quoteLines.closest('.step'),sections.get(2),'Same quote editor is on the unified workspace');
-assert.equal(summary.closest('details').className,'fastTaxDetails53');assert.equal(summary.closest('.step'),sections.get(2));assert.equal(km.closest('.step'),sections.get(2));
+assert.equal(summary.closest('details').className,'fastTaxDetails53');assert.equal(summary.closest('#workspaceOptions58').id,'workspaceOptions58');assert.equal(km.closest('.step'),sections.get(2));
 assert.equal(builder.closest('.step'),sections.get(2));builder.click();assert.equal(builderClicks,1,'Moving nodes preserves event listeners');
-assert.equal(picker.closest('details'),null,'Search stays visible');assert.equal(builder.closest('details'),null,'Chosen Ogust quantities stay visible');
-assert.equal(presets.closest('details').id,'fastDetailed42');assert.equal(modeChoices.closest('details'),null,'Mode is visible so the Ogust search can filter the selected trade');
-assert.equal(modeChoices.closest('.step'),sections.get(2));assert.ok(sections.get(2).children.indexOf(modeCard)<sections.get(2).children.indexOf(serviceCard),'Trade choice precedes Ogust search');
+assert.equal(picker.closest('details').id,'addService58','The catalogue has one entry point');assert.equal(builder.closest('details').id,'addService58','The shared editor remains in the add form');
+assert.equal(presets.closest('details').id,'fastDetailed42');assert.equal(modeChoices.closest('#workspaceOptions58').id,'workspaceOptions58','Manual calculation choices live in secondary options');
+assert.equal(modeChoices.closest('.step'),null);assert.equal(document.getElementById('addService58').open,undefined,'Adding starts collapsed');
 assert.equal(importedNotes.closest('.step'),sections.get(2),'Note import moves out of Client');assert.equal(importedNotes.closest('details').id,'fastNotesImport42');assert.equal(noteText,document.getElementById('noteText'),'Original import input and handlers are retained');
 assert.notEqual(document.getElementById('fastDetailed42').getAttribute('open'),'','Old detailed choices are initially collapsed');
 const nav=body.querySelector('.fastProgress42');assert.equal(nav.children.length,3);assert.equal(nav.children[2].children[1].textContent,'Vérifier');
