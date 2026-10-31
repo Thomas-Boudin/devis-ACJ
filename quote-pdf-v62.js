@@ -3,7 +3,7 @@
   const clean=value=>String(value||'').replace(/[\u00a0\u202f]/g,' ').replace(/[\u2010-\u2015]/g,'-').replace(/\s+/g,' ').trim();
   let logo='';
   let loading=null;
-  function load(){if(window.jspdf?.jsPDF&&window.acjPdfFonts62)return Promise.resolve();if(loading)return loading;const asset=src=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>{script.remove();reject(Error('Le générateur PDF n’a pas pu être chargé. Réessaie.'))};document.head.appendChild(script)});loading=Promise.all([window.jspdf?.jsPDF?null:asset('./vendor/jspdf-4.2.1.umd.min.js?v=68'),window.acjPdfFonts62?null:asset('./vendor/acj-pdf-fonts-v62.js?v=68')]).catch(error=>{loading=null;throw error});return loading}
+  function load(){if(window.jspdf?.jsPDF&&window.acjPdfFonts62)return Promise.resolve();if(loading)return loading;const asset=src=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=src;script.onload=resolve;script.onerror=()=>{script.remove();reject(Error('Le générateur PDF n’a pas pu être chargé. Réessaie.'))};document.head.appendChild(script)});loading=Promise.all([window.jspdf?.jsPDF?null:asset('./vendor/jspdf-4.2.1.umd.min.js?v=70'),window.acjPdfFonts62?null:asset('./vendor/acj-pdf-fonts-v62.js?v=70')]).catch(error=>{loading=null;throw error});return loading}
   const image=new Image();image.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=192;canvas.height=192;canvas.getContext('2d').drawImage(image,0,0,192,192);logo=canvas.toDataURL('image/png')}catch{}};image.src='./icon-192.png';
   function create(markup,number){
     if(!window.jspdf?.jsPDF||!window.acjPdfFonts62)throw Error('PDF_UNAVAILABLE');
