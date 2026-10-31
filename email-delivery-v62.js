@@ -2,7 +2,7 @@
 // updates Ogust; neither a share handoff nor a mailto click means 'sent'.
 (function(){
   const ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-quotation',META='acj_devis_history_meta_v29';
-  let active=null;const writes=new Set();
+  let active=null;const writes=new Set(),validations=new Set();
   const clone=value=>JSON.parse(JSON.stringify(value));
   const validEmail=value=>/^[^\s@<>:,;]+@[^\s@<>:,;]+\.[^\s@<>:,;]+$/.test(String(value||'').trim());
   const key=q=>`${q.societe}|${q.numero_devis}`;
@@ -11,8 +11,8 @@
   function fingerprint(q){return JSON.stringify({company:q?.societe,number:q?.numero_devis,client:[q?.client?.id_customer||'',q?.client?.nom||'',q?.client?.telephone||'',q?.client?.adresse||''],notes:q?.notes||'',lines:(q?.lignes||[]).map(l=>[l.designation,l.detail||'',Number(l.quantite),l.unite,Number(l.prix_unitaire_ttc),Number(l.tva_rate),l.ogust_rate_id||'',l.ogust_product_level_id||''])})}
   function context(){const quote=clone(window.quotePayload()),k=key(quote),meta=metas()[k]||{};return{quote,k,meta,id:String(meta.ogust_id||''),customer:String(quote.client?.id_customer||''),hash:fingerprint(quote)}}
   function current(ctx){try{return fingerprint(window.quotePayload())===ctx.hash&&String(metas()[ctx.k]?.ogust_id||'')===ctx.id}catch{return false}}
-  function errorText(code){return({REMOTE_QUOTE_CHANGED:'Le devis a changé dans Ogust. L’envoi de cette copie est bloqué.',REMOTE_STATUS_LOCKED:'Ce devis est maintenant accepté, validé ou clôturé dans Ogust. Son statut reste inchangé.',CUSTOMER_MISMATCH:'Le client Ogust ne correspond plus à cette copie.',SENT_STATUS_UNAVAILABLE:'Ogust n’a pas confirmé la valeur du statut « Envoyé ».',SENT_STATUS_NOT_CONFIRMED:'Le statut envoyé n’a pas pu être confirmé. Vérifie Ogust avant de réessayer.',AUTH_REQUIRED:'Reconnecte-toi pour continuer.',COMPANY_NOT_SUPPORTED:'L’envoi avec suivi Ogust n’est pas disponible pour cette société.'})[code]||'Ogust n’a pas confirmé l’opération. Le statut local reste inchangé.'}
-  async function request(ctx,action){const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,company:ctx.quote.societe,id_quotation:ctx.id,id_customer:ctx.customer,quote:ctx.quote,...(action==='mark_sent'?{confirm_sent:true}:{})})});const data=await response.json().catch(()=>null);if(!response.ok||!data?.ok||String(data.id_quotation)!==ctx.id){const error=Error(errorText(data?.error));throw error}return data}
+  function errorText(code){return({REMOTE_QUOTE_CHANGED:'Le devis a changé dans Ogust. L’envoi de cette copie est bloqué.',REMOTE_STATUS_LOCKED:'Ce devis est maintenant accepté, clôturé ou supprimé dans Ogust. Son statut reste inchangé.',CUSTOMER_MISMATCH:'Le client Ogust ne correspond plus à cette copie.',VALIDATION_REQUIRED:'Valide le devis dans Ogust avant de préparer son envoi.',VALIDATED_STATUS_UNAVAILABLE:'Ogust n’a pas confirmé la valeur du statut « Validé ». Aucune validation effectuée.',VALIDATION_NOT_CONFIRMED:'La validation n’a pas pu être confirmée. Réessaie la préparation pour vérifier le statut actuel.',SENT_STATUS_UNAVAILABLE:'Ogust n’a pas confirmé la valeur du statut « Envoyé ».',SENT_STATUS_NOT_CONFIRMED:'Le statut envoyé n’a pas pu être confirmé. Vérifie Ogust avant de réessayer.',AUTH_REQUIRED:'Reconnecte-toi pour continuer.',COMPANY_NOT_SUPPORTED:'L’envoi avec suivi Ogust n’est pas disponible pour cette société.'})[code]||'Ogust n’a pas confirmé l’opération. Le statut local reste inchangé.'}
+  async function request(ctx,action){const response=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,company:ctx.quote.societe,id_quotation:ctx.id,id_customer:ctx.customer,quote:ctx.quote,...(action==='mark_sent'?{confirm_sent:true}:action==='validate_for_delivery'?{confirm_validate:true}:{})})});const data=await response.json().catch(()=>null);if(!response.ok||!data?.ok||String(data.id_quotation)!==ctx.id){const error=Error(errorText(data?.error));throw error}return data}
   function close(){const session=active;if(!session)return;session.overlay.remove();document.body.style.overflow=session.bodyOverflow;active=null;document.getElementById('emailLaunch62')?.focus()}
   function node(tag,text,className){const el=document.createElement(tag);if(text)el.textContent=text;if(className)el.className=className;return el}
   function status(session,text,kind='info'){if(active!==session)return;session.message.textContent=text;session.message.className=`emailMessage62 ${kind}`}
@@ -27,7 +27,7 @@
     finally{writes.delete(session.ctx.k);if(!session.done)session.confirm.disabled=false}
   }
   function ready(session,data){
-    const ctx=session.ctx;ctx.meta.ogust_number=String(data.ogust_number||ctx.meta.ogust_number||'');if(!ctx.meta.ogust_number)throw Error('Numéro officiel Ogust introuvable.');
+    const ctx=session.ctx;ctx.meta.ogust_number=String(data.ogust_number||'');if(!ctx.meta.ogust_number||!['V','E'].includes(String(data.ogust_status)))throw Error('Le numéro et la validation Ogust doivent être confirmés avant l’envoi.');
     patch(ctx.k,{ogust_number:ctx.meta.ogust_number,ogust_status:data.ogust_status,ogust_status_label:data.ogust_status_label});
     window.applyOgustQuotationNumber?.(ctx.meta.ogust_number,ctx.id);
     session.file=window.acjQuotePdf62.create(window.buildPrintHTML(),ctx.meta.ogust_number);
@@ -48,17 +48,44 @@
     session.confirm=node('button','J’ai envoyé le devis','btn good');session.confirm.id='emailConfirm62';session.confirm.type='button';session.confirm.hidden=true;session.confirm.addEventListener('click',()=>confirmSent(session));session.content.append(session.confirm);
     const pending=metas()[ctx.k]?.email_delivery_pending;if(pending?.fingerprint===ctx.hash){session.opened=true;session.confirm.hidden=false;status(session,'Un envoi avait été préparé. Confirme seulement si le mail a bien été envoyé.')}else status(session,'Le statut Ogust reste inchangé pendant la préparation du mail.');
   }
+  function preparationStep(session,data){
+    session.content.replaceChildren();
+    if(data.needs_validation){
+      session.content.appendChild(node('p','Ce devis est encore en brouillon. Valide-le dans Ogust avant de préparer son envoi.'));
+      const validate=node('button','Valider dans Ogust','btn good');validate.id='emailValidate67';validate.type='button';validate.disabled=validations.has(session.ctx.k);validate.addEventListener('click',()=>prepareSession(session,'validate_for_delivery'));session.content.appendChild(validate);
+      status(session,'Le statut « Envoyé » sera appliqué après ta confirmation de l’envoi du mail.');
+    }else{
+      session.content.appendChild(node('p','Le devis est validé dans Ogust. Son numéro officiel n’a pas encore été retourné.'));
+      status(session,'Réessaie la préparation pour récupérer le numéro et le PDF.','info');
+    }
+    const retry=node('button','Réessayer la préparation','btn');retry.id='emailRetry67';retry.type='button';retry.addEventListener('click',()=>prepareSession(session));session.content.appendChild(retry);
+  }
+  async function prepareSession(session,action='prepare_delivery'){
+    if(session.busy||active!==session)return;
+    if(!current(session.ctx))return status(session,'Le devis a changé. Enregistre et prépare la nouvelle version.','err');
+    const validate=action==='validate_for_delivery';if(validate&&validations.has(session.ctx.k))return status(session,'La validation de ce devis est déjà en cours.');
+    session.busy=true;if(validate)validations.add(session.ctx.k);session.content.querySelectorAll('button').forEach(b=>{b.disabled=true});status(session,validate?'Validation du devis dans Ogust…':'Vérification du devis dans Ogust…');
+    try{
+      const data=await request(session.ctx,action);
+      const values={ogust_status:data.ogust_status,ogust_status_label:data.ogust_status_label};if(data.ogust_number)values.ogust_number=String(data.ogust_number);patch(session.ctx.k,values);
+      if(active!==session)return;if(!current(session.ctx))throw Error('Le devis a changé pendant sa préparation.');
+      window.acjQuotationUpdateV34?.render();
+      if(data.needs_validation||data.needs_number){preparationStep(session,data);return}
+      await window.acjQuotePdf62.load();if(active!==session)return;if(!current(session.ctx))throw Error('Le devis a changé pendant sa préparation.');ready(session,data);
+    }catch(error){if(active===session){status(session,error.message||'La préparation a échoué.','err');if(!session.content.querySelector('#emailRetry67')){const retry=node('button','Réessayer la préparation','btn');retry.id='emailRetry67';retry.type='button';retry.addEventListener('click',()=>prepareSession(session));session.content.appendChild(retry)}}}
+    finally{session.busy=false;if(validate)validations.delete(session.ctx.k);if(active===session)session.content.querySelectorAll('#emailValidate67,#emailRetry67').forEach(b=>{b.disabled=false});else if(validate&&active?.ctx.k===session.ctx.k){const b=active.content.querySelector('#emailValidate67');if(b)b.disabled=false}}
+  }
   async function open(){
     close();const ctx=context();if(!ctx.id||!ctx.customer||!ctx.meta.ogust_snapshot||fingerprint(ctx.meta.ogust_snapshot)!==ctx.hash)return;
     const overlay=node('div');overlay.id='emailOverlay62';const dialog=node('section');dialog.className='emailDialog62';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','Envoyer le devis');const head=node('div',null,'emailHead62'),title=node('h2','Envoyer le devis'),exit=node('button','×','btn');exit.type='button';exit.setAttribute('aria-label','Fermer l’envoi du devis');exit.addEventListener('click',close);head.append(title,exit);
     const content=node('div',null,'emailContent62'),message=node('p','Vérification du devis dans Ogust…','emailMessage62');message.setAttribute('role','status');dialog.append(head,content,message);overlay.appendChild(dialog);document.body.appendChild(overlay);
     const session={ctx,overlay,content,message,opened:false,done:false,bodyOverflow:document.body.style.overflow};document.body.style.overflow='hidden';active=session;exit.focus();overlay.addEventListener('click',event=>{if(event.target===overlay)close()});overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close()}else if(event.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,a[href],summary')].filter(el=>!el.disabled&&el.getClientRects().length);if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus()}else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus()}}});
-    try{const [data]=await Promise.all([request(ctx,'prepare_delivery'),window.acjQuotePdf62.load()]);if(active!==session)return;if(!current(ctx))throw Error('Le devis a changé pendant sa préparation.');ready(session,data)}catch(error){status(session,error.message||'La préparation a échoué.','err')}
+    await prepareSession(session);
   }
   function render(step){
     document.getElementById('ogustDelivery59')?.remove();document.getElementById('emailFooterHint64')?.remove();document.getElementById('ogustAlt64')?.remove();const ctx=context();if(!ctx.id)return;
     if(ctx.meta.ogust_number)window.applyOgustQuotationNumber?.(ctx.meta.ogust_number,ctx.id);
-    const synced=!!ctx.meta.ogust_snapshot&&fingerprint(ctx.meta.ogust_snapshot)===ctx.hash,allowed=['ACJ Services','ACJ Services Lens'].includes(ctx.quote.societe)&&['B','E'].includes(String(ctx.meta.ogust_status||'').toUpperCase());
+    const synced=!!ctx.meta.ogust_snapshot&&fingerprint(ctx.meta.ogust_snapshot)===ctx.hash,allowed=['ACJ Services','ACJ Services Lens'].includes(ctx.quote.societe)&&['B','V','E'].includes(String(ctx.meta.ogust_status||'').toUpperCase());
     const card=node('div',null,'card');card.id='ogustDelivery59';const title=node('div','Envoi au client','cardTitle'),info=node('p',`${ctx.meta.ogust_number?`Devis n° ${ctx.meta.ogust_number}`:ctx.quote.numero_devis} · ${ctx.meta.ogust_status_label||'Statut à vérifier'}`,'ogustDeliveryInfo59');const launch=node('button',ctx.meta.email_delivery_pending?.fingerprint===ctx.hash?'Terminer l’envoi':'Envoyer par e-mail','btn primary');launch.id='emailLaunch62';launch.type='button';launch.disabled=!synced||!allowed||!ctx.customer;launch.addEventListener('click',open);card.append(title,info,launch);
     const footer=document.getElementById('reviewActions53');let host=footer?.querySelector('#reviewPrimary64');
     if(footer&&!host){host=node('div');host.id='reviewPrimary64';footer.insertBefore(host,footer.querySelector('.finalActions'))}
