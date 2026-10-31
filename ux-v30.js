@@ -203,6 +203,7 @@
     const panel=document.createElement('nav');panel.id='appMenu57';panel.className='appMenuPanel57';panel.hidden=true;panel.setAttribute('aria-label','Navigation principale');
     function setOpen(open,restoreFocus=false){panel.hidden=!open;toggle.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-label',open?'Fermer le menu':'Ouvrir le menu');if(restoreFocus)toggle.focus()}
     toggle.addEventListener('click',()=>setOpen(panel.hidden));
+    panel.addEventListener('click',event=>{if(event.target.closest('.appMenuItem57'))setOpen(false)});
     const home=document.createElement('button');home.type='button';home.className='appMenuItem57';home.textContent='Accueil';home.addEventListener('click',()=>{setOpen(false);window.goStep?.(1)});panel.appendChild(home);
     if(button){
       button.id='newQuoteMenu57';button.className='appMenuItem57';button.type='button';button.textContent='Nouveau devis';button.removeAttribute('onclick');
