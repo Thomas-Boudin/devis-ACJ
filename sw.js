@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v67';
+const CACHE = 'devis-acj-v68';
 const CACHE_PREFIX = 'devis-acj-';
 const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];
 
@@ -8,39 +8,39 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './sap-v7.js?v=67',
-  './print-v9.js?v=67',
-  './details-v10.js?v=67',
-  './print-v11.js?v=67',
-  './ai-v17.js?v=67',
-  './ai-policy-v18.js?v=67',
-  './ogust-write-v19.js?v=67',
-  './client-step-v21.js?v=67',
-  './compliance-v23.js?v=67',
-  './multi-ogust-v28.js?v=67',
-  './auth-v29-2.js?v=67',
-  './prestation-sync-v24.js?v=67',
-  './costs-v28-1.js?v=67',
-  './ogust-units-v25.js?v=67',
-  './history-v29.js?v=67',
-  './history-delete-v29-1.js?v=67',
-  './ux-v30.js?v=67',
-  './contacts-v60.js?v=67',
-  './availability-v32.js?v=67',
-  './history-reopen-v33.js?v=67',
-  './quotation-update-v34.js?v=67',
-  './ogust-rates-v40.js?v=67',
-  './ogust-picker-v41.js?v=67',
-  './notes-import-v39.js?v=67',
-  './fast-flow-v42.js?v=67',
-  './draft-v42.js?v=67',
-  './voice-v43.js?v=67',
-  './learning-v45.js?v=67',
-  './vendor/jspdf-4.2.1.umd.min.js?v=67',
-  './vendor/acj-pdf-fonts-v62.js?v=67',
-  './quote-pdf-v62.js?v=67',
-  './email-delivery-v62.js?v=67',
-  './pwa-update-v38.js?v=67'
+  './sap-v7.js?v=68',
+  './print-v9.js?v=68',
+  './details-v10.js?v=68',
+  './print-v11.js?v=68',
+  './ai-v17.js?v=68',
+  './ai-policy-v18.js?v=68',
+  './ogust-write-v19.js?v=68',
+  './client-step-v21.js?v=68',
+  './compliance-v23.js?v=68',
+  './multi-ogust-v28.js?v=68',
+  './auth-v29-2.js?v=68',
+  './prestation-sync-v24.js?v=68',
+  './costs-v28-1.js?v=68',
+  './ogust-units-v25.js?v=68',
+  './history-v29.js?v=68',
+  './history-delete-v29-1.js?v=68',
+  './ux-v30.js?v=68',
+  './contacts-v60.js?v=68',
+  './availability-v32.js?v=68',
+  './history-reopen-v33.js?v=68',
+  './quotation-update-v34.js?v=68',
+  './ogust-rates-v40.js?v=68',
+  './ogust-picker-v41.js?v=68',
+  './notes-import-v39.js?v=68',
+  './fast-flow-v42.js?v=68',
+  './draft-v42.js?v=68',
+  './voice-v43.js?v=68',
+  './learning-v45.js?v=68',
+  './vendor/jspdf-4.2.1.umd.min.js?v=68',
+  './vendor/acj-pdf-fonts-v62.js?v=68',
+  './quote-pdf-v62.js?v=68',
+  './email-delivery-v62.js?v=68',
+  './pwa-update-v38.js?v=68'
 ];
 
 function relativePath(urlValue) {
@@ -80,27 +80,27 @@ async function withV292(response) {
   if (!type.includes('text/html')) return response;
   const text = await response.text();
   let html = text;
-  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=67"></script></body>');
-  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=67"></script></body>');
-  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=67"></script></body>');
-  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=67"></script></body>');
-  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=67"></script></body>');
-  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=67"></script></body>');
-  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=67"></script></body>');
-  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=67"></script></body>');
-  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=67"></script></body>');
-  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=67"></script></body>');
-  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=67"></script></body>');
-  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=67"></script></body>');
-  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=67"></script></body>');
-  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=67"></script></body>');
-  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=67"></script></body>');
-  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=67"></script></body>');
-  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=67"></script></body>');
-  if (!html.includes('contacts-v60.js')) html = html.replace('</body>', '<script src="./contacts-v60.js?v=67"></script></body>');
-  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=67"></script></body>');
-  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=67"></script></body>');
-  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=67"></script></body>');
+  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=68"></script></body>');
+  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=68"></script></body>');
+  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=68"></script></body>');
+  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=68"></script></body>');
+  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=68"></script></body>');
+  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=68"></script></body>');
+  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=68"></script></body>');
+  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=68"></script></body>');
+  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=68"></script></body>');
+  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=68"></script></body>');
+  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=68"></script></body>');
+  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=68"></script></body>');
+  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=68"></script></body>');
+  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=68"></script></body>');
+  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=68"></script></body>');
+  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=68"></script></body>');
+  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=68"></script></body>');
+  if (!html.includes('contacts-v60.js')) html = html.replace('</body>', '<script src="./contacts-v60.js?v=68"></script></body>');
+  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=68"></script></body>');
+  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=68"></script></body>');
+  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=68"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
