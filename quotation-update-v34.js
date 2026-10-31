@@ -38,13 +38,14 @@
   function render(){
     const step=document.querySelector('.step[data-step="4"]');if(!step)return;
     step.querySelector('#quoteUpdateV34')?.remove();
+    document.getElementById('reviewStatus64')?.remove();document.getElementById('quoteUpdateResultV34')?.remove();
     restoreCreateButton();renderDelivery(step);
     const ctx=currentContext();if(!ctx?.id)return;
     const status=String(ctx.meta.ogust_status||'').toUpperCase(),label=ctx.meta.ogust_status_label||LABELS[status]||'Statut à revérifier';
     const blocked=LOCKED.has(status);
     const card=document.createElement('div');card.id='quoteUpdateV34';card.className='qu34';
     card.innerHTML=`<div class="qu34Head"><div class="qu34Meta">${esc(ctx.meta.ogust_number?`Devis n° ${ctx.meta.ogust_number}`:ctx.ref)} · ${esc(label)}</div></div><div class="qu34Actions"><button id="quoteUpdateBtnV34" class="btn good" type="button" ${blocked?'disabled':''}>${blocked?'Modification bloquée':'Enregistrer dans Ogust'}</button></div><div id="quoteUpdateResultV34" class="qu34Result" role="status"></div>`;
-    const footer=document.getElementById('reviewActions53');if(footer)footer.insertBefore(card,footer.querySelector('.finalActions'));else step.prepend(card);
+    const footer=document.getElementById('reviewActions53'),primary=document.getElementById('reviewPrimary64');if(primary){primary.prepend(card);const head=card.querySelector('.qu34Head');head.id='reviewStatus64';primary.insertAdjacentElement('beforebegin',head);primary.insertAdjacentElement('afterend',card.querySelector('#quoteUpdateResultV34'))}else if(footer)footer.insertBefore(card,footer.querySelector('.finalActions'));else step.prepend(card);
     card.querySelector('#quoteUpdateBtnV34')?.addEventListener('click',updateNow);
     const createBtn=[...document.querySelectorAll('.finalActions .btn.good')].find(b=>/créer dans ogust/i.test(b.textContent||''));
     if(createBtn){createBtn.style.display='none';createBtn.dataset.hiddenByV34='1'}
@@ -99,7 +100,7 @@
   }
   function restoreCreateButton(){const b=document.querySelector('[data-hidden-by-v34="1"]');if(b){b.style.display='';delete b.dataset.hiddenByV34}}
   function onReopen(){restoreCreateButton();render()}
-  function onNewQuote(){window.acjReopenedQuoteV33=null;window.acjReopenedClientIdV33='';document.getElementById('quoteUpdateV34')?.remove();document.getElementById('ogustDelivery59')?.remove();restoreCreateButton()}
+  function onNewQuote(){window.acjReopenedQuoteV33=null;window.acjReopenedClientIdV33='';for(const id of ['quoteUpdateV34','quoteUpdateResultV34','reviewStatus64','ogustDelivery59'])document.getElementById(id)?.remove();restoreCreateButton()}
   addStyles();window.addEventListener('acj:quote-reopened',onReopen);window.addEventListener('acj:quotation-created',onNewQuote);
   window.addEventListener('acj:quote-linked-v59',()=>{const meta=readMeta()[keyFor(state.company,state.number)];if(meta?.ogust_id&&meta.ogust_snapshot&&!currentContext())window.acjReopenedQuoteV33={societe:state.company,numero_devis:state.number,id_customer:String(meta.ogust_snapshot?.client?.id_customer||''),snapshot:JSON.parse(JSON.stringify(meta.ogust_snapshot))};requestAnimationFrame(render)});
   const fresh=window.newQuote;if(typeof fresh==='function')window.newQuote=function(){onNewQuote();return fresh.apply(this,arguments)};

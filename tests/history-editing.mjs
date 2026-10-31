@@ -44,14 +44,14 @@ try{
   await until(()=>w.acjDraftV42&&w.__acjFastFlowV42&&w.acjOgustRates?.rates.length);await wait(90);
   w.openQuoteHistoryV29();card().querySelector('.histViewBtn').click();await until(()=>state().number===quote.numero_devis&&doc.getElementById('quoteUpdateBtnV34'));
   assert.equal(state().step,4);assert.equal(w.totals().ttc,128);assert.equal(calls.filter(x=>x.body?.action==='update').length,0,'Viewing never writes');
-  assert.equal(doc.querySelector('#ogustDelivery59 a').href,'https://my.ogust.app/');assert.ok(doc.getElementById('ogustDelivery59').textContent.includes('DEV-1042'));
+  assert.equal(doc.querySelector('#ogustAlt64').href,'https://my.ogust.app/');assert.ok(doc.getElementById('ogustDelivery59').textContent.includes('DEV-1042'));assert.ok(doc.getElementById('emailLaunch62').closest('#reviewActions53'),'Email is accessible in the review footer');
   assert.ok(doc.getElementById('quoteNumberTop').textContent.includes('DEV-1042'));assert.ok(w.buildPrintHTML().includes('N° DEV-1042'),'Reopened PDFs retain the official number');
   w.openQuoteHistoryV29();card().querySelector('.histEditBtn').click();await until(()=>state().step===2);assert.equal(w.ogustClientChoiceV21.selected.id_customer,customer.id_customer);
   inputQty(3);w.acjDraftV42.save();assert.equal(w.totals().ttc,96);assert.equal(meta().ogust_snapshot.lignes[0].quantite,4);
   w.newQuote();assert.equal(doc.getElementById('quoteUpdateV34'),null);assert.equal(doc.getElementById('ogustDelivery59'),null);
   w.openQuoteHistoryV29();card().querySelector('.histEditBtn').click();await until(()=>state().step===2);assert.equal(state().lines[0].qty,3,'Unsynced edits remain consultable');
-  w.goStep(4);assert.equal(doc.querySelector('#ogustDelivery59 a'),null,'Save the changed version before opening the send flow');doc.getElementById('quoteUpdateBtnV34').click();try{await until(()=>doc.getElementById('quoteUpdateResultV34')?.classList.contains('ok'))}catch(error){throw Error(`${error.message}: ${doc.getElementById('quoteUpdateResultV34')?.textContent}; ${JSON.stringify(calls.filter(x=>x.body?.action==='update').map(x=>x.body))}`)}await wait(90);
-  assert.equal(doc.querySelector('#ogustDelivery59 a')?.href,'https://my.ogust.app/','The saved version can be sent from Ogust');
+  w.goStep(4);assert.equal(doc.querySelector('#ogustAlt64'),null,'Save the changed version before opening the send flow');doc.getElementById('quoteUpdateBtnV34').click();try{await until(()=>doc.getElementById('quoteUpdateResultV34')?.classList.contains('ok'))}catch(error){throw Error(`${error.message}: ${doc.getElementById('quoteUpdateResultV34')?.textContent}; ${JSON.stringify(calls.filter(x=>x.body?.action==='update').map(x=>x.body))}`)}await wait(90);
+  assert.equal(doc.querySelector('#ogustAlt64')?.href,'https://my.ogust.app/','The saved version can be sent from Ogust');
   assert.equal(calls.filter(x=>x.body?.action==='update').length,1);assert.equal(meta().ogust_id,'quote-42');assert.equal(meta().ogust_number,'DEV-1042');assert.equal(meta().ogust_snapshot.lignes[0].quantite,3);assert.ok(doc.getElementById('quoteUpdateResultV34').classList.contains('ok'),'Success remains visible');
   failUpdate=true;w.goStep(2);inputQty(2);w.goStep(4);doc.getElementById('quoteUpdateBtnV34').click();await until(()=>doc.getElementById('quoteUpdateResultV34')?.textContent.includes('Rien n’a été écrasé'));
   assert.equal(meta().ogust_snapshot.lignes[0].quantite,3,'A conflict keeps the last synced baseline');assert.equal(state().lines[0].qty,2);
