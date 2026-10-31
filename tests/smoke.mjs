@@ -6,13 +6,13 @@ function expect(condition,message){if(!condition)throw new Error(message)}
 const sw=read('sw.js');
 const manifest=JSON.parse(read('manifest.json'));
 
-expect(sw.includes("const CACHE = 'devis-acj-v68';"),'Le cache PWA doit être v68');
+expect(sw.includes("const CACHE = 'devis-acj-v70';"),'Le cache PWA doit être v70');
 expect(sw.includes("const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];"),'Les sous-apps doivent être isolées du Service Worker Devis');
 expect(sw.includes("key.startsWith(CACHE_PREFIX)"),'Le Service Worker Devis ne doit supprimer que ses propres caches');
 expect(sw.includes("if (isIsolatedSubapp(event.request.url)) return;"),'Le Service Worker Devis doit ignorer Terrain et Intervenantes');
 for(const asset of ['index.html','manifest.json','fast-flow-v42.js','draft-v42.js','voice-v43.js','learning-v45.js','ai-v17.js','auth-v29-2.js','ogust-write-v19.js','client-step-v21.js','multi-ogust-v28.js','prestation-sync-v24.js','costs-v28-1.js','ogust-units-v25.js','history-v29.js','history-delete-v29-1.js','ux-v30.js','contacts-v60.js','quote-pdf-v62.js','email-delivery-v62.js','vendor/jspdf-4.2.1.umd.min.js','vendor/acj-pdf-fonts-v62.js','availability-v32.js','history-reopen-v33.js']){
   expect(fs.existsSync(asset),`Asset manquant: ${asset}`);
-  expect(sw.includes(`./${asset}${asset.endsWith('.js')?'?v=68':''}`),`Asset non préchargé dans sw.js: ${asset}`);
+  expect(sw.includes(`./${asset}${asset.endsWith('.js')?'?v=70':''}`),`Asset non préchargé dans sw.js: ${asset}`);
 }
 for(const legacy of ['ai-v12.js','ai-v14.js','ai-v15.js','ai-v16.js']){
   expect(!fs.existsSync(legacy),`Ancien module encore présent: ${legacy}`);
@@ -47,12 +47,12 @@ await import('./intervenantes-google-loader.mjs');
 
 console.log('Smoke tests Devis ACJ: OK');
 
-expect(read('index.html').includes('ogust-write-v19.js?v=68'),'Le formulaire doit charger dès la première visite');
-expect(read('index.html').includes('pwa-update-v38.js?v=68'),'Le contrôle de version doit être chargé');
+expect(read('index.html').includes('ogust-write-v19.js?v=70'),'Le formulaire doit charger dès la première visite');
+expect(read('index.html').includes('pwa-update-v38.js?v=70'),'Le contrôle de version doit être chargé');
 
-expect(read('index.html').includes('notes-import-v39.js?v=68'),'Import notes manquant');
-expect(sw.includes('./notes-import-v39.js?v=68'),'Import notes non préchargé');
+expect(read('index.html').includes('notes-import-v39.js?v=70'),'Import notes manquant');
+expect(sw.includes('./notes-import-v39.js?v=70'),'Import notes non préchargé');
 
-expect(read('index.html').includes('learning-v45.js?v=68'),'Mémoire des corrections non chargée');
+expect(read('index.html').includes('learning-v45.js?v=70'),'Mémoire des corrections non chargée');
 
 
