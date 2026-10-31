@@ -12,7 +12,7 @@
   function keyFor(company,ref){return `${String(company||'')}|${String(ref||'')}`}
   function currentContext(){
     const reopened=window.acjReopenedQuoteV33;
-    if(!reopened?.numero_devis)return null;
+    if(!reopened?.numero_devis||reopened.societe!==state.company||reopened.numero_devis!==state.number)return null;
     const company=String(reopened.societe||state?.company||''),ref=String(reopened.numero_devis||state?.number||'');
     const meta=readMeta()[keyFor(company,ref)]||{};
     return{reopened,company,ref,meta,id:String(meta.ogust_id||'')};
@@ -38,15 +38,32 @@
   function render(){
     const step=document.querySelector('.step[data-step="4"]');if(!step)return;
     step.querySelector('#quoteUpdateV34')?.remove();
+    restoreCreateButton();renderDelivery(step);
     const ctx=currentContext();if(!ctx?.id)return;
     const status=String(ctx.meta.ogust_status||'').toUpperCase(),label=ctx.meta.ogust_status_label||LABELS[status]||'Statut à revérifier';
     const blocked=LOCKED.has(status);
     const card=document.createElement('div');card.id='quoteUpdateV34';card.className='qu34';
-    card.innerHTML=`<div class="qu34Head"><div><div class="qu34Title">Modifier le même devis Ogust</div><div class="qu34Meta">Le devis <strong>${esc(ctx.ref)}</strong> sera mis à jour sans créer de doublon. Le serveur vérifie le statut et refuse d’écraser un devis modifié directement dans Ogust.</div></div><span class="qu34Badge">${esc(label)}</span></div><div class="qu34Actions"><button id="quoteUpdateBtnV34" class="btn good" type="button" ${blocked?'disabled':''}>${blocked?'Modification bloquée':'Mettre à jour dans Ogust'}</button></div><div id="quoteUpdateResultV34" class="qu34Result"></div>`;
-    const notice=step.querySelector('.histReopenNoticeV33');if(notice)notice.insertAdjacentElement('afterend',card);else{const lead=step.querySelector('.lead');if(lead)lead.insertAdjacentElement('afterend',card);else step.prepend(card)}
+    card.innerHTML=`<div class="qu34Head"><div class="qu34Meta">${esc(ctx.meta.ogust_number?`Devis n° ${ctx.meta.ogust_number}`:ctx.ref)} · ${esc(label)}</div></div><div class="qu34Actions"><button id="quoteUpdateBtnV34" class="btn good" type="button" ${blocked?'disabled':''}>${blocked?'Modification bloquée':'Enregistrer dans Ogust'}</button></div><div id="quoteUpdateResultV34" class="qu34Result" role="status"></div>`;
+    const footer=document.getElementById('reviewActions53');if(footer)footer.insertBefore(card,footer.querySelector('.finalActions'));else step.prepend(card);
     card.querySelector('#quoteUpdateBtnV34')?.addEventListener('click',updateNow);
     const createBtn=[...document.querySelectorAll('.finalActions .btn.good')].find(b=>/créer dans ogust/i.test(b.textContent||''));
     if(createBtn){createBtn.style.display='none';createBtn.dataset.hiddenByV34='1'}
+  }
+  function renderDelivery(step){
+    document.getElementById('ogustDelivery59')?.remove();
+    const meta=readMeta()[keyFor(state.company,state.number)]||{};if(!meta.ogust_id)return;
+    if(meta.ogust_number)window.applyOgustQuotationNumber?.(meta.ogust_number,meta.ogust_id);
+    const fingerprint=q=>JSON.stringify({client:q?.client?.id_customer||'',notes:q?.notes||'',lines:(q?.lignes||[]).map(l=>[l.designation,l.detail||'',Number(l.quantite),l.unite,Number(l.prix_unitaire_ttc),Number(l.tva_rate),l.ogust_rate_id||'',l.ogust_product_level_id||''])});
+    const baseline=meta.ogust_snapshot||currentContext()?.reopened?.snapshot;
+    const pending=!!baseline&&fingerprint(window.quotePayload?.())!==fingerprint(baseline),locked=LOCKED.has(String(meta.ogust_status||'').toUpperCase());
+    const card=document.createElement('div');card.id='ogustDelivery59';card.className='card';
+    const title=document.createElement('div');title.className='cardTitle';title.textContent='Envoi au client';
+    const info=document.createElement('p');info.className='ogustDeliveryInfo59';info.textContent=`${state.company} · ${meta.ogust_number?`Devis n° ${meta.ogust_number}`:state.number}. ${pending?'Les modifications locales ne sont pas encore enregistrées dans Ogust.':'Retrouve ce devis dans Ogust pour l’envoyer par e-mail avec ton modèle habituel.'}`;
+    const actions=document.createElement('div');actions.className='ogustDeliveryActions59';
+    const link=document.createElement(pending&&!locked?'button':'a');link.className='btn';link.textContent=pending&&locked?'Consulter dans Ogust':'Ouvrir Ogust pour envoyer';
+    if(pending&&!locked){link.type='button';link.disabled=true;info.textContent+=' Enregistre-les avant d’envoyer la nouvelle version.'}else{link.href='https://my.ogust.app/';link.target='_blank';link.rel='noopener noreferrer'}
+    const copy=document.createElement('button');copy.type='button';copy.className='btn';copy.textContent='Copier le numéro';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(String(meta.ogust_number||state.number));copy.textContent='Numéro copié'}catch{copy.textContent=String(meta.ogust_number||state.number)}});
+    actions.append(link,copy);card.append(title,info,actions);const footer=document.getElementById('reviewActions53');if(footer)footer.insertAdjacentElement('beforebegin',card);else step.appendChild(card);
   }
   function result(text,type='info'){const box=document.getElementById('quoteUpdateResultV34');if(!box)return;box.className=`qu34Result show ${type}`;box.textContent=text}
   function persistLatest(p){
@@ -70,8 +87,9 @@
         else result(statusMessage(data?.error), 'err');
         return;
       }
-      patchMeta(ctx.company,ctx.ref,{ogust_id:ctx.id,ogust_number:String(data.ogust_number||ctx.meta.ogust_number||''),ogust_status:String(data.ogust_status||ctx.meta.ogust_status||''),ogust_status_label:String(data.ogust_status_label||ctx.meta.ogust_status_label||'')});
-      persistLatest(quote);
+      patchMeta(ctx.company,ctx.ref,{ogust_id:ctx.id,ogust_number:String(data.ogust_number||ctx.meta.ogust_number||''),ogust_status:String(data.ogust_status||ctx.meta.ogust_status||''),ogust_status_label:String(data.ogust_status_label||ctx.meta.ogust_status_label||''),ogust_snapshot:JSON.parse(JSON.stringify(quote))});
+      if(state.company!==ctx.company||state.number!==ctx.ref)return;
+      persistLatest(quote);renderDelivery(document.querySelector('.step[data-step="4"]'));
       result(`Devis ${data.ogust_number?`n° ${data.ogust_number} `:''}mis à jour dans Ogust sans doublon.${String(data.ogust_status||'').toUpperCase()==='E'?' Il avait déjà été envoyé : il faudra renvoyer la nouvelle version au client.':''}`,'ok');
       const notice=document.querySelector('.histReopenNoticeV33');if(notice)notice.innerHTML='<strong>Devis rouvert et synchronisé.</strong> Les modifications enregistrées ici correspondent maintenant au même devis dans Ogust.';
       window.dispatchEvent(new CustomEvent('acj:quotation-updated-v34',{detail:data}));
@@ -79,9 +97,13 @@
     finally{if(button)button.disabled=false}
   }
   function restoreCreateButton(){const b=document.querySelector('[data-hidden-by-v34="1"]');if(b){b.style.display='';delete b.dataset.hiddenByV34}}
-  function onReopen(){restoreCreateButton();requestAnimationFrame(render)}
-  function onNewQuote(){window.acjReopenedQuoteV33=null;window.acjReopenedClientIdV33='';document.getElementById('quoteUpdateV34')?.remove();restoreCreateButton()}
+  function onReopen(){restoreCreateButton();render()}
+  function onNewQuote(){window.acjReopenedQuoteV33=null;window.acjReopenedClientIdV33='';document.getElementById('quoteUpdateV34')?.remove();document.getElementById('ogustDelivery59')?.remove();restoreCreateButton()}
   addStyles();window.addEventListener('acj:quote-reopened',onReopen);window.addEventListener('acj:quotation-created',onNewQuote);
+  window.addEventListener('acj:quote-linked-v59',()=>{const meta=readMeta()[keyFor(state.company,state.number)];if(meta?.ogust_id&&meta.ogust_snapshot&&!currentContext())window.acjReopenedQuoteV33={societe:state.company,numero_devis:state.number,id_customer:String(meta.ogust_snapshot?.client?.id_customer||''),snapshot:JSON.parse(JSON.stringify(meta.ogust_snapshot))};requestAnimationFrame(render)});
+  const fresh=window.newQuote;if(typeof fresh==='function')window.newQuote=function(){onNewQuote();return fresh.apply(this,arguments)};
+  const go=window.goStep;if(typeof go==='function')window.goStep=function(step){const result=go.apply(this,arguments);if(Number(step)===4)render();return result};
   window.acjQuotationUpdateV34={render,update:updateNow};window.__acjQuotationUpdateV34=true;
   if(window.acjReopenedQuoteV33)render();
 })();
+
