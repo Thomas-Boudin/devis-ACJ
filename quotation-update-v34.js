@@ -50,6 +50,7 @@
     if(createBtn){createBtn.style.display='none';createBtn.dataset.hiddenByV34='1'}
   }
   function renderDelivery(step){
+    if(window.acjEmailDelivery62){window.acjEmailDelivery62.render(step);return}
     document.getElementById('ogustDelivery59')?.remove();
     const meta=readMeta()[keyFor(state.company,state.number)]||{};if(!meta.ogust_id)return;
     if(meta.ogust_number)window.applyOgustQuotationNumber?.(meta.ogust_number,meta.ogust_id);
