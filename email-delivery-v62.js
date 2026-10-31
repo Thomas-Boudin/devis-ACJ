@@ -32,7 +32,8 @@
     session.file=window.acjQuotePdf62.create(window.buildPrintHTML(),ctx.meta.ogust_number);
     const number=ctx.meta.ogust_number,amount=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(ctx.quote.totaux.ttc),subject=`Devis ${number} - ${ctx.quote.societe}`,body=`Bonjour,\n\nVeuillez trouver en pièce jointe notre devis n° ${number}, d’un montant de ${amount}.\n\nCordialement,\n${ctx.quote.societe}`;
     session.content.replaceChildren();session.content.appendChild(node('p',`Devis n° ${number} · ${amount}`,'emailSummary62'));
-    const field=node('label','Adresse e-mail du client'),email=node('input');email.type='email';email.autocomplete='email';email.id='emailRecipient62';email.value=String(ctx.quote.client?.email||'');field.htmlFor=email.id;session.content.append(field,email);
+    const choice=window.ogustClientChoiceV21,selected=choice?.company===ctx.quote.societe?choice.selected:null,selectedEmail=String(selected?.id_customer||'')===ctx.customer?selected.email:'';
+    const field=node('label','Adresse e-mail du client'),email=node('input');email.type='email';email.autocomplete='email';email.id='emailRecipient62';email.value=String(data.recipient_email||selectedEmail||ctx.quote.client?.email||'');field.htmlFor=email.id;session.content.append(field,email);
     const copy=node('button','Copier l’adresse','btn');copy.type='button';copy.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(email.value.trim());copy.textContent='Adresse copiée'}catch{status(session,'Sélectionne l’adresse pour la copier.','err')}});
     const mail=node('a','Ouvrir ma messagerie','btn');mail.id='emailMailto62';
     function address(){if(session.done)return;const to=email.value.trim(),valid=/^[^\s@\r\n]+@[^\s@\r\n]+\.[^\s@\r\n]+$/.test(to);copy.disabled=!valid;mail.href=`mailto:${valid?encodeURIComponent(to):''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
