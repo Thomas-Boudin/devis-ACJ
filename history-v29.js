@@ -37,8 +37,8 @@
   function ensureSnapshot(p){
     if(!p?.societe||!p?.numero_devis||!p?.client?.nom||!p?.lignes?.length)return;
     const saved=readSaved(),k=quoteKey(p);
-    const previous=saved.find(x=>quoteKey(x)===k),meta=readMeta()[k]||{};
-    if(previous&&meta.ogust_id&&!meta.ogust_snapshot)patchMeta(p.societe,p.numero_devis,{ogust_snapshot:previous});
+    // A local autosave is not a verified copy of an old Ogust quote. Missing
+    // baselines are recovered read-only from the exact Ogust ID on reopening.
     const copy=JSON.parse(JSON.stringify(p));
     const at=saved.findIndex(x=>quoteKey(x)===k);if(at>=0)saved[at]=copy;else saved.unshift(copy);
     const seen=new Set(),out=[];
