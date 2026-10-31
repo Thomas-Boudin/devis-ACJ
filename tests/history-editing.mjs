@@ -14,7 +14,7 @@ const unknown={...quote,numero_devis:'UNKNOWN-CLIENT',client:{nom:'Client à ret
 const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 async function until(fn){for(let i=0;i<150;i++){if(fn())return;await wait(20)}throw Error('History UI timed out')}
 class Scripts extends ResourceLoader{fetch(url){if(new URL(url).pathname.endsWith('.js'))return Promise.resolve(fs.readFileSync(path.join(root,path.basename(new URL(url).pathname))));return null}}
-const errors=[],calls=[];let failUpdate=false,locked=false,releaseSearch=null,holdUpdate=false,releaseUpdate=null;
+const errors=[],calls=[];let failUpdate=false,locked=false,remoteLocked=false,releaseSearch=null,holdUpdate=false,releaseUpdate=null;
 const vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e));vc.on('error',(...x)=>errors.push(Error(x.join(' '))));
 const response=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
 const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'https://thomas-boudin.github.io/devis-ACJ/',resources:new Scripts(),runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
@@ -29,6 +29,7 @@ const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'h
     if(url.pathname==='/api/ogust-customer')return new Promise(resolve=>{releaseSearch=()=>resolve(response({ok:true,customer_candidates:[{...customer,label:unknown.client.nom,id_customer:'stale-client'}]}))});
     if(body?.action==='update'){
       assert.equal(body.id_quotation,'quote-42');assert.equal(body.company,quote.societe);assert.equal(body.id_customer,customer.id_customer);
+      if(remoteLocked)return response({ok:false,error:'REMOTE_STATUS_LOCKED',remote_verified:true,id_quotation:'quote-42',ogust_status:remoteLocked,ogust_status_label:remoteLocked==='C'?'Accepté':remoteLocked},409);
       if(holdUpdate)return new Promise(resolve=>{releaseUpdate=()=>resolve(response({ok:true,updated:true,id_quotation:'quote-42',ogust_number:'DEV-1042',ogust_status:'B',ogust_status_label:'Brouillon'}))});
       if(failUpdate)return response({ok:false,error:'REMOTE_QUOTE_CHANGED'},409);
       assert.equal(body.original_quote.lignes[0].quantite,4,'The baseline survives local autosave and reopening');assert.equal(body.quote.lignes[0].quantite,3);
@@ -55,6 +56,7 @@ try{
   assert.equal(calls.filter(x=>x.body?.action==='update').length,1);assert.equal(meta().ogust_id,'quote-42');assert.equal(meta().ogust_number,'DEV-1042');assert.equal(meta().ogust_snapshot.lignes[0].quantite,3);assert.ok(doc.getElementById('quoteUpdateResultV34').classList.contains('ok'),'Success remains visible');
   failUpdate=true;w.goStep(2);inputQty(2);w.goStep(4);doc.getElementById('quoteUpdateBtnV34').click();await until(()=>doc.getElementById('quoteUpdateResultV34')?.textContent.includes('Rien n’a été écrasé'));
   assert.equal(meta().ogust_snapshot.lignes[0].quantite,3,'A conflict keeps the last synced baseline');assert.equal(state().lines[0].qty,2);
+  failUpdate=false;for(const code of ['C','P']){remoteLocked=code;doc.getElementById('quoteUpdateBtnV34').click();await until(()=>meta().ogust_status===code);assert.equal(doc.getElementById('quoteUpdateBtnV34').disabled,true,'The verified remote status controls editing');assert.equal(doc.getElementById('emailLaunch62').disabled,true);assert.ok(doc.getElementById('reviewStatus64').textContent.includes(code==='C'?'Accepté':code));assert.ok(doc.getElementById('quoteUpdateResultV34').textContent.includes('Ogust indique'));const all=JSON.parse(w.localStorage.getItem('acj_devis_history_meta_v29'));all[key].ogust_status='B';all[key].ogust_status_label='Brouillon';w.localStorage.setItem('acj_devis_history_meta_v29',JSON.stringify(all));w.acjQuotationUpdateV34.render()}remoteLocked=false;
   failUpdate=false;holdUpdate=true;doc.getElementById('quoteUpdateBtnV34').click();await until(()=>releaseUpdate);w.newQuote();w.setCompany('ACJ Services Lens');const freshRef=state().number;releaseUpdate();await wait(120);
   assert.equal(state().number,freshRef);assert.equal(state().company,'ACJ Services Lens');assert.ok(!doc.getElementById('quoteNumberTop').textContent.includes('DEV-1042'),'A late update cannot relabel a new quote');
   assert.ok(!JSON.parse(w.localStorage.getItem('acj_devis_history_meta_v29'))[`ACJ Services Lens|${freshRef}`]?.ogust_id,'A late response cannot link another company’s draft');
