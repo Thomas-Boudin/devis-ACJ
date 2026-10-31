@@ -18,14 +18,15 @@
     return{reopened,company,ref,meta,id:String(meta.ogust_id||'')};
   }
   function patchMeta(company,ref,patch){const all=readMeta(),k=keyFor(company,ref);all[k]={...(all[k]||{}),...patch,updated_at:new Date().toISOString()};writeMeta(all)}
-  function statusMessage(code){
+  function statusMessage(code,data){
     if(code==='QUOTATION_PRODUCT_REQUIRED')return 'Prestation Ogust manquante. Le devis existant reste inchangé.';
     if(code==='QUOTATION_RATE_NOT_FOUND')return 'Aucun tarif Ogust actif compatible avec la prestation, l’unité et la TVA. Le devis existant reste inchangé.';
     if(code==='QUOTATION_RATE_AMBIGUOUS')return 'Plusieurs tarifs Ogust correspondent. Le devis existant reste inchangé.';
     if(code==='QUOTATION_RATES_INCOMPLETE')return 'Catalogue des tarifs incomplet. Le devis existant reste inchangé.';
     if(code==='REMOTE_QUOTE_CHANGED')return 'Le devis a été modifié dans Ogust depuis la copie locale. Rien n’a été écrasé.';
     if(code==='CUSTOMER_MISMATCH')return 'Le client du devis Ogust ne correspond plus au client sélectionné. Mise à jour bloquée.';
-    if(code==='REMOTE_STATUS_LOCKED'||code==='REMOTE_STATUS_NOT_EDITABLE')return 'Ce devis n’est plus dans un état modifiable en sécurité dans Ogust.';
+    if(code==='REMOTE_STATUS_LOCKED'||code==='REMOTE_STATUS_NOT_EDITABLE')return data?.remote_verified===true?`Ogust indique « ${data.ogust_status_label||LABELS[data.ogust_status]||data.ogust_status} ». Ce devis ne peut pas être modifié depuis l’application.`:'Ce devis n’est plus dans un état modifiable en sécurité dans Ogust.';
+    if(code==='QUOTATION_HEADER_UNREADABLE'||code==='QUOTATION_ID_MISMATCH')return 'Le devis exact n’a pas pu être vérifié dans la réponse Ogust. Rien n’a été modifié.';
     if(code==='REMOTE_STATUS_UNREADABLE')return 'Le statut Ogust n’a pas pu être vérifié. Mise à jour bloquée.';
     if(code==='OGUST_UPDATE_FAILED')return 'Ogust a refusé la mise à jour.';
     return 'La mise à jour du devis dans Ogust n’a pas abouti.';
@@ -42,7 +43,7 @@
     restoreCreateButton();renderDelivery(step);
     const ctx=currentContext();if(!ctx?.id)return;
     const status=String(ctx.meta.ogust_status||'').toUpperCase(),label=ctx.meta.ogust_status_label||LABELS[status]||'Statut à revérifier';
-    const blocked=LOCKED.has(status);
+    const blocked=LOCKED.has(status)||(!!status&&!['B','E'].includes(status));
     const card=document.createElement('div');card.id='quoteUpdateV34';card.className='qu34';
     card.innerHTML=`<div class="qu34Head"><div class="qu34Meta">${esc(ctx.meta.ogust_number?`Devis n° ${ctx.meta.ogust_number}`:ctx.ref)} · ${esc(label)}</div></div><div class="qu34Actions"><button id="quoteUpdateBtnV34" class="btn good" type="button" ${blocked?'disabled':''}>${blocked?'Modification bloquée':'Enregistrer dans Ogust'}</button></div><div id="quoteUpdateResultV34" class="qu34Result" role="status"></div>`;
     const footer=document.getElementById('reviewActions53'),primary=document.getElementById('reviewPrimary64');if(primary){primary.prepend(card);const head=card.querySelector('.qu34Head');head.id='reviewStatus64';primary.insertAdjacentElement('beforebegin',head);primary.insertAdjacentElement('afterend',card.querySelector('#quoteUpdateResultV34'))}else if(footer)footer.insertBefore(card,footer.querySelector('.finalActions'));else step.prepend(card);
@@ -84,9 +85,13 @@
       const r=await fetch(ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update',company:ctx.company,id_quotation:ctx.id,id_customer:idCustomer,quote,original_quote:original})});
       const data=await r.json().catch(()=>null);
       if(!r.ok||!data?.ok){
+        const remoteCode=String(data?.ogust_status||'').toUpperCase(),verified=data?.remote_verified===true&&String(data.id_quotation||'')===ctx.id&&/^[A-Z0-9_-]{1,20}$/.test(remoteCode)&&!['OK','KO'].includes(remoteCode);
+        if(verified)patchMeta(ctx.company,ctx.ref,{ogust_status:remoteCode,ogust_status_label:LABELS[remoteCode]||String(data.ogust_status_label||remoteCode).slice(0,100)});
+        if(state.company!==ctx.company||state.number!==ctx.ref)return;
+        if(verified)render();
         if(data?.rollback_restored===false)result('Échec de mise à jour et restauration incomplète. Vérifie ce devis directement dans Ogust avant toute autre action.','err');
         else if(data?.error==='OGUST_UPDATE_FAILED'&&data?.rollback_restored===true)result('La mise à jour a échoué, mais l’ancien devis a été restauré dans Ogust.','err');
-        else result(statusMessage(data?.error), 'err');
+        else result(statusMessage(data?.error,data), 'err');
         return;
       }
       patchMeta(ctx.company,ctx.ref,{ogust_id:ctx.id,ogust_number:String(data.ogust_number||ctx.meta.ogust_number||''),ogust_status:String(data.ogust_status||ctx.meta.ogust_status||''),ogust_status_label:String(data.ogust_status_label||ctx.meta.ogust_status_label||''),ogust_snapshot:JSON.parse(JSON.stringify(quote))});
@@ -95,7 +100,7 @@
       result(`Devis ${data.ogust_number?`n° ${data.ogust_number} `:''}mis à jour dans Ogust sans doublon.${String(data.ogust_status||'').toUpperCase()==='E'?' Il avait déjà été envoyé : il faudra renvoyer la nouvelle version au client.':''}`,'ok');
       const notice=document.querySelector('.histReopenNoticeV33');if(notice)notice.innerHTML='<strong>Devis rouvert et synchronisé.</strong> Les modifications enregistrées ici correspondent maintenant au même devis dans Ogust.';
       window.dispatchEvent(new CustomEvent('acj:quotation-updated-v34',{detail:data}));
-    }catch(error){result(error?.message==='LOCAL_SNAPSHOT_MISSING'?'La copie locale d’origine est introuvable. Mise à jour bloquée pour éviter d’écraser Ogust.':'Erreur de connexion pendant la mise à jour.','err')}
+    }catch(error){if(state.company===ctx.company&&state.number===ctx.ref)result(error?.message==='LOCAL_SNAPSHOT_MISSING'?'La copie locale d’origine est introuvable. Mise à jour bloquée pour éviter d’écraser Ogust.':'Erreur de connexion pendant la mise à jour.','err')}
     finally{if(button)button.disabled=false}
   }
   function restoreCreateButton(){const b=document.querySelector('[data-hidden-by-v34="1"]');if(b){b.style.display='';delete b.dataset.hiddenByV34}}
