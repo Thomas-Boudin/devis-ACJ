@@ -29,7 +29,7 @@
   function exposeOgustClient(p,id){
     const customerId=String(id||'').trim();if(!customerId)return;
     const previous=window.ogustClientChoiceV21||{};
-    const customer={id_customer:customerId,label:String(p?.client?.nom||''),phone:String(p?.client?.telephone||''),address:String(p?.client?.adresse||'')};
+    const customer={id_customer:customerId,label:String(p?.client?.nom||''),phone:String(p?.client?.telephone||''),email:String(p?.client?.email||''),address:String(p?.client?.adresse||'')};
     if(typeof window.restoreOgustDraftClientV42==='function')window.restoreOgustDraftClientV42({mode:'existing',selected:customer},String(p?.societe||'ACJ Services'));
     else window.ogustClientChoiceV21={mode:previous.mode||'existing',selected:customer,company:String(p?.societe||'ACJ Services')};
     window.acjReopenedClientIdV33=customerId;

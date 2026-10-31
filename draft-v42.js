@@ -1,7 +1,7 @@
 // Keep the active quote on this device, including work not yet added as a line.
 (function(){
   const KEY='acj_devis_active_v42';
-  const INPUTS=['client','tel','adresse','notes','aiChantierText','noteText','builderDesignation','builderHours','builderRate','builderFlat','builderMetric'];
+  const INPUTS=['client','tel','adresse','email','notes','aiChantierText','noteText','builderDesignation','builderHours','builderRate','builderFlat','builderMetric'];
   let suspended=true,timer=null,last='',restored=false;
   const byId=id=>document.getElementById(id);
   const clone=x=>JSON.parse(JSON.stringify(x));

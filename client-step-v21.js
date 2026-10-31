@@ -32,10 +32,11 @@
   }
   function formCard(){return document.getElementById('client')?.closest('.card')||null}
   function setInput(id,value){const x=document.getElementById(id);if(x)x.value=value||''}
-  function clearClientInputs(){setInput('client','');setInput('tel','');setInput('adresse','')}
+  function clearClientInputs(){setInput('client','');setInput('tel','');setInput('adresse','');setInput('email','')}
   function setClientInputs(c){
     setInput('client',c?.label||'');
     setInput('tel',c?.phone||'');
+    setInput('email',c?.email||'');
     setInput('adresse',c?.address||([c?.zip,c?.city].filter(Boolean).join(' ')));
   }
   function freshDraft(d={}){return {...d,company:companyName(),reference:d.reference||`CLIENT-${crypto.randomUUID()}`}}
