@@ -75,9 +75,9 @@
     const notice=ensureNotice();
     if(notice){
       if(officialNumber){
-        notice.innerHTML=`Numéro officiel attribué par Ogust : <strong>${htmlEsc(officialNumber)}</strong>${officialId?` · ID ${htmlEsc(officialId)}`:''}. Les PDF générés maintenant utilisent ce numéro.`;
+        notice.innerHTML=`Numéro officiel Ogust : <strong>${htmlEsc(officialNumber)}</strong>. Ce numéro figure sur le PDF et dans le mail.`;
       }else{
-        notice.innerHTML=`La référence <strong>${htmlEsc(ref||'ACJ')}</strong> est interne à l’application. Le <strong>numéro officiel du devis</strong> sera celui attribué par Ogust lors de la création. Un PDF généré avant cette étape est marqué « Brouillon ».`;
+        notice.innerHTML=`Référence de préparation : <strong>${htmlEsc(ref||'ACJ')}</strong>. Le <strong>numéro officiel</strong> sera récupéré après validation dans Ogust. Les PDF sans numéro officiel sont marqués « Brouillon ».`;
       }
     }
     refreshSummary();
