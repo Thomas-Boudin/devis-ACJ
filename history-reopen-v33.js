@@ -91,7 +91,12 @@
     document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(target==='edit'&&(window.acjReopenedClientIdV33||p?.client?.fiche)?2:4);reopenNotice(p);
     window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:p}}));window.scrollTo({top:0,behavior:'smooth'});
     const active=()=>generation===reopenGeneration&&state.company===p.societe&&state.number===p.numero_devis;
-    const id=await resolveCustomerId(p,active);if(!active())return;
+    // Linked quotes recover the customer from that exact quote, never a name
+    // search which could select a homonym or a record in another account.
+    let id='';
+    if(meta.ogust_id){try{id=await window.acjQuotationUpdateV34?.recover?.()||window.acjReopenedClientIdV33||''}catch{}}
+    else id=await resolveCustomerId(p,active);
+    if(!active())return;
     if(target==='edit'&&!window.acjReopenedClientIdV33&&!p?.client?.fiche){window.goStep?.(id?2:1)}else if(target==='edit')window.goStep?.(2);
     if(p?.availability_proposal)window.acjAvailabilityV32?.restore?.(p.availability_proposal);
   }
