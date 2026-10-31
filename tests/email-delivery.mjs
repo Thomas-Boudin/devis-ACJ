@@ -48,5 +48,5 @@ try{
   w.goStep(2);const qty=doc.querySelector('input[aria-label="Quantité"]');qty.value='3';qty.dispatchEvent(new w.Event('input',{bubbles:true}));qty.dispatchEvent(new w.Event('change',{bubbles:true}));w.goStep(4);assert.equal(doc.getElementById('emailLaunch62').disabled,true,'Unsaved edits cannot send the old saved version');
   await reopen();holdPrepare=true;doc.getElementById('emailLaunch62').click();await until(()=>releasePrepare);w.newQuote();releasePrepare();await wait(60);assert.equal(doc.getElementById('emailOverlay62'),null,'A late preparation cannot reopen a discarded quote');
   assert.equal(errors.length,0,errors.map(e=>e.stack).join('\n'));
-  console.log('Email: official PDF/number, native mail sharing and cancellation, mailto/download fallback, explicit sent confirmation, failed readback, double click and late response/unsaved guards; synthetic APIs only, no real email or Ogust writes.');
+  console.log('Email: official PDF/number, recipient-first mailto with download request, native sharing and cancellation, explicit sent confirmation, failed readback, double click and late response/unsaved guards; synthetic APIs only, no real email or Ogust writes.');
 }finally{w.close()}
