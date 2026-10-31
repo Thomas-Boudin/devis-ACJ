@@ -4,6 +4,7 @@
   const SAVED_KEY='acj_devis_saved_v6';
   const META_KEY='acj_devis_history_meta_v29';
   const CUSTOMER_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-customer';
+  let reopenGeneration=0;
 
   function n(v){const x=Number(String(v??'').replace(',','.'));return Number.isFinite(x)?x:0}
   function norm(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
@@ -29,7 +30,8 @@
     const customerId=String(id||'').trim();if(!customerId)return;
     const previous=window.ogustClientChoiceV21||{};
     const customer={id_customer:customerId,label:String(p?.client?.nom||''),phone:String(p?.client?.telephone||''),address:String(p?.client?.adresse||'')};
-    window.ogustClientChoiceV21={mode:previous.mode||'existing',selected:customer,company:String(p?.societe||'ACJ Services')};
+    if(typeof window.restoreOgustDraftClientV42==='function')window.restoreOgustDraftClientV42({mode:'existing',selected:customer},String(p?.societe||'ACJ Services'));
+    else window.ogustClientChoiceV21={mode:previous.mode||'existing',selected:customer,company:String(p?.societe||'ACJ Services')};
     window.acjReopenedClientIdV33=customerId;
     const box=document.getElementById('av32Client');if(box)box.textContent=`Client Ogust : ${customer.label||customerId} · horaires de base client pris en compte.`;
   }
@@ -40,7 +42,7 @@
     if(changed)try{localStorage.setItem(SAVED_KEY,JSON.stringify(list))}catch{}
     if(p?.client)p.client.id_customer=customerId;
   }
-  async function resolveCustomerId(p){
+  async function resolveCustomerId(p,active=()=>true){
     const known=String(p?.client?.id_customer||'').trim();if(known){exposeOgustClient(p,known);return known}
     // A local new-client record has no verified Ogust identity yet.
     if(p?.client?.fiche)return '';
@@ -52,7 +54,7 @@
       const exact=candidates.find(c=>norm(c?.label)===norm(query));
       const chosen=exact||(candidates.length===1?candidates[0]:null);
       const id=String(chosen?.id_customer||'').trim();if(!id)return '';
-      persistClientId(p,id);exposeOgustClient(p,id);window.dispatchEvent(new CustomEvent('acj:quote-reopened-client',{detail:{id_customer:id,quote:p}}));return id;
+      if(!active())return '';persistClientId(p,id);exposeOgustClient(p,id);window.dispatchEvent(new CustomEvent('acj:quote-reopened-client',{detail:{id_customer:id,quote:p}}));return id;
     }catch{return ''}
   }
   function reopenNotice(p){
@@ -61,11 +63,12 @@
     const meta=readMeta()[keyFor(p)]||{};
     const box=document.createElement('div');box.className='histReopenNoticeV33';
     box.style.cssText='margin:0 0 13px;padding:10px 11px;border:1px solid #b9d9ec;background:#eef8fd;border-radius:12px;color:#29516b;font-size:11px;line-height:1.45';
-    box.innerHTML=`<strong>Devis rouvert.</strong> Tu peux revenir au chiffrage pour le modifier puis l’enregistrer.${meta.ogust_id?' Ce devis existe déjà dans Ogust : « Créer dans Ogust » ne modifiera pas encore l’original.':''}`;
+    box.innerHTML=meta.ogust_id?'<strong>Devis Ogust.</strong> Les modifications seront enregistrées sur ce même devis.':'<strong>Devis enregistré sur cet appareil.</strong> Tu peux le modifier ou le créer dans Ogust.';
     const lead=step.querySelector('.lead');if(lead)lead.insertAdjacentElement('afterend',box);else step.prepend(box);
   }
-  async function restoreQuote(p){
+  async function restoreQuote(p,target='view'){
     if(!p||typeof state==='undefined')return;
+    window.newQuote?.();const generation=++reopenGeneration;
     state.step=1;state.number=String(p?.numero_devis||state.number||'');state.company=String(p?.societe||'ACJ Services');state.client=String(p?.client?.nom||'');state.tel=String(p?.client?.telephone||'');state.address=String(p?.client?.adresse||'');
     state.mode=(typeof MODES!=='undefined'&&MODES?.[p?.mode])?p.mode:((p?.lignes||[]).find(l=>typeof MODES!=='undefined'&&MODES?.[l?.activite])?.activite||'jardin');
     state.activePreset=null;state.builderMethod='hourly';state.notes=String(p?.notes||'');
@@ -77,35 +80,39 @@
       ...(Array.isArray(l?.ai_pending_fields)?{aiPendingFields:[...l.ai_pending_fields]}:{}),
       ...(l?.ogust_product_level_id?{ogustProductLevelId:String(l.ogust_product_level_id),ogustProductLevelTitle:String(l.ogust_product_level_title||''),ogustProductCompany:String(p?.societe||'')}:{})
     })).filter(l=>l.designation&&l.qty>0);
-    window.acjReopenedQuoteV33={societe:state.company,numero_devis:state.number,id_customer:String(p?.client?.id_customer||''),snapshot:p};
+    const meta=readMeta()[keyFor(p)]||{};
+    window.acjReopenedQuoteV33={societe:state.company,numero_devis:state.number,id_customer:String(p?.client?.id_customer||''),snapshot:JSON.parse(JSON.stringify(meta.ogust_snapshot||p))};
     window.acjReopenedClientIdV33=String(p?.client?.id_customer||'');
     if(window.acjReopenedClientIdV33)exposeOgustClient(p,window.acjReopenedClientIdV33);
     setInput('client',state.client);setInput('tel',state.tel);setInput('adresse',state.address);setInput('email',p?.client?.email||'');setInput('notes',state.notes);
     if(p?.client?.fiche&&!window.acjReopenedClientIdV33){window.restoreOgustDraftClientV42?.({mode:'new'},state.company);window.acjClientFormV46?.restore?.(p.client.fiche);}
     const top=document.getElementById('quoteNumberTop');if(top)top.textContent=state.number;
     if(typeof window.renderCompanies==='function')window.renderCompanies();if(typeof window.renderModes==='function')window.renderModes();if(typeof window.renderQuoteLines==='function')window.renderQuoteLines();
-    document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(4);reopenNotice(p);
+    document.getElementById('historyOverlayV29')?.remove();if(typeof window.goStep==='function')window.goStep(target==='edit'&&(window.acjReopenedClientIdV33||p?.client?.fiche)?2:4);reopenNotice(p);
     window.dispatchEvent(new CustomEvent('acj:quote-reopened',{detail:{quote:p}}));window.scrollTo({top:0,behavior:'smooth'});
-    await resolveCustomerId(p);
+    const active=()=>generation===reopenGeneration&&state.company===p.societe&&state.number===p.numero_devis;
+    const id=await resolveCustomerId(p,active);if(!active())return;
+    if(target==='edit'&&!window.acjReopenedClientIdV33&&!p?.client?.fiche){window.goStep?.(id?2:1)}else if(target==='edit')window.goStep?.(2);
     if(p?.availability_proposal)window.acjAvailabilityV32?.restore?.(p.availability_proposal);
   }
-  window.reopenHistoryQuoteV33=function(index){const p=filtered()[Number(index)];if(p)restoreQuote(p)};
+  window.reopenHistoryQuoteV33=function(index,target='view'){const p=filtered()[Number(index)];if(p)return restoreQuote(p,target)};
+  window.openSavedQuoteV59=function(company,ref,target='view'){const p=readSaved().find(item=>item.societe===company&&item.numero_devis===ref);if(!p)return;const status=String(readMeta()[keyFor(p)]?.ogust_status||'').toUpperCase();return restoreQuote(p,target==='edit'&&!['C','V','T','S'].includes(status)?'edit':'view')};
 
   function enhanceHistory(){
     const list=document.getElementById('historyList');if(!list)return;
     [...list.querySelectorAll('.histCard')].forEach((card,i)=>{
       card.dataset.historyIndex=String(i);card.style.cursor='pointer';
-      const actions=card.querySelector('.histActions');
-      if(actions&&!actions.querySelector('.histReopenBtn')){const btn=document.createElement('button');btn.type='button';btn.className='btn histReopenBtn';btn.textContent='Rouvrir';btn.addEventListener('click',ev=>{ev.stopPropagation();window.reopenHistoryQuoteV33(i)});actions.prepend(btn)}
-      if(!card.dataset.reopenBound){card.dataset.reopenBound='1';card.addEventListener('click',ev=>{if(ev.target.closest('button,summary,details,input,select,a'))return;window.reopenHistoryQuoteV33(Number(card.dataset.historyIndex))})}
+      const p=filtered()[i];
+      if(p&&!card.dataset.reopenBound){card.dataset.reopenBound='1';card.addEventListener('click',ev=>{if(ev.target.closest('button,summary,details,input,select,a'))return;window.openSavedQuoteV59(p.societe,p.numero_devis,'view')})}
     });
   }
-  const observer=new MutationObserver(()=>requestAnimationFrame(enhanceHistory));
   function start(){
-    if(document.body)observer.observe(document.body,{childList:true,subtree:true});enhanceHistory();
+    window.addEventListener('acj:history-rendered',enhanceHistory);enhanceHistory();
+    const fresh=window.newQuote;if(typeof fresh==='function')window.newQuote=function(){reopenGeneration++;document.querySelector('.histReopenNoticeV33')?.remove();return fresh.apply(this,arguments)};
     const originalPayload=window.quotePayload;
     if(typeof originalPayload==='function'&&!window.__acjHistoryReopenPayloadV33){window.quotePayload=function(){const p=originalPayload.apply(this,arguments);const selected=window.ogustClientChoiceV21?.selected;const id=String(selected?.id_customer||window.acjReopenedClientIdV33||'');if(p?.client&&id)p.client.id_customer=id;return p};window.__acjHistoryReopenPayloadV33=true}
   }
   window.__acjHistoryReopenV33=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
+

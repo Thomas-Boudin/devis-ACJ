@@ -55,7 +55,7 @@
   function enhanceCards(){
     const cards=document.querySelectorAll('#historyList .histCard');
     cards.forEach((card,index)=>{
-      const actions=card.querySelector('.histActions');if(!actions||actions.querySelector('.histDeleteBtn'))return;
+      const actions=card.querySelector('.histMoreActions59')||card.querySelector('.histActions');if(!actions||actions.querySelector('.histDeleteBtn'))return;
       const button=document.createElement('button');
       button.type='button';button.className='btn histDeleteBtn';button.textContent='Supprimer';
       button.addEventListener('click',(event)=>{event.preventDefault();event.stopPropagation();removeLocal(index)});
@@ -64,10 +64,10 @@
   }
   function init(){
     addStyles();enhanceCards();
-    const observer=new MutationObserver(()=>enhanceCards());
-    observer.observe(document.body,{childList:true,subtree:true});
+    window.addEventListener('acj:history-rendered',enhanceCards);
   }
 
   window.__acjHistoryDeleteV291=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+

@@ -143,12 +143,14 @@
     if(window.__acjFetchV23Wrapped||typeof window.fetch!=='function')return;
     const nativeFetch=window.fetch.bind(window);
     window.fetch=async function(input,init){
+      let scope=null;try{const body=JSON.parse(init?.body||'null');if(body?.quote)scope={company:body.quote.societe,ref:body.quote.numero_devis}}catch{}
       const response=await nativeFetch(input,init);
       try{
         const url=typeof input==='string'?input:(input?.url||'');
         const method=String(init?.method||input?.method||'GET').toUpperCase();
         if(method==='POST'&&url.includes('/api/ogust-quotation')){
           response.clone().json().then(data=>{
+            const current=window.quotePayload?.();if(!scope||current?.societe!==scope.company||current?.numero_devis!==scope.ref)return;
             if(response.ok&&data?.ok&&data?.id_quotation&&data?.ogust_number&&(!data.already_exists||data.verified===true))window.applyOgustQuotationNumber(data.ogust_number,data.id_quotation);
           }).catch(()=>{});
         }
@@ -171,3 +173,4 @@
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+

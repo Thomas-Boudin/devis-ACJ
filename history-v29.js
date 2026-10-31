@@ -37,7 +37,10 @@
   function ensureSnapshot(p){
     if(!p?.societe||!p?.numero_devis||!p?.client?.nom||!p?.lignes?.length)return;
     const saved=readSaved(),k=quoteKey(p);
-    if(!saved.some(x=>quoteKey(x)===k))saved.unshift(p);
+    const previous=saved.find(x=>quoteKey(x)===k),meta=readMeta()[k]||{};
+    if(previous&&meta.ogust_id&&!meta.ogust_snapshot)patchMeta(p.societe,p.numero_devis,{ogust_snapshot:previous});
+    const copy=JSON.parse(JSON.stringify(p));
+    const at=saved.findIndex(x=>quoteKey(x)===k);if(at>=0)saved[at]=copy;else saved.unshift(copy);
     const seen=new Set(),out=[];
     for(const item of saved){const ik=quoteKey(item);if(!ik||seen.has(ik))continue;seen.add(ik);out.push(item);if(out.length>=50)break}
     try{localStorage.setItem(SAVED_KEY,JSON.stringify(out))}catch{}
@@ -112,14 +115,17 @@
     list.innerHTML=displayed.map((p,i)=>{
       const m=meta[quoteKey(p)]||{},status=statusText(m),lines=p?.lignes||[];
       const details=lines.map(l=>`<div class="histDetailLine"><span>${e(l?.designation||'Prestation')} · ${e(l?.quantite??'')} ${e(l?.unite||'')}</span><strong>${euro(l?.total_ttc??(n(l?.quantite)*n(l?.prix_unitaire_ttc)))}</strong></div>`).join('');
-      return `<div class="histCard"><div class="histCardTop"><div><div class="histClient">${e(p?.client?.nom||'Client non renseigné')}</div><div class="histMeta">${e(p?.societe||'')} · ${e(dateLabel(p))} · ${e(displayNumber(p,m))}</div></div><div class="histAmount">${euro(p?.totaux?.ttc||0)}</div></div><div class="histLine">${e(lineSummary(p))}</div><span class="histStatus ${statusClass(status)}">${e(status)}</span>${details?`<details class="histDetails"><summary>Voir le détail</summary>${details}</details>`:''}<div class="histActions"><button class="btn primary" type="button" onclick="duplicateHistoryQuoteV29(${i})">Dupliquer</button></div></div>`;
+      const args=[p.societe,p.numero_devis].map(value=>e(JSON.stringify(value))).join(','),locked=['C','V','T','S'].includes(String(m.ogust_status||'').toUpperCase());
+      return `<div class="histCard"><div class="histCardTop"><div><div class="histClient">${e(p?.client?.nom||'Client non renseigné')}</div><div class="histMeta">${e(p?.societe||'')} · ${e(dateLabel(p))} · ${e(displayNumber(p,m))}</div></div><div class="histAmount">${euro(p?.totaux?.ttc||0)}</div></div><div class="histLine">${e(lineSummary(p))}</div><span class="histStatus ${statusClass(status)}">${e(status)}</span><div class="histActions"><button class="btn histViewBtn" type="button" onclick="openSavedQuoteV59(${args},'view')">Consulter</button><button class="btn primary histEditBtn" type="button" onclick="openSavedQuoteV59(${args},'edit')" ${locked?'disabled':''}>Modifier</button></div><details class="histDetails"><summary>Détail et autres actions</summary>${details}<div class="histMoreActions59"><button class="btn" type="button" onclick="duplicateHistoryQuoteV29(${i})">Dupliquer</button></div></details></div>`;
     }).join('');
+    window.dispatchEvent(new CustomEvent('acj:history-rendered'));
   }
 
   function openHistory(){
+    ensureSnapshot(currentPayload());
     document.getElementById('historyOverlayV29')?.remove();
     const overlay=document.createElement('div');overlay.id='historyOverlayV29';overlay.className='histOverlay';
-    overlay.innerHTML=`<div class="histModal" role="dialog" aria-modal="true" aria-label="Mes devis"><div class="histHead"><div><div class="histTitle">Mes devis</div><div class="histSub">Historique enregistré sur cet appareil. Les statuts Ogust sont relus pour les devis connus par l’application.</div></div><button class="histClose" type="button" id="historyCloseBtn">×</button></div><div class="histTools"><input id="historySearch" autocomplete="off" placeholder="Client, n° ou prestation"><select id="historyCompany"><option value="">Toutes les sociétés</option><option>ACJ Services</option><option>ACJ Services Lens</option><option>Jet Services</option></select></div><div id="historySync" class="histSync">${e(syncMessage||'Synchronisation des statuts Ogust…')}</div><div id="historyList" class="histList"></div></div>`;
+    overlay.innerHTML=`<div class="histModal" role="dialog" aria-modal="true" aria-label="Mes devis"><div class="histHead"><div><div class="histTitle">Mes devis</div><div class="histSub">Devis de cet appareil · consultation et modification.</div></div><button class="histClose" type="button" id="historyCloseBtn" aria-label="Fermer mes devis">×</button></div><div class="histTools"><input id="historySearch" autocomplete="off" aria-label="Rechercher un devis" placeholder="Client, n° ou prestation"><select id="historyCompany" aria-label="Société des devis"><option value="">Toutes les sociétés</option><option>ACJ Services</option><option>ACJ Services Lens</option><option>Jet Services</option></select></div><div id="historySync" class="histSync">${e(syncMessage||'Actualisation des statuts Ogust…')}</div><div id="historyList" class="histList"></div></div>`;
     document.body.appendChild(overlay);
     document.getElementById('historyCloseBtn')?.addEventListener('click',()=>overlay.remove());
     overlay.addEventListener('click',ev=>{if(ev.target===overlay)overlay.remove()});
@@ -210,8 +216,9 @@
         try{
           const data=await response.clone().json();
           if(response.ok&&data?.ok&&data?.id_quotation&&(!data.already_exists||data.verified===true)){
-            patchMeta(requestQuote.societe,requestQuote.numero_devis,{ogust_id:String(data.id_quotation),ogust_number:String(data.ogust_number||''),ogust_status:String(data.ogust_status||''),ogust_status_label:STATUS_LABELS[data.ogust_status]||''});
+            patchMeta(requestQuote.societe,requestQuote.numero_devis,{ogust_id:String(data.id_quotation),ogust_number:String(data.ogust_number||''),ogust_status:String(data.ogust_status||''),ogust_status_label:STATUS_LABELS[data.ogust_status]||'',...(!data.already_exists?{ogust_snapshot:JSON.parse(JSON.stringify(requestQuote))}:{})});
             ensureSnapshot(requestQuote);
+            if(!data.updated)window.dispatchEvent(new CustomEvent('acj:quote-linked-v59'));
           }
         }catch{}
       }
@@ -220,7 +227,9 @@
     window.__acjHistoryFetchV29=true;
   }
 
-  function init(){addStyles();dedupeSaved();wrapSave();wrapOfficialNumber();wrapFetch();injectLauncher()}
+  function init(){addStyles();dedupeSaved();wrapSave();wrapOfficialNumber();wrapFetch();injectLauncher();const fresh=window.newQuote;if(typeof fresh==='function')window.newQuote=function(){ensureSnapshot(currentPayload());return fresh.apply(this,arguments)}}
+  window.acjHistoryV29={rememberCurrent(){ensureSnapshot(currentPayload())}};
   window.__acjHistoryV29=true;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
+

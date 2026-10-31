@@ -27,6 +27,7 @@
       const draft=capture(),text=JSON.stringify(draft);if(text===last)return;
       if(!hasWork(draft)){localStorage.removeItem(KEY);last=text;status('');return}
       localStorage.setItem(KEY,text);last=text;status(restored?'Saisie reprise · enregistrée sur cet appareil':'Saisie enregistrée sur cet appareil');
+      window.acjHistoryV29?.rememberCurrent?.();
     }catch{status('Enregistrement automatique impossible sur cet appareil.',true)}
   }
   function queue(){if(suspended)return;clearTimeout(timer);timer=setTimeout(save,300)}
