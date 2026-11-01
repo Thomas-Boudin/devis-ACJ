@@ -39,18 +39,19 @@ const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'h
   };
 }});
 const w=dom.window,doc=w.document,state=()=>w.eval('state'),meta=()=>JSON.parse(w.localStorage.getItem('acj_devis_history_meta_v29'))[key];
+const openHistory=()=>{w.openQuoteHistoryV29();doc.querySelector('[data-history-view="all"]').click()};
 const card=()=>[...doc.querySelectorAll('.histCard')].find(x=>x.textContent.includes('DEV-1042'));
 const inputQty=value=>{const input=doc.querySelector('input[aria-label="Quantité"]');input.value=String(value);input.dispatchEvent(new w.Event('input',{bubbles:true}));input.dispatchEvent(new w.Event('change',{bubbles:true}))};
 try{
   await until(()=>w.acjDraftV42&&w.__acjFastFlowV42&&w.acjOgustRates?.rates.length);await wait(90);
-  w.openQuoteHistoryV29();card().querySelector('.histViewBtn').click();await until(()=>state().number===quote.numero_devis&&doc.getElementById('quoteUpdateBtnV34'));
+  openHistory();card().querySelector('.histViewBtn').click();await until(()=>state().number===quote.numero_devis&&doc.getElementById('quoteUpdateBtnV34'));
   assert.equal(state().step,4);assert.equal(w.totals().ttc,128);assert.equal(calls.filter(x=>x.body?.action==='update').length,0,'Viewing never writes');
   assert.equal(doc.querySelector('#ogustAlt64').href,'https://my.ogust.app/');assert.ok(doc.getElementById('ogustDelivery59').textContent.includes('DEV-1042'));assert.ok(doc.getElementById('emailLaunch62').closest('#reviewActions53'),'Email is accessible in the review footer');
   assert.ok(doc.getElementById('quoteNumberTop').textContent.includes('DEV-1042'));assert.ok(w.buildPrintHTML().includes('N° DEV-1042'),'Reopened PDFs retain the official number');
-  w.openQuoteHistoryV29();card().querySelector('.histEditBtn').click();await until(()=>state().step===2);assert.equal(w.ogustClientChoiceV21.selected.id_customer,customer.id_customer);
+  openHistory();card().querySelector('.histEditBtn').click();await until(()=>state().step===2);assert.equal(w.ogustClientChoiceV21.selected.id_customer,customer.id_customer);
   inputQty(3);w.acjDraftV42.save();assert.equal(w.totals().ttc,96);assert.equal(meta().ogust_snapshot.lignes[0].quantite,4);
   w.newQuote();assert.equal(doc.getElementById('quoteUpdateV34'),null);assert.equal(doc.getElementById('ogustDelivery59'),null);
-  w.openQuoteHistoryV29();card().querySelector('.histEditBtn').click();await until(()=>state().step===2);assert.equal(state().lines[0].qty,3,'Unsynced edits remain consultable');
+  openHistory();card().querySelector('.histEditBtn').click();await until(()=>state().step===2);assert.equal(state().lines[0].qty,3,'Unsynced edits remain consultable');
   w.goStep(4);assert.equal(doc.querySelector('#ogustAlt64'),null,'Save the changed version before opening the send flow');doc.getElementById('quoteUpdateBtnV34').click();try{await until(()=>doc.getElementById('quoteUpdateResultV34')?.classList.contains('ok'))}catch(error){throw Error(`${error.message}: ${doc.getElementById('quoteUpdateResultV34')?.textContent}; ${JSON.stringify(calls.filter(x=>x.body?.action==='update').map(x=>x.body))}`)}await wait(90);
   assert.equal(doc.querySelector('#ogustAlt64')?.href,'https://my.ogust.app/','The saved version can be sent from Ogust');
   assert.equal(calls.filter(x=>x.body?.action==='update').length,1);assert.equal(meta().ogust_id,'quote-42');assert.equal(meta().ogust_number,'DEV-1042');assert.equal(meta().ogust_snapshot.lignes[0].quantite,3);assert.ok(doc.getElementById('quoteUpdateResultV34').classList.contains('ok'),'Success remains visible');
@@ -60,7 +61,7 @@ try{
   failUpdate=false;holdUpdate=true;doc.getElementById('quoteUpdateBtnV34').click();await until(()=>releaseUpdate);w.newQuote();w.setCompany('ACJ Services Lens');const freshRef=state().number;releaseUpdate();await wait(120);
   assert.equal(state().number,freshRef);assert.equal(state().company,'ACJ Services Lens');assert.ok(!doc.getElementById('quoteNumberTop').textContent.includes('DEV-1042'),'A late update cannot relabel a new quote');
   assert.ok(!JSON.parse(w.localStorage.getItem('acj_devis_history_meta_v29'))[`ACJ Services Lens|${freshRef}`]?.ogust_id,'A late response cannot link another company’s draft');
-  locked=true;w.openQuoteHistoryV29();await until(()=>card()?.querySelector('.histEditBtn').disabled);assert.equal(card().querySelector('.histViewBtn').disabled,false);
+  locked=true;openHistory();await until(()=>card()?.querySelector('.histEditBtn').disabled);assert.equal(card().querySelector('.histViewBtn').disabled,false);
   await w.openSavedQuoteV59(quote.societe,quote.numero_devis,'edit');await wait(40);assert.equal(state().step,4);assert.equal(doc.getElementById('quoteUpdateBtnV34').disabled,true,'Accepted quotes remain read-only');
   const pending=w.openSavedQuoteV59(unknown.societe,unknown.numero_devis,'view');await until(()=>releaseSearch);
   await w.openSavedQuoteV59(second.societe,second.numero_devis,'edit');releaseSearch();await pending;

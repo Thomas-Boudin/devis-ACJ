@@ -16,6 +16,7 @@
   }
   function savedQuotes(){const a=readJson(SAVED_KEY,[]);return Array.isArray(a)?a:[]}
   function visibleQuotes(){
+    if(window.acjHistory71)return window.acjHistory71.displayed();
     const q=norm(document.getElementById('historySearch')?.value||'');
     const company=String(document.getElementById('historyCompany')?.value||'');
     const meta=readJson(META_KEY,{});

@@ -4,9 +4,11 @@
   const SAVED_KEY='acj_devis_saved_v6';
   const META_KEY='acj_devis_history_meta_v29';
   const STATUS_ENDPOINT='https://acj-ogust-proxy.vercel.app/api/ogust-quotation';
-  const STATUS_LABELS={B:'Brouillon',C:'Accepté',E:'Envoyé',T:'Terminé',V:'Validé'};
+  const STATUS_LABELS={B:'Brouillon',C:'Accepté',E:'Envoyé',T:'Terminé',V:'Validé',S:'Supprimé'};
   let displayed=[];
   let syncMessage='';
+  let historyView='follow',syncGeneration=0,syncing=false;
+  const checked=new Set();
 
   function e(v){
     if(typeof window.esc==='function')return window.esc(v);
@@ -82,6 +84,7 @@
       .histOverlay{position:fixed;inset:0;z-index:1600;background:rgba(3,10,18,.76);backdrop-filter:blur(7px);display:flex;align-items:flex-end;justify-content:center;padding:10px}.histModal{width:min(760px,100%);max-height:94vh;overflow:auto;background:#13283d;border:1px solid #456784;border-radius:22px 22px 15px 15px;color:#f5f9fc;padding:15px;box-shadow:0 28px 80px rgba(0,0,0,.5)}.histHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.histTitle{font-size:20px;font-weight:900}.histSub{font-size:10px;color:#b6c7d8;line-height:1.45;margin-top:3px}.histClose{width:42px;height:42px;border:1px solid #456784;border-radius:12px;background:#1a3349;color:#fff;font-size:21px}.histTools{display:grid;grid-template-columns:1.6fr 1fr;gap:8px;margin:13px 0}.histTools input,.histTools select{width:100%;min-height:46px;border:1px solid #456784;background:#1c344a;color:#f5f9fc;border-radius:12px;padding:10px 11px}.histSync{font-size:10px;color:#b6c7d8;line-height:1.4;margin:-3px 0 10px}.histList{display:grid;gap:9px}.histCard{border:1px solid #355675;background:#172b40;border-radius:15px;padding:12px}.histCardTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.histClient{font-size:14px;font-weight:900}.histAmount{font-size:15px;font-weight:900;white-space:nowrap}.histMeta{font-size:10px;color:#b6c7d8;line-height:1.45;margin-top:3px}.histLine{font-size:11px;color:#dce8f2;line-height:1.4;margin-top:8px}.histStatus{display:inline-flex;margin-top:8px;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900;border:1px solid #4b647b}.histStatus.good{background:#113a27;border-color:#2e8b57;color:#bbf7d0}.histStatus.sent{background:#0f3450;border-color:#319fd9;color:#d8f3ff}.histStatus.local{background:#24384a;border-color:#526b82;color:#d6e1ea}.histDetails{margin-top:9px;border-top:1px solid #355675;padding-top:8px}.histDetails summary{font-size:10px;color:#bfe9fb;cursor:pointer}.histDetailLine{display:flex;justify-content:space-between;gap:10px;font-size:10px;color:#c8d7e4;padding:6px 0;border-bottom:1px solid rgba(53,86,117,.45)}.histActions{display:flex;justify-content:flex-end;margin-top:10px}.histActions .btn{min-height:44px}.histEmpty{border:1px dashed #456784;border-radius:14px;padding:18px;text-align:center;color:#b6c7d8;font-size:11px;line-height:1.5}.histDuplicateNotice{margin:0 0 13px;padding:10px 11px;border:1px solid #2e8b57;background:#113a27;border-radius:12px;color:#d8ffe7;font-size:11px;line-height:1.45}
       @media(max-width:560px){.histTools{grid-template-columns:1fr}.histLaunch{align-items:stretch}.histLaunch .btn{min-width:104px}.histCardTop{gap:8px}.histModal{padding:13px}}
       @media(min-width:760px){.histOverlay{align-items:center}.histModal{border-radius:22px}}
+      .histTabs71{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:15px}.histTabs71 button{min-height:44px;padding:8px 4px;border:1px solid #d4e2ec;border-radius:11px;background:#fff;color:#526d83;font-size:12px;font-weight:750;cursor:pointer}.histTabs71 button[aria-pressed="true"]{background:#087ebc;color:#fff;border-color:#087ebc}.histSyncRow71{display:flex;align-items:center;gap:10px;margin-bottom:12px}.histSyncRow71 .histSync{margin:0;flex:1;font-size:11px}.histSyncRow71 button{min-height:44px;border:1px solid #d4e2ec;border-radius:10px;background:#fff;color:#29516b;padding:8px 10px;font-size:12px;cursor:pointer}.histSyncRow71 button:disabled{opacity:.6}.histContact71{margin-top:9px;color:#29516b;font-size:12px;line-height:1.5;font-weight:650}.histCheck71{font-size:11px;color:#806522;margin-top:5px}#historyList .histMoreActions59{flex-wrap:wrap}#historyList .histMoreActions59 .btn{flex:1 1 100px}.histTabs71 button:focus-visible,.histSyncRow71 button:focus-visible{outline:2px solid #087ebc;outline-offset:2px}
     `;document.head.appendChild(s);
   }
 
@@ -95,12 +98,29 @@
     document.getElementById('historyOpenBtn')?.addEventListener('click',openHistory);
   }
 
-  function filterQuotes(){
+  function isView(p,meta,view){
+    const m=meta[quoteKey(p)]||{},status=String(m.ogust_status||'').toUpperCase();
+    return view==='follow'?status==='E':view==='draft'?(!m.ogust_id||status==='B'):true;
+  }
+  function contactMs(m){const value=Date.parse(m.email_last_reminded_at||m.email_sent_confirmed_at||'');return Number.isFinite(value)?value:0}
+  function elapsed(value,verb){
+    const ms=Date.parse(value||'');if(!Number.isFinite(ms)||ms>Date.now()+60000)return '';
+    const day=time=>{const d=new Date(time);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())};
+    const days=Math.max(0,Math.round((day(Date.now())-day(ms))/86400000));
+    return `${verb} ${days===0?'aujourd’hui':days===1?'hier':`il y a ${days} jours`}`;
+  }
+  function contactLabel(m){
+    const sent=elapsed(m.email_first_sent_confirmed_at||m.email_sent_confirmed_at,'Envoyé');
+    const reminder=elapsed(m.email_last_reminded_at,'Relancé');
+    return [sent||((String(m.ogust_status||'').toUpperCase()==='E')?'Date d’envoi non renseignée':''),reminder].filter(Boolean).join(' · ');
+  }
+  function filterQuotes(view=historyView){
     const q=norm(document.getElementById('historySearch')?.value||'');
     const company=String(document.getElementById('historyCompany')?.value||'');
     const meta=readMeta();
-    return readSaved().sort((a,b)=>dateMs(b)-dateMs(a)).filter(p=>{
+    return readSaved().sort((a,b)=>view==='follow'?(contactMs(meta[quoteKey(a)]||{})-contactMs(meta[quoteKey(b)]||{})||dateMs(a)-dateMs(b)):dateMs(b)-dateMs(a)).filter(p=>{
       if(company&&p?.societe!==company)return false;
+      if(!isView(p,meta,view))return false;
       if(!q)return true;
       const m=meta[quoteKey(p)]||{};
       const hay=norm([p?.client?.nom,p?.numero_devis,m.ogust_number,p?.societe,...(p?.lignes||[]).map(l=>l?.designation)].filter(Boolean).join(' '));
@@ -111,29 +131,44 @@
   function renderHistory(){
     const list=document.getElementById('historyList');if(!list)return;
     displayed=filterQuotes();const meta=readMeta();
-    if(!displayed.length){list.innerHTML='<div class="histEmpty">Aucun devis enregistré ne correspond à cette recherche.<br>Les prochains devis enregistrés apparaîtront automatiquement ici.</div>';return}
+    for(const [view,label] of [['follow','À suivre'],['draft','Brouillons'],['all','Tous']]){const button=document.querySelector(`[data-history-view="${view}"]`);if(button){button.textContent=`${label} (${filterQuotes(view).length})`;button.setAttribute('aria-pressed',String(historyView===view))}}
+    const refresh=document.getElementById('historyRefresh71');if(refresh){refresh.disabled=syncing;refresh.textContent=syncing?'Actualisation…':'Actualiser'}
+    if(!displayed.length){list.innerHTML=`<div class="histEmpty">${historyView==='follow'?'Aucun devis envoyé à suivre pour cette sélection. Retrouve les autres dans « Brouillons » ou « Tous ».':'Aucun devis enregistré ne correspond à cette sélection.'}</div>`;window.dispatchEvent(new CustomEvent('acj:history-rendered'));return}
     list.innerHTML=displayed.map((p,i)=>{
       const m=meta[quoteKey(p)]||{},status=statusText(m),lines=p?.lignes||[];
       const details=lines.map(l=>`<div class="histDetailLine"><span>${e(l?.designation||'Prestation')} · ${e(l?.quantite??'')} ${e(l?.unite||'')}</span><strong>${euro(l?.total_ttc??(n(l?.quantite)*n(l?.prix_unitaire_ttc)))}</strong></div>`).join('');
       const args=[p.societe,p.numero_devis].map(value=>e(JSON.stringify(value))).join(','),locked=['C','V','T','S'].includes(String(m.ogust_status||'').toUpperCase());
-      return `<div class="histCard"><div class="histCardTop"><div><div class="histClient">${e(p?.client?.nom||'Client non renseigné')}</div><div class="histMeta">${e(p?.societe||'')} · ${e(dateLabel(p))} · ${e(displayNumber(p,m))}</div></div><div class="histAmount">${euro(p?.totaux?.ttc||0)}</div></div><div class="histLine">${e(lineSummary(p))}</div><span class="histStatus ${statusClass(status)}">${e(status)}</span><div class="histActions"><button class="btn histViewBtn" type="button" onclick="openSavedQuoteV59(${args},'view')">Consulter</button><button class="btn primary histEditBtn" type="button" onclick="openSavedQuoteV59(${args},'edit')" ${locked?'disabled':''}>Modifier</button></div><details class="histDetails"><summary>Détail et autres actions</summary>${details}<div class="histMoreActions59"><button class="btn" type="button" onclick="duplicateHistoryQuoteV29(${i})">Dupliquer</button></div></details></div>`;
+      const sent=String(m.ogust_status||'').toUpperCase()==='E',supported=['ACJ Services','ACJ Services Lens'].includes(p.societe),canRemind=sent&&supported&&m.ogust_id&&checked.has(quoteKey(p)),contact=contactLabel(m);
+      const edit=`<button class="btn ${sent?'':'primary '}histEditBtn" type="button" onclick="openSavedQuoteV59(${args},'edit')" ${locked?'disabled':''}>Modifier</button>`;
+      return `<div class="histCard"><div class="histCardTop"><div><div class="histClient">${e(p?.client?.nom||'Client non renseigné')}</div><div class="histMeta">${e(p?.societe||'')} · ${e(dateLabel(p))} · ${e(displayNumber(p,m))}</div></div><div class="histAmount">${euro(p?.totaux?.ttc||0)}</div></div><div class="histLine">${e(lineSummary(p))}</div><span class="histStatus ${statusClass(status)}">${e(status)}</span>${contact?`<div class="histContact71">${e(contact)}</div>`:''}${sent&&!checked.has(quoteKey(p))?'<div class="histCheck71">Statut Ogust à vérifier avant relance.</div>':''}<div class="histActions"><button class="btn histViewBtn" type="button" onclick="openSavedQuoteV59(${args},'view')">Ouvrir</button>${sent?`<button class="btn primary histRemindBtn" type="button" onclick="remindHistoryQuoteV71(${args})" ${canRemind?'':'disabled'}>Relancer</button>`:edit}</div><details class="histDetails"><summary>Détail et autres actions</summary>${details}<div class="histMoreActions59">${sent?edit:''}<button class="btn" type="button" onclick="duplicateHistoryQuoteV29(${i})">Dupliquer</button></div></details></div>`;
     }).join('');
     window.dispatchEvent(new CustomEvent('acj:history-rendered'));
   }
 
   function openHistory(){
     ensureSnapshot(currentPayload());
+    historyView='follow';checked.clear();syncMessage='Actualisation des statuts Ogust…';
     document.getElementById('historyOverlayV29')?.remove();
     const overlay=document.createElement('div');overlay.id='historyOverlayV29';overlay.className='histOverlay';
-    overlay.innerHTML=`<div class="histModal" role="dialog" aria-modal="true" aria-label="Mes devis"><div class="histHead"><div><div class="histTitle">Mes devis</div><div class="histSub">Devis de cet appareil · consultation et modification.</div></div><button class="histClose" type="button" id="historyCloseBtn" aria-label="Fermer mes devis">×</button></div><div class="histTools"><input id="historySearch" autocomplete="off" aria-label="Rechercher un devis" placeholder="Client, n° ou prestation"><select id="historyCompany" aria-label="Société des devis"><option value="">Toutes les sociétés</option><option>ACJ Services</option><option>ACJ Services Lens</option><option>Jet Services</option></select></div><div id="historySync" class="histSync">${e(syncMessage||'Actualisation des statuts Ogust…')}</div><div id="historyList" class="histList"></div></div>`;
+    overlay.innerHTML=`<div class="histModal" role="dialog" aria-modal="true" aria-label="Mes devis"><div class="histHead"><div><div class="histTitle">Mes devis</div><div class="histSub">Devis de cet appareil · suivi des envois confirmés.</div></div><button class="histClose" type="button" id="historyCloseBtn" aria-label="Fermer mes devis">×</button></div><div class="histTabs71" role="group" aria-label="Filtrer les devis"><button type="button" data-history-view="follow">À suivre</button><button type="button" data-history-view="draft">Brouillons</button><button type="button" data-history-view="all">Tous</button></div><div class="histTools"><input id="historySearch" autocomplete="off" aria-label="Rechercher un devis" placeholder="Client, n° ou prestation"><select id="historyCompany" aria-label="Société des devis"><option value="">Toutes les sociétés</option><option>ACJ Services</option><option>ACJ Services Lens</option><option>Jet Services</option></select></div><div class="histSyncRow71"><div id="historySync" class="histSync" role="status">${e(syncMessage)}</div><button type="button" id="historyRefresh71">Actualiser</button></div><div id="historyList" class="histList"></div></div>`;
     document.body.appendChild(overlay);
     document.getElementById('historyCloseBtn')?.addEventListener('click',()=>overlay.remove());
     overlay.addEventListener('click',ev=>{if(ev.target===overlay)overlay.remove()});
     document.getElementById('historySearch')?.addEventListener('input',renderHistory);
     document.getElementById('historyCompany')?.addEventListener('change',renderHistory);
+    overlay.querySelectorAll('[data-history-view]').forEach(button=>button.addEventListener('click',()=>{historyView=button.dataset.historyView;renderHistory()}));
+    document.getElementById('historyRefresh71')?.addEventListener('click',syncStatuses);
     renderHistory();syncStatuses();
   }
   window.openQuoteHistoryV29=openHistory;
+  window.acjHistory71={displayed:()=>displayed.slice()};
+  window.remindHistoryQuoteV71=async function(company,ref){
+    const p=readSaved().find(item=>item.societe===company&&item.numero_devis===ref),m=readMeta()[keyFor(company,ref)]||{};
+    if(!p||m.ogust_status!=='E'||!checked.has(quoteKey(p)))return;
+    const opening=window.openSavedQuoteV59(company,ref,'view'),reopened=window.acjReopenedQuoteV33;
+    await opening;if(window.acjReopenedQuoteV33!==reopened)return;
+    const quote=currentPayload();if(quote?.societe===company&&quote.numero_devis===ref)await window.acjEmailDelivery62?.open({kind:'reminder'});
+  };
 
   function duplicateNotice(sourceRef,newRef){
     const step=document.querySelector('.step[data-step="3"]');if(!step)return;
@@ -169,24 +204,28 @@
     window.scrollTo({top:0,behavior:'smooth'});
   };
 
-  async function syncCompany(company,items){
-    const ids=items.map(x=>String(x.meta.ogust_id||'')).filter(Boolean).slice(0,12);if(!ids.length)return 0;
+  async function syncCompany(company,items,active){
+    const ids=[...new Set(items.map(x=>String(x.meta.ogust_id||'')).filter(Boolean))];if(!ids.length)return 0;
     const url=`${STATUS_ENDPOINT}?action=history&company=${encodeURIComponent(company)}&ids=${encodeURIComponent(ids.join(','))}`;
-    const r=await fetch(url,{cache:'no-store'});const data=await r.json().catch(()=>null);if(!r.ok||!data?.ok||!Array.isArray(data.quotations))return 0;
+    const before=readMeta(),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    let r,data;try{r=await fetch(url,{cache:'no-store',signal:controller.signal});data=await r.json().catch(()=>null)}finally{clearTimeout(timer)}
+    if(!active()||!r.ok||!data?.ok||!Array.isArray(data.quotations))return 0;
     const byId=new Map(data.quotations.map(x=>[String(x.id_quotation||''),x]));let updated=0;
-    for(const item of items){const id=String(item.meta.ogust_id||''),remote=byId.get(id);if(!remote)continue;patchMeta(item.p.societe,item.p.numero_devis,{ogust_id:id,ogust_number:remote.number||item.meta.ogust_number||'',ogust_status:remote.status||'',ogust_status_label:remote.status_label||STATUS_LABELS[remote.status]||''});updated++}
+    const savedKeys=new Set(readSaved().map(quoteKey));
+    for(const item of items){const k=quoteKey(item.p),id=String(item.meta.ogust_id||''),remote=byId.get(id),code=String(remote?.status||'').toUpperCase(),m=readMeta()[k];if(!remote||!savedKeys.has(k)||String(m?.ogust_id||'')!==id||m.updated_at!==before[k]?.updated_at||!/^[A-Z0-9_-]{1,20}$/.test(code)||['OK','KO'].includes(code))continue;patchMeta(item.p.societe,item.p.numero_devis,{ogust_id:id,ogust_number:remote.number||m.ogust_number||'',ogust_status:code,ogust_status_label:STATUS_LABELS[code]||remote.status_label||code,ogust_status_checked_at:new Date().toISOString()});checked.add(k);updated++}
     return updated;
   }
   async function syncStatuses(){
+    const generation=++syncGeneration,overlay=document.getElementById('historyOverlayV29'),active=()=>generation===syncGeneration&&overlay?.isConnected;
+    checked.clear();syncing=true;syncMessage='Actualisation des statuts Ogust…';const box=document.getElementById('historySync');if(box)box.textContent=syncMessage;renderHistory();
     const saved=readSaved(),meta=readMeta();
     const groups={};
     for(const p of saved){if(!['ACJ Services','ACJ Services Lens'].includes(p?.societe))continue;const m=meta[quoteKey(p)]||{};if(!m.ogust_id)continue;(groups[p.societe]||(groups[p.societe]=[])).push({p,meta:m})}
-    let total=0,attempted=0;
-    try{
-      for(const [company,items] of Object.entries(groups)){attempted+=Math.min(items.length,12);total+=await syncCompany(company,items)}
-      syncMessage=attempted?`${total} statut${total>1?'s':''} Ogust actualisé${total>1?'s':''}. Les devis sans identifiant Ogust restent indiqués comme locaux.`:'Aucun devis avec identifiant Ogust à actualiser pour le moment.';
-    }catch{syncMessage='Historique local disponible. La mise à jour des statuts Ogust n’a pas abouti.'}
-    const box=document.getElementById('historySync');if(box)box.textContent=syncMessage;renderHistory();
+    let total=0;const attempted=Object.values(groups).reduce((sum,items)=>sum+items.length,0);
+    await Promise.allSettled(Object.entries(groups).map(async([company,items])=>{for(let i=0;i<items.length&&active();i+=12){try{total+=await syncCompany(company,items.slice(i,i+12),active)}catch{}if(active())renderHistory()}}));
+    if(!active())return;syncing=false;
+    syncMessage=attempted?(total===attempted?`${total} statut${total>1?'s':''} Ogust actualisé${total>1?'s':''}.`:`${total} statut${total>1?'s':''} sur ${attempted} actualisé${total>1?'s':''}. Les autres restent à vérifier ; réessaie avec « Actualiser ».`):'Les devis locaux apparaîtront dans « Brouillons » et « Tous ».';
+    box.textContent=syncMessage;renderHistory();
   }
 
   function wrapSave(){
