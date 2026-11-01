@@ -1,10 +1,11 @@
-const CACHE = 'devis-acj-v71';
+const CACHE = 'devis-acj-v72';
 const CACHE_PREFIX = 'devis-acj-';
-const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];
+const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/', 'facturation/'];
 
 const ASSETS = [
   './',
   './index.html',
+  './billing-entry-v1.js?v=1',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
@@ -136,5 +137,6 @@ self.addEventListener('fetch', (event) => {
     return response;
   })));
 });
+
 
 
