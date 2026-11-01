@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <meta name="description" content="Contrôle des prestations ACJ Services à facturer dans Ogust.">
   <title>Facturation ACJ</title>
-  <link rel="stylesheet" href="./billing.css?v=2">
+  <link rel="stylesheet" href="./billing.css?v=3">
   <!-- Compatibility with the previous Devis worker, until its update isolates this app:
     sap-v7.js print-v9.js details-v10.js print-v11.js ai-v17.js ai-policy-v18.js
     ogust-write-v19.js client-step-v21.js compliance-v23.js multi-ogust-v28.js
@@ -52,11 +52,19 @@
       </div>
       <div id="clients"><div class="empty">Les dossiers apparaîtront après la lecture complète d’Ogust.</div></div>
     </section>
-    <section class="note"><strong>Montants estimés avant financements.</strong> Les quantités facturables et les prix des contrats servent au contrôle. Les forfaits, frais, remises et règles non reconnues restent à vérifier.</section>
+    <section class="note"><strong>Montants estimés avant financements.</strong> Ouvre une fiche client pour consulter les règles du contrat, ses prix et les factures associées. Les documents PDF s’ouvrent dans l’application.</section>
     <details class="session panel"><summary>Session et lecture des données</summary><div class="settings"><p id="sources">ACJ Services · données conservées uniquement pendant cette consultation.</p></div></details>
     <footer><a href="../">Retour à Devis ACJ</a><span>Facturation ACJ · première version de contrôle</span></footer>
   </main>
   <script src="../auth-v29-2.js?v=71"></script>
-  <script type="module" src="./billing-app.mjs?v=3"></script>
+  <dialog id="document-dialog" aria-labelledby="document-title" class="document-dialog">
+    <div class="document-head"><h2 id="document-title">Document</h2><button id="document-close" type="button" class="quiet">Fermer</button></div>
+    <p id="document-status" aria-live="polite">Chargement…</p>
+    <div id="document-view" hidden>
+      <div class="document-actions"><a id="document-fullscreen" class="quiet" target="_blank" rel="noopener">PDF en plein écran</a><a id="document-download" class="quiet" download>Enregistrer le PDF</a></div>
+      <object id="pdf-object" type="application/pdf" aria-label="Document Ogust"><p>Utilise « PDF en plein écran » ou « Enregistrer le PDF » pour consulter ce document.</p></object>
+    </div>
+  </dialog>
+  <script type="module" src="./billing-app.mjs?v=4"></script>
 </body>
 </html>

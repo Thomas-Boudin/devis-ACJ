@@ -1,4 +1,5 @@
-import { contractsToRead, normalize, reconcile, visibleReviewReasons } from './billing-core.mjs?v=3';
+import { contractsToRead, normalize, reconcile, visibleReviewReasons } from './billing-core.mjs?v=4';
+import { contractView, invoiceEvidence, ruleLabel, frenchDay, displayUnit, moneyValue } from './billing-details.mjs?v=1';
 
 const API = 'https://acj-ogust-proxy.vercel.app/api/ogust-history';
 const COMPANY = 'ACJ Services';
@@ -7,8 +8,9 @@ const money = cents => new Intl.NumberFormat('fr-FR', { style: 'currency', curre
 const labels = { services: 'prestations du mois', invoices: 'factures et avoirs', customers: 'clients', rates: 'tarifs', products: 'prestations du catalogue' };
 const ids = { services: 'id_service', invoices: 'id_invoice', customers: 'id_customer', rates: 'id_rate', products: 'id_productlevel' };
 const stateLabels = { review: 'À vérifier', ready: 'Prêt à facturer', billed: 'Déjà facturé', ignored: 'Hors facturation' };
-const listKeys = ['service.status', 'service.billing_amount_unit', 'invoice.status', 'contract.status', 'contract.generation', 'contract.pricing', 'contract.to_invoice', 'contract.services_to_consider', 'linecontract.unit', 'rates.unit'];
-let report = null, filter = 'review', controller = null, serial = 0, authReady = false;
+const listKeys = ['service.status', 'service.billing_amount_unit', 'invoice.status', 'contract.status', 'contract.generation', 'contract.pricing', 'contract.to_invoice', 'contract.services_to_consider', 'linecontract.unit', 'rates.unit', 'contract.calculation_method', 'contract.type_hours', 'invoice.invoice_month'];
+let report = null, filter = 'review', controller = null, serial = 0, authReady = false, evidence = null;
+let pdfController = null, pdfVersion = 0, pdfUrl = '', pdfTrigger = null;
 
 const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit' }).formatToParts(new Date()).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
 const currentMonth = `${parts.year}-${parts.month}`;
@@ -26,6 +28,145 @@ function element(tag, className, content) {
 }
 function badge(state, label = stateLabels[state]) { return element('span', 'badge ' + state, label); }
 function forfaitToReview(row) { return row.billing_kind === 'forfait' && row.state === 'review'; }
+function button(label, action) { const node = element('button', 'quiet source-action', label); node.type = 'button'; node.addEventListener('click', action); return node; }
+function sourceAmount(cents, base = 'TTC') { return cents === null ? 'Montant non communiqué' : money(cents) + ' ' + base; }
+const quantityText = value => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(value);
+function closeDocument() {
+  pdfController?.abort(); pdfController = null; pdfVersion++;
+  const object = $('pdf-object'); if (object) object.removeAttribute('data');
+  if (pdfUrl) { URL.revokeObjectURL(pdfUrl); pdfUrl = ''; }
+  const dialog = $('document-dialog'); if (dialog?.open) { if (typeof dialog.close === 'function') dialog.close(); else dialog.removeAttribute('open'); }
+  if (pdfTrigger?.isConnected) pdfTrigger.focus(); pdfTrigger = null;
+}
+async function openDocument(kind, id, customer, title, trigger) {
+  closeDocument(); pdfTrigger = trigger; const scope = evidence, turn = ++pdfVersion, abort = new AbortController(); pdfController = abort;
+  const dialog = $('document-dialog'); $('document-title').textContent = title; $('document-status').textContent = 'Chargement du document Ogust…';
+  $('document-status').hidden = false; $('document-view').hidden = true;
+  if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
+  try {
+    const url = new URL(API); url.search = new URLSearchParams({ action: 'billing', company: COMPANY, month: scope.data.month, resource: 'document', document_type: kind, id, customer_id: customer });
+    const response = await fetch(url, { method: 'GET', cache: 'no-store', signal: abort.signal });
+    if (!response.ok || !(response.headers.get('content-type') || '').includes('application/pdf')) {
+      const result = await response.json().catch(() => ({}));
+      throw new Error(response.status === 401 || response.status === 403 ? 'BILLING_AUTH_REQUIRED' : result.error || 'BILLING_DOCUMENT_READ_FAILED');
+    }
+    const blob = await response.blob(); abort.signal.throwIfAborted();
+    if (turn !== pdfVersion || scope !== evidence) return;
+    pdfUrl = URL.createObjectURL(blob); $('pdf-object').data = pdfUrl;
+    $('document-download').href = pdfUrl; $('document-download').download = `${kind}-${id}.pdf`;
+    $('document-fullscreen').href = pdfUrl;
+    $('document-status').hidden = true; $('document-view').hidden = false;
+  } catch (error) {
+    if (turn !== pdfVersion || abort.signal.aborted) return;
+    $('document-status').textContent = error.message === 'BILLING_AUTH_REQUIRED' ? errorMessage(error.message) : error.message === 'BILLING_DOCUMENT_UNAVAILABLE' ? 'Ogust ne fournit pas de PDF pour ce document, notamment s’il est encore en brouillon. Les informations lues restent dans la fiche.' : 'Le PDF n’a pas pu être chargé. Ferme cette fenêtre puis réessaie.';
+  }
+}
+function renderContractCard(parent, source, client, scope) {
+  const view = contractView(source, scope.data.lists), card = element('article', 'contract-card');
+  const head = element('div', 'source-head'); head.append(element('h4', '', view.title), element('span', 'badge', view.status)); card.append(head);
+  const facts = element('dl', 'contract-facts');
+  for (const [name, value] of view.facts) { const fact = element('div'); fact.append(element('dt', '', name), element('dd', '', value)); facts.append(fact); }
+  card.append(facts);
+  for (const line of view.lines) {
+    const row = element('div', 'source-price-line'), top = element('div', 'source-head'); top.append(element('strong', '', line.title));
+    if (!line.text_only) {
+      const price = line.unit_ttc_cents !== null ? sourceAmount(line.unit_ttc_cents) : sourceAmount(line.unit_ht_cents, 'HT');
+      top.append(element('strong', 'source-price', price + ' / ' + line.unit));
+    }
+    row.append(top);
+    if (!line.text_only) {
+      const parts = [];
+      if (line.quantity !== null) parts.push('Quantité au contrat : ' + quantityText(line.quantity) + ' ' + line.unit);
+      if (line.total_ttc_cents !== null) parts.push('Total de la ligne : ' + sourceAmount(line.total_ttc_cents));
+      if (line.vat !== null) parts.push('TVA : ' + quantityText(line.vat) + ' %');
+      row.append(element('p', 'source-muted', parts.join(' · ')));
+      if (line.discount) row.append(element('p', 'source-muted', 'Une remise est renseignée sur cette ligne ; consulter le document pour son application.'));
+    }
+    card.append(row);
+  }
+  const totals = element('div', 'contract-totals');
+  if (view.fixed_amount_cents !== null) totals.append(element('p', '', 'Montant forfaitaire paramétré : ' + sourceAmount(view.fixed_amount_cents, view.base || 'base à confirmer')));
+  totals.append(element('p', '', 'Total indiqué au contrat : ' + sourceAmount(view.total_ttc_cents)));
+  totals.append(element('p', 'source-muted', 'Ce total reprend le contrat. Le montant du mois dépend du mode de calcul et des passages retenus.')); card.append(totals);
+  const actions = element('div', 'source-actions');
+  const pdf = button('Voir le contrat PDF', () => openDocument('contract', view.id, client.id, view.title, pdf)); pdf.disabled = !view.document_available;
+  if (!view.document_available) pdf.title = 'Ogust ne fournit pas de PDF pour ce contrat dans son état actuel';
+  actions.append(pdf);
+  if (view.quotation_id) { const quote = button('Voir le devis d’origine', () => openDocument('quotation', view.quotation_id, client.id, 'Devis d’origine du ' + view.title, quote)); actions.append(quote); }
+  card.append(actions); parent.append(card);
+}
+function renderInvoiceCard(parent, invoice, client, scope) {
+  const card = element('article', 'invoice-card'), head = element('div', 'source-head');
+  head.append(element('strong', '', invoice.title), element('strong', '', sourceAmount(invoice.amount_cents))); card.append(head);
+  const type = invoice.state === 'draft' ? 'review' : invoice.state === 'final' ? 'billed' : '';
+  card.append(element('span', 'badge ' + type, invoice.label));
+  card.append(element('p', 'source-muted', 'Date : ' + frenchDay(invoice.invoice_date) + ' · Période : ' + frenchDay(invoice.start_of_period) + ' au ' + frenchDay(invoice.end_of_period)));
+  card.append(element('p', 'invoice-relation', invoice.relation));
+  const actions = element('div', 'source-actions'), lines = element('div'); let shown = false;
+  const detail = button('Voir les lignes', async () => {
+    if (shown) { lines.hidden = !lines.hidden; detail.textContent = lines.hidden ? 'Voir les lignes' : 'Masquer les lignes'; return; }
+    detail.disabled = true; lines.replaceChildren(element('p', 'source-muted', 'Lecture des lignes de facture…'));
+    try {
+      const cacheKey = client.id + ':' + invoice.id_invoice;
+      let source = scope.invoices.get(cacheKey);
+      if (!source) { source = (await request(scope.data.month, { resource: 'invoice', id: invoice.id_invoice, customer_id: client.id })).invoice; scope.invoices.set(cacheKey, source); }
+      if (scope !== evidence || !card.isConnected) return;
+      lines.replaceChildren();
+      for (const line of source.lines || []) {
+        const row = element('div', 'source-price-line'); row.append(element('strong', '', line.title || 'Ligne de facture'));
+        if (line.line_type !== 'T') {
+          const total = moneyValue(line.amount_incl_taxe);
+          row.append(element('p', 'source-muted', `${line.quantity || '—'} ${displayUnit(line.unit_type)} · ${sourceAmount(total)}`));
+        }
+        lines.append(row);
+      }
+      if (!source.lines?.length) lines.append(element('p', 'source-muted', 'Aucune ligne renvoyée par Ogust.'));
+      shown = true; detail.textContent = 'Masquer les lignes';
+    } catch { if (scope === evidence && card.isConnected) lines.replaceChildren(element('p', 'source-muted', 'Les lignes n’ont pas pu être chargées. Réessaie.')); }
+    finally { detail.disabled = false; }
+  });
+  actions.append(detail);
+  const pdf = button(invoice.type === 'A' ? 'Voir l’avoir PDF' : 'Voir la facture PDF', () => openDocument('invoice', invoice.id_invoice, client.id, invoice.title, pdf));
+  pdf.disabled = !invoice.document_available; actions.append(pdf); card.append(actions, lines); parent.append(card);
+}
+async function mountEvidence(parent, client, scope) {
+  if (!scope || scope !== evidence || !parent.isConnected) return;
+  parent.replaceChildren(); parent.append(element('h3', '', 'Contrats et montants prévus'));
+  const ids = [...new Set(client.rows.map(row => row.contract_id).filter(Boolean))];
+  if (!ids.length) parent.append(element('p', 'source-muted', 'Aucun contrat n’est associé aux prestations lues.'));
+  for (const id of ids) {
+    const holder = element('div'); parent.append(holder);
+    try {
+      let contract = scope.contracts.get(id);
+      if (!contract) {
+        holder.append(element('p', 'source-muted', 'Lecture du contrat…'));
+        contract = (await request(scope.data.month, { resource: 'contract', id, customer_id: client.id })).contract;
+        scope.contracts.set(id, contract);
+      }
+      if (scope !== evidence || !parent.isConnected) return;
+      holder.replaceChildren(); renderContractCard(holder, contract, client, scope);
+    } catch {
+      if (scope !== evidence || !parent.isConnected) return;
+      holder.replaceChildren(element('p', 'source-muted', 'Le contrat n’a pas pu être lu.'));
+      holder.append(button('Réessayer la lecture', () => mountEvidence(parent, client, scope)));
+      const pdf = button('Consulter le contrat PDF', () => openDocument('contract', id, client.id, 'Contrat ' + id, pdf)); holder.append(pdf);
+    }
+  }
+  if (scope !== evidence || !parent.isConnected) return;
+  const matches = invoiceEvidence(client, scope.data.invoices, scope.data.month, scope.data.lists);
+  parent.append(element('h3', '', 'Factures et avoirs associés'));
+  if (!matches.relevant.length) parent.append(element('p', 'source-muted', 'Aucune facture liée aux passages ou correspondant à cette période n’a été retrouvée dans la lecture. L’historique du client reste consultable ci-dessous.'));
+  for (const invoice of matches.relevant) renderInvoiceCard(parent, invoice, client, scope);
+  if (matches.history.length) {
+    const history = element('details', 'invoice-history'), summary = element('summary', '', `Autres factures et avoirs du client (${matches.history.length})`), list = element('div'); let loaded = 0;
+    const more = button('Afficher la suite', () => appendMore());
+    function appendMore() {
+      for (const invoice of matches.history.slice(loaded, loaded + 10)) renderInvoiceCard(list, invoice, client, scope);
+      loaded += 10; more.hidden = loaded >= matches.history.length;
+    }
+    history.append(summary, list, more); history.addEventListener('toggle', () => { if (history.open && !loaded) appendMore(); }); parent.append(history);
+  }
+}
 function serviceDate(row) {
   const raw = String(row.start || '').replace(/\D/g, ''), end = String(row.end || '').replace(/\D/g, '');
   if (raw.length < 12) return 'Date à vérifier';
@@ -60,30 +201,31 @@ function render() {
     const reviews = client.rows.filter(row => row.state === 'review');
     const onlyForfaits = reviews.length > 0 && reviews.every(forfaitToReview);
     const reasonCount = new Set(client.rows.flatMap(visibleReviewReasons)).size;
-    const meta = onlyForfaits ? (reasonCount ? ` · ${reasonCount} point${reasonCount > 1 ? 's' : ''} et forfait à contrôler` : ' · forfait à contrôler dans Ogust') : client.state === 'review' ? ` · ${reasonCount + (hasForfait ? 1 : 0)} point${reasonCount + (hasForfait ? 1 : 0) > 1 ? 's' : ''} à contrôler` : '';
+    const meta = onlyForfaits ? (reasonCount ? ` · ${reasonCount} point${reasonCount > 1 ? 's' : ''} et montant à contrôler` : ' · montant à contrôler dans la fiche') : client.state === 'review' ? ` · ${reasonCount + (hasForfait ? 1 : 0)} point${reasonCount + (hasForfait ? 1 : 0) > 1 ? 's' : ''} à contrôler` : '';
     left.append(element('span', 'client-meta', `${n} prestation${n > 1 ? 's' : ''}` + meta));
     const right = element('span', 'client-right');
     if (client.state === 'ready') right.append(element('span', 'client-amount', money(client.amount_cents)));
     right.append(badge(client.state, onlyForfaits && !reasonCount ? 'Forfait à contrôler' : stateLabels[client.state]), element('span', 'chevron', '›')); summary.append(left, right); details.append(summary);
     const content = element('div', 'client-content');
+    const workspace = element('section', 'client-evidence'); let mounted = false;
+    content.append(workspace);
+    details.addEventListener('toggle', () => { if (details.open && !mounted && evidence) { mounted = true; mountEvidence(workspace, client, evidence); } });
     if (hasForfait) {
       const guide = element('section', 'forfait-guide');
-      guide.append(element('strong', '', 'Ce forfait demande un contrôle dans Ogust.'), element('p', '', 'Le calcul automatique des forfaits n’est pas encore pris en charge par cette version. Les horaires ci-dessous sont ceux du planning.'));
-      const steps = element('ol');
-      for (const step of ['Vérifier si les passages figurent déjà sur une facture.', 'Confirmer les passages réellement effectués.', 'Retrouver le montant et le rythme du forfait dans le devis ou le contrat : par passage, par mois ou selon les travaux prévus.']) steps.append(element('li', '', step));
-      guide.append(steps, element('p', '', 'Les horaires affichés ne suffisent pas à calculer le montant de ce forfait.')); content.append(guide);
+      guide.append(element('strong', '', 'Montant défini par le contrat'), element('p', '', 'Consulte le calcul, les montants du contrat et les factures dans cette fiche. Un montant par facture ne se déduit pas de la somme des heures affichées.')); content.append(guide);
     }
     for (const row of client.rows) {
       const service = element('article', 'service'), top = element('div', 'service-top'), info = element('div');
       info.append(element('div', 'service-title', row.product), element('p', 'service-date', serviceDate(row)));
-      top.append(info, badge(row.state, forfaitToReview(row) ? 'Contrôle dans Ogust' : stateLabels[row.state])); service.append(top);
+      if (row.status_label) info.append(element('p', 'service-date', 'Statut Ogust : ' + row.status_label));
+      top.append(info, badge(row.state, forfaitToReview(row) ? 'Montant à contrôler' : stateLabels[row.state])); service.append(top);
       const visibleReasons = visibleReviewReasons(row);
       if (visibleReasons.length) {
         const reasons = element('ul', 'service-reasons');
         for (const reason of visibleReasons) reasons.append(element('li', '', reason));
         service.append(reasons);
       }
-      if (row.state === 'ready' && row.amount_cents !== null) service.append(element('p', 'service-source', `${money(row.amount_cents)} TTC estimés · ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(row.quantity_hours)} h · ${row.price_source}`));
+      if (row.realization === 'realized' && row.amount_cents !== null && !row.invoices.length) service.append(element('p', 'service-source', `${money(row.amount_cents)} TTC estimés · ${quantityText(row.quantity)} ${displayUnit(row.quantity_unit)} · ${row.price_source}`));
       if (row.invoices.length) service.append(element('p', 'invoice-ref', 'Facture' + (row.invoices.length > 1 ? 's' : '') + ' : ' + row.invoices.map(invoice => invoice.number || 'brouillon ' + invoice.id).join(', ')));
       content.append(service);
     }
@@ -139,7 +281,7 @@ function errorMessage(code) {
 async function load() {
   if (!authReady || !$('period-form').reportValidity()) return;
   controller?.abort(); const turn = ++serial; const abort = new AbortController(); controller = abort;
-  const month = $('month').value; report = null; render(); $('error').hidden = true; $('loading').hidden = false; $('refresh').disabled = true;
+  const month = $('month').value; closeDocument(); evidence = null; report = null; render(); $('error').hidden = true; $('loading').hidden = false; $('refresh').disabled = true;
   $('progress').value = 0; $('status').textContent = 'Rapprochement en cours…'; $('sources').textContent = 'Lecture des sources Ogust en cours.';
   progress('Lecture des prestations et des factures', 'Les dossiers apparaîtront à la fin du contrôle.', 3);
   try {
@@ -161,14 +303,14 @@ async function load() {
       read++; progress('Vérification des contrats clients', `${read} contrats sur ${contractIds.length} consultés.`, 65 + Math.round(read / contractIds.length * 30));
     });
     abort.signal.throwIfAborted(); if (turn !== serial) return;
-    data.complete = true; report = reconcile(data); render();
+    data.complete = true; evidence = { data, contracts: new Map(data.contracts.map(contract => [String(contract.id_contract), contract])), invoices: new Map() }; report = reconcile(data); render();
     const completedAt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());
     $('status').textContent = `Lecture complète le ${completedAt} · ${report.counts.total} prestations · ${report.counts.clients} clients`;
     $('sources').textContent = `${data.services.length} prestations du mois, ${data.invoices.length} factures et avoirs parcourus, ${data.customers.length} clients, ${data.rates.length} tarifs, ${data.products.length} prestations du catalogue et ${read} contrats consultés.` + (missingLists || data.contract_errors.length ? ' Les règles ou contrats non disponibles sont signalés dans les dossiers concernés.' : '') + ' Les données sont gardées uniquement en mémoire dans cette page.';
     const url = new URL(location.href); url.searchParams.set('month', month); history.replaceState(null, '', url);
   } catch (error) {
     if (turn !== serial) return;
-    const cancelled = abort.signal.aborted; abort.abort(); report = null; render();
+    const cancelled = abort.signal.aborted; abort.abort(); evidence = null; report = null; render();
     $('status').textContent = cancelled ? 'Lecture arrêtée. Les résultats restent incomplets.' : 'Rapprochement indisponible.';
     if (!cancelled) { $('error').hidden = false; $('error-message').textContent = errorMessage(error.message); }
   } finally {
@@ -176,10 +318,13 @@ async function load() {
   }
 }
 $('period-form').addEventListener('submit', event => { event.preventDefault(); load(); });
-$('month').addEventListener('change', () => { controller?.abort(); serial++; controller = null; report = null; render(); $('loading').hidden = true; $('refresh').disabled = false; $('error').hidden = true; load(); });
+$('month').addEventListener('change', () => { controller?.abort(); closeDocument(); serial++; controller = null; evidence = null; report = null; render(); $('loading').hidden = true; $('refresh').disabled = false; $('error').hidden = true; load(); });
 $('cancel').addEventListener('click', () => controller?.abort());
 $('retry').addEventListener('click', load);
 $('search').addEventListener('input', render);
+$('document-close').addEventListener('click', closeDocument);
+$('document-dialog').addEventListener('cancel', event => { event.preventDefault(); closeDocument(); });
+window.addEventListener('pagehide', () => { closeDocument(); evidence = null; });
 for (const button of document.querySelectorAll('[data-filter]')) button.addEventListener('click', () => {
   filter = button.dataset.filter;
   for (const option of document.querySelectorAll('[data-filter]')) option.setAttribute('aria-pressed', String(option === button));

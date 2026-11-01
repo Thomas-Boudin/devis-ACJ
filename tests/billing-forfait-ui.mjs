@@ -4,6 +4,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 import * as engine from '../facturation/billing-core.mjs';
+import * as details from '../facturation/billing-details.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const deps = path.resolve(import.meta.dirname, process.env.ACJ_DOM_TEST_DEPS || '../../dom-test/node_modules');
@@ -11,7 +12,8 @@ const require = createRequire(path.join(deps, 'billing-test.cjs'));
 const { JSDOM, VirtualConsole } = require(path.join(deps, 'jsdom/lib/api.js'));
 const html = fs.readFileSync(path.join(root, 'facturation/index.html'), 'utf8');
 const app = fs.readFileSync(path.join(root, 'facturation/billing-app.mjs'), 'utf8')
-  .replace(/^import\s+\{[^}]+\}\s+from\s+['"][^'"]+['"];\s*/, 'const {contractsToRead,normalize,reconcile,visibleReviewReasons}=window.__billingEngine;\n');
+  .replace(/^import\s+\{[^}]+\}\s+from\s+['"][^'"]*billing-core[^'"]*['"];\s*/m, 'const {contractsToRead,normalize,reconcile,visibleReviewReasons}=window.__billingEngine;\n')
+  .replace(/^import\s+\{[^}]+\}\s+from\s+['"][^'"]*billing-details[^'"]*['"];\s*/m, 'const {contractView,invoiceEvidence,ruleLabel,frenchDay,displayUnit,moneyValue}=window.__billingDetails;\n');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function until(fn) { for (let i = 0; i < 150; i++) { if (fn()) return; await wait(10); } throw new Error('Billing renderer timed out'); }
 function fixture() {
@@ -24,7 +26,7 @@ function fixture() {
     products: [{ id_productlevel: 'p1', label: 'Forfait Entretien complet du jardin', internal_hour: 'N' }],
     rates: [{ id_rate: 'r1', product_level: 'p1', unit: 'Q', tax_rate: '20', selling_price_inc: '100' }],
     invoices: [],
-    contract: { id_contract: 'ct1', id_customer: 'c1', status: 'V', start_date: '20260101', lines_present: true, lines: [] },
+    contract: { id_contract: 'ct1', id_customer: 'c1', status: 'V', start_date: '20260101', calculation_method: 'FOR', base_payment: 'TTC', lump_sum_amount: '100', amount_TTC: '100', lines_present: true, lines: [] },
     lists: { 'contract.status': { V: 'Validé' } }
   };
 }
@@ -33,7 +35,7 @@ async function render(data, check) {
   vc.on('jsdomError', error => errors.push(error));
   const dom = new JSDOM(html, { url: 'https://thomas-boudin.github.io/devis-ACJ/facturation/?month=2026-10', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc });
   const w = dom.window, doc = w.document;
-  Object.assign(w, { Response, Request, Headers, AbortController, __billingEngine: engine, acjAuthV292: { serverRequired: true, authenticated: true } });
+  Object.assign(w, { Response, Request, Headers, AbortController, __billingEngine: engine, __billingDetails: details, acjAuthV292: { serverRequired: true, authenticated: true } });
   w.fetch = async (input, options) => {
     assert.equal(options.method, 'GET', 'Billing guidance must not perform business writes');
     const url = new URL(input), resource = url.searchParams.get('resource'); calls.push(resource);
@@ -52,9 +54,9 @@ async function render(data, check) {
 }
 await render(fixture(), doc => {
   assert.equal(doc.querySelectorAll('.forfait-guide').length, 1, 'A client gets one guide for both visits');
-  assert.equal(doc.querySelectorAll('.forfait-guide ol li').length, 3);
-  assert.match(doc.querySelector('.forfait-guide').textContent, /pas encore pris en charge/);
-  assert.match(doc.querySelector('.client-meta').textContent, /forfait à contrôler dans Ogust/);
+  assert.doesNotMatch(doc.querySelector('.forfait-guide').textContent, /contrôle dans Ogust|aller sur Ogust/);
+  assert.match(doc.querySelector('.forfait-guide').textContent, /dans cette fiche/);
+  assert.match(doc.querySelector('.client-meta').textContent, /dans la fiche/);
   assert.equal(doc.querySelectorAll('.service').length, 2);
   assert.equal(doc.querySelectorAll('.service-reasons').length, 0, 'Covered realization instructions are not repeated per visit');
   assert.equal(doc.querySelectorAll('.service-source').length, 0, 'Planned hours cannot produce a forfait amount');

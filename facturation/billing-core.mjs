@@ -1,9 +1,10 @@
 // Pure reconciliation rules. This module never calls an API or writes an invoice.
 export const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 const id = value => String(value ?? '').trim();
+const ref = value => id(value) === '0' ? '' : id(value);
 const index = (rows, key) => new Map((rows || []).map(row => [id(row[key]), row]));
 const day = value => String(value ?? '').replace(/\D/g, '').slice(0, 8);
-export const FORFAIT_REVIEW_REASON = 'Forfait : calcul automatique non pris en charge';
+export const FORFAIT_REVIEW_REASON = 'Montant par facture à contrôler dans la fiche contrat';
 export function visibleReviewReasons(row) {
   if (row.billing_kind !== 'forfait' || row.state !== 'review') return row.reasons;
   // The shared forfait instructions already ask the user to confirm realization.
@@ -30,7 +31,6 @@ function dateTime(value) {
   const check = new Date(time);
   return check.getUTCFullYear() === y && check.getUTCMonth() === m - 1 && check.getUTCDate() === dt && h < 24 && min < 60 ? time : null;
 }
-function validValidation(value) { return dateTime(value) !== null; }
 function validDay(value) {
   const valueDay = day(value);
   return valueDay.length === 8 && dateTime(valueDay + '0000') !== null ? valueDay : '';
@@ -54,7 +54,7 @@ export function hours(value, kind) {
 export function invoiceState(invoice, lists = {}) {
   const raw = id(invoice?.status).toUpperCase();
   const label = normalize(labelled(lists, 'invoice.status', invoice?.status));
-  if (raw === 'S' || /supprim|annul/.test(label)) return 'deleted';
+  if (raw === 'S' || raw === 'A' || /supprim|annul/.test(label)) return 'deleted';
   if (id(invoice?.type).toUpperCase() === 'A') return 'credit';
   if (id(invoice?.type).toUpperCase() !== 'F') return 'unknown';
   if (raw === 'B' || /brouillon/.test(label)) return 'draft';
@@ -73,44 +73,56 @@ function overlapsMonth(invoice, month) {
   const hasPeriod = [invoice.start_of_period, invoice.end_of_period].some(value => day(value) && day(value) !== '00000000');
   return hasPeriod || !knownMonth;
 }
-function monthly(label) {
-  const value = normalize(label);
-  return !/bimens|bimes|trimes|semes|annuel|quinz/.test(value) && /mensuel|chaque mois|par mois|fin de mois|mois civil/.test(value);
-}
 function realized(service, lists) {
   const raw = id(service.status).toUpperCase();
   const label = normalize(labelled(lists, 'service.status', service.status));
-  if (/annul|supprim/.test(label)) return 'cancelled';
-  if (raw === 'R' || /realis|effectu|termine/.test(label)) return 'realized';
+  if (raw === 'N' || /annul|supprim/.test(label)) return 'cancelled';
+  if (raw === 'A' || raw === 'B' || /a realiser|non realis|pas realis|planifi/.test(label)) return 'unconfirmed';
+  if (raw === 'R' || /\b(realise|realisee|effectue|effectuee|termine|terminee)\b/.test(label)) return 'realized';
   return 'unconfirmed';
 }
-function forfaitFor(service, product, contract, lists) {
-  const namedForfait = value => /\bforfait(?:aire)?\b/.test(normalize(value));
-  if (namedForfait(product?.label) || namedForfait(labelled(lists, 'contract.pricing', contract?.pricing))) return true;
-  const matching = (contract?.lines || []).filter(line =>
-    (id(service.rates) && id(line.rates) === id(service.rates)) ||
-    (id(service.product_level) && id(line.product_level) === id(service.product_level)));
-  return matching.some(line => namedForfait(line.title) || namedForfait(labelled(lists, 'linecontract.unit', line.unit)));
+export function contractMode(contract) {
+  const method = id(contract?.calculation_method).toUpperCase();
+  if (method === 'FOR') return 'forfait';
+  if (method === 'CON') return 'contract_lines';
+  if (method === 'PLA') return id(contract?.to_invoice) === 'HEU' ? 'hourly' : id(contract?.to_invoice) === 'QTE' ? 'quantity' : 'unknown';
+  return 'unknown';
 }
 function pricingFor(service, contract, rateMap, lists) {
   const issues = [];
   const monetary = (contract.lines || []).filter(line => id(line.line_type).toUpperCase() === 'M');
-  let matches = monetary.filter(line => id(service.rates) && id(line.rates) === id(service.rates));
+  let matches = monetary.filter(line => ref(service.rates) && ref(line.rates) === ref(service.rates));
   if (!matches.length) matches = monetary.filter(line => id(line.product_level) === id(service.product_level));
   if (matches.length !== 1) return { issues: ['Ligne tarifaire du contrat absente ou ambiguë'], amount_cents: null, quantity_hours: null };
   const line = matches[0];
   if (id(line.product_level) && id(line.product_level) !== id(service.product_level)) issues.push('Prestation différente de celle du tarif contractuel');
-  if (id(service.rates) && id(line.rates) && id(service.rates) !== id(line.rates)) issues.push('Tarif de la prestation différent du contrat');
-  const rate = rateMap.get(id(line.rates || service.rates));
+  if (ref(service.rates) && ref(line.rates) && ref(service.rates) !== ref(line.rates)) issues.push('Tarif de la prestation différent du contrat');
+  const rate = rateMap.get(ref(line.rates) || ref(service.rates));
   if (rate?.product_level && id(rate.product_level) !== id(service.product_level)) issues.push('Tarif rattaché à une autre prestation');
   const billingUnit = unitKind(service.billing_amount_unit, labelled(lists, 'service.billing_amount_unit', service.billing_amount_unit));
   const priceUnit = unitKind(line.unit || rate?.unit, line.unit ? labelled(lists, 'linecontract.unit', line.unit) : labelled(lists, 'rates.unit', rate?.unit));
-  const quantityHours = hours(service.billing_amount, billingUnit);
-  if (!quantityHours || quantityHours > 24) issues.push('Quantité facturable ou unité à vérifier');
-  if (!priceUnit || priceUnit === 'clock') issues.push('Unité du prix contractuel à vérifier');
+  const priceCode = id(line.unit || rate?.unit).toUpperCase();
+  const countUnit = ['Q', 'F'].includes(priceCode);
+  const start = dateTime(service.start_date), end = dateTime(service.end_date);
+  const duration = start !== null && end !== null && end > start && end - start <= 86400000 ? (end - start) / 3600000 : null;
+  let quantityHours = null, quantity = null, quantitySource = '';
+  if (id(contract.to_invoice) === 'HEU') {
+    if (id(contract.type_hours) === 'PLA') { quantityHours = duration; quantitySource = 'Horaires enregistrés dans Ogust'; }
+    else issues.push('Durée de télégestion à confirmer dans la fiche');
+    if (!duration) issues.push('Horaires de prestation incohérents');
+    if (!priceUnit || priceUnit === 'clock' || countUnit) issues.push('Unité du prix contractuel incompatible avec un calcul horaire');
+    quantity = quantityHours && priceUnit === 'minutes' ? quantityHours * 60 : quantityHours;
+  } else if (id(contract.to_invoice) === 'QTE') {
+    quantitySource = 'Quantité à facturer renseignée dans Ogust';
+    const count = decimal(service.billing_amount);
+    if (countUnit && ['Q', 'F'].includes(id(service.billing_amount_unit).toUpperCase())) quantity = count;
+    else if (priceUnit && priceUnit !== 'clock') { quantityHours = hours(service.billing_amount, billingUnit); quantity = quantityHours && priceUnit === 'minutes' ? quantityHours * 60 : quantityHours; }
+    else issues.push('Unité du prix contractuel à vérifier');
+    if (quantity === null || quantity <= 0) issues.push('Quantité facturable ou unité à vérifier');
+  } else issues.push('Base heures ou quantité non reconnue dans le contrat');
   if ((decimal(line.discount_amount) ?? 0) !== 0) issues.push('Remise contractuelle à contrôler');
   const vat = decimal(line.sale_taxe_rat) ?? decimal(rate?.tax_rate);
-  const calculation = normalize(contract.calculation_method).toUpperCase();
+  const calculation = normalize(contract.base_payment).toUpperCase();
   let price = null;
   if (calculation === 'TTC') price = decimal(line.amount_unit_TTC) ?? decimal(rate?.selling_price_inc);
   else if (calculation === 'HT') {
@@ -118,13 +130,9 @@ function pricingFor(service, contract, rateMap, lists) {
     if (ht !== null && vat !== null) price = ht * (1 + vat / 100);
   } else issues.push('Base de calcul HT ou TTC à confirmer');
   if (price === null || price <= 0 || vat === null || vat < 0 || vat > 100) issues.push('Prix ou TVA manquant dans le contrat');
-  const start = dateTime(service.start_date), end = dateTime(service.end_date);
-  if (start === null || end === null || end <= start || end - start > 86400000) issues.push('Horaires de prestation incohérents');
-  else if (quantityHours && Math.abs(quantityHours - (end - start) / 3600000) > 1 / 60 + 1e-8) issues.push('Quantité facturable différente de la durée enregistrée');
-  const quantity = quantityHours && priceUnit === 'minutes' ? quantityHours * 60 : quantityHours;
-  return { issues, quantity_hours: quantityHours,
+  return { issues, quantity_hours: quantityHours, quantity, quantity_unit: countUnit ? priceCode : priceUnit === 'minutes' ? 'min' : 'h', quantity_source: quantitySource,
     unit_price_ttc: price, price_source: 'Contrat ' + (contract.reference || contract.id_contract),
-    amount_cents: !issues.length && quantity && price !== null ? Math.round((quantity * price + Number.EPSILON) * 100) : null };
+    amount_cents: !issues.length && quantity > 0 && price !== null && Number.isSafeInteger(Math.round((quantity * price + Number.EPSILON) * 100)) ? Math.round((quantity * price + Number.EPSILON) * 100) : null };
 }
 export function contractsToRead(services, invoices, lists = {}) {
   const invoiced = new Set(invoices.filter(i => invoiceState(i, lists) === 'final').flatMap(i => i.service_ids));
@@ -144,9 +152,10 @@ export function reconcile(snapshot) {
       byService.get(id(key)).push(invoice);
     }
     if (!(invoice.service_ids || []).length && invoiceState(invoice, lists) !== 'deleted' && overlapsMonth(invoice, month)) {
-      const key = id(invoice.id_customer);
-      if (!ambiguousByCustomer.has(key)) ambiguousByCustomer.set(key, []);
-      ambiguousByCustomer.get(key).push(invoice);
+      for (const key of new Set([ref(invoice.id_customer), ref(invoice.customer_service)].filter(Boolean))) {
+        if (!ambiguousByCustomer.has(key)) ambiguousByCustomer.set(key, []);
+        ambiguousByCustomer.get(key).push(invoice);
+      }
     }
   }
   for (const service of services) {
@@ -158,7 +167,7 @@ export function reconcile(snapshot) {
     const customer = customerMap.get(id(service.id_customer));
     const product = productMap.get(id(service.product_level));
     const contract = contractMap.get(id(service.contract));
-    const forfait = forfaitFor(service, product, contract, lists);
+    const billingKind = contractMode(contract), forfait = billingKind === 'forfait' || billingKind === 'contract_lines';
     const related = new Map((byService.get(id(service.id_service)) || []).map(i => [id(i.id_invoice), i]));
     const issues = [];
     for (const key of service.invoice_ids || []) {
@@ -172,14 +181,15 @@ export function reconcile(snapshot) {
     let state = 'review';
     const result = { id: id(service.id_service), customer_id: id(service.id_customer), client: customer?.label || 'Client ' + id(service.id_customer),
       product: product?.label || 'Prestation ' + id(service.product_level), start: service.start_date, end: service.end_date,
-      state, reasons: issues, amount_cents: null, quantity_hours: null, contract: contract?.reference || id(service.contract), billing_kind: forfait ? 'forfait' : 'hourly',
+      state, reasons: issues, amount_cents: null, quantity_hours: null, contract: contract?.reference || ref(service.contract), contract_id: ref(service.contract), billing_kind: forfait ? 'forfait' : billingKind, realization,
+      status: service.status, status_label: labelled(lists, 'service.status', service.status),
       invoices: attached.map(i => ({ id: i.id_invoice, number: i.number, state: invoiceState(i, lists) })) };
     if (!complete) issues.push('Lecture des données incomplète');
     if (id(service.type) !== 'I') issues.push('Type de prestation à vérifier');
     if (!day(service.start_date).startsWith(target)) issues.push('Prestation hors du mois demandé');
     const duplicateKey = [service.id_customer, service.id_employee, service.product_level, service.start_date, service.end_date].map(id).join('|');
     if (duplicateTimes.get(duplicateKey)?.length > 1) issues.push('Deux interventions identiques au même horaire');
-    if (attached.some(i => id(i.id_customer) !== id(service.id_customer))) issues.push('Facture liée à un autre client');
+    if (attached.some(i => id(i.id_customer) !== id(service.id_customer) && id(i.customer_service) !== id(service.id_customer))) issues.push('Facture liée à un autre client');
     if (states.includes('credit')) issues.push('Avoir associé : vérifier la situation de facturation');
     if (states.includes('draft')) issues.push('Prestation déjà présente dans une facture brouillon');
     if (states.includes('deleted')) issues.push('Lien vers une facture supprimée ou annulée');
@@ -193,13 +203,12 @@ export function reconcile(snapshot) {
       if (!customer) issues.push('Client absent du répertoire Ogust');
       if (!product) issues.push('Prestation absente du catalogue Ogust');
       if (realization !== 'realized' && realization !== 'cancelled') issues.push('Réalisation de la prestation à confirmer');
-      if (!validValidation(service.validate_date_I) && !validValidation(service.validate_date_C)) issues.push('Validation de réalisation manquante');
       if (forfait) issues.push(FORFAIT_REVIEW_REASON);
       if (!contract) issues.push(contract_errors.includes(id(service.contract)) ? 'Lecture du contrat impossible' : 'Contrat associé manquant');
       else if (forfait) {
         // Unsupported pricing is one app limitation, not ten hourly-field errors.
         // Known identity conflicts and contract/cancellation facts still matter.
-        if (id(contract.id_customer) !== id(service.id_customer)) issues.push('Contrat rattaché à un autre client');
+        if (id(contract.id_customer) !== id(service.id_customer) && id(contract.customer_service) !== id(service.id_customer)) issues.push('Contrat rattaché à un autre client');
         if (contract.id_company && customer?.id_company && id(contract.id_company) !== id(customer.id_company)) issues.push('Rattachement de l’établissement à vérifier');
         const status = normalize(labelled(lists, 'contract.status', contract.status));
         if (/annul|supprim|brouillon|expire|inactif/.test(status)) issues.push('Statut du contrat à confirmer');
@@ -207,27 +216,28 @@ export function reconcile(snapshot) {
         if ((start && day(service.start_date) < start) || (end && day(service.end_date) > end)) issues.push('Dates de validité du contrat à vérifier');
       }
       else {
-        if (id(contract.id_customer) !== id(service.id_customer)) issues.push('Contrat rattaché à un autre client');
-        if (!contract.id_company || !customer?.id_company || id(contract.id_company) !== id(customer.id_company)) issues.push('Rattachement de l’établissement à vérifier');
+        if (id(contract.id_customer) !== id(service.id_customer) && id(contract.customer_service) !== id(service.id_customer)) issues.push('Contrat rattaché à un autre client');
+        if (contract.id_company && customer?.id_company && id(contract.id_company) !== id(customer.id_company)) issues.push('Rattachement de l’établissement à vérifier');
         const status = normalize(labelled(lists, 'contract.status', contract.status));
         if (/annul|supprim|brouillon|expire|inactif/.test(status) || !/valide|accepte|signe|actif|en cours/.test(status)) issues.push('Statut du contrat à confirmer');
         const contractStart = validDay(contract.start_date), contractEnd = validDay(contract.end_date);
         const hasEnd = day(contract.end_date) && day(contract.end_date) !== '00000000';
         if (!contractStart || day(service.start_date) < contractStart || (hasEnd && (!contractEnd || day(service.end_date) > contractEnd))) issues.push('Dates de validité du contrat à vérifier');
-        if (!monthly(labelled(lists, 'contract.generation', contract.generation))) issues.push('Périodicité de facturation à confirmer');
-        const pricing = normalize(labelled(lists, 'contract.pricing', contract.pricing));
-        if (!pricing || /forfait|proportion|mensualis/.test(pricing) || !/reel|heure|horaire/.test(pricing)) issues.push('Tarification particulière ou règle à confirmer');
-        if (boolean(labelled(lists, 'contract.to_invoice', contract.to_invoice)) !== true) issues.push('Autorisation de facturer du contrat à confirmer');
-        const considered = normalize(labelled(lists, 'contract.services_to_consider', contract.services_to_consider));
-        if (!/realis|effectu|valid/.test(considered) || /planifi|annul|toutes/.test(considered)) issues.push('Règle de sélection des interventions à confirmer');
+        if (id(contract.generation) === '1') issues.push('Contrat prévu pour une seule facture : périmètre à confirmer dans la fiche');
+        else if (id(contract.generation) !== 'N') issues.push('Récurrence de facturation non reconnue dans le contrat');
+        if (id(contract.pricing) !== 'CP') issues.push('Tarification au volume ou règle particulière à confirmer dans la fiche');
+        if (id(contract.services_to_consider) !== 'P') issues.push('Mode prestataire ou mandataire à confirmer dans la fiche');
+        if (billingKind === 'unknown') issues.push('Mode de calcul du contrat non reconnu dans la fiche');
         if (!contract.lines_present) issues.push('Lignes du contrat incomplètes');
         if (!contract.majorations_present || contract.has_majorations) issues.push('Majorations contractuelles à contrôler');
         if ([contract.lump_sum_amount, contract.propamount_amount, contract.realamount_mile_amount, contract.realamount_service_amount].some(x => (decimal(x) ?? 0) !== 0)
           || (decimal(service.distance_charged) ?? 0) !== 0 || (decimal(service.fees_amount_charged) ?? 0) !== 0) issues.push('Forfait ou frais supplémentaires à intégrer');
-        if (contract.paidfor_service && !['0', 'N', 'n'].includes(id(contract.paidfor_service))) issues.push('Financement du contrat à contrôler');
-        const price = pricingFor(service, contract, rateMap, lists);
-        issues.push(...price.issues);
-        Object.assign(result, { amount_cents: price.amount_cents, quantity_hours: price.quantity_hours, price_source: price.price_source });
+        if (contract.paidfor_service && boolean(contract.paidfor_service) !== false) issues.push('Financement du contrat à contrôler');
+        if (billingKind !== 'unknown') {
+          const price = pricingFor(service, contract, rateMap, lists);
+          issues.push(...price.issues);
+          Object.assign(result, { amount_cents: price.amount_cents, quantity_hours: price.quantity_hours, quantity: price.quantity, quantity_unit: price.quantity_unit, quantity_source: price.quantity_source, price_source: price.price_source, unit_price_ttc: price.unit_price_ttc });
+        }
       }
       if (!issues.length && state !== 'ignored') state = 'ready';
     }
