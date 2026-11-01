@@ -3,6 +3,14 @@ export const normalize = value => String(value ?? '').normalize('NFD').replace(/
 const id = value => String(value ?? '').trim();
 const index = (rows, key) => new Map((rows || []).map(row => [id(row[key]), row]));
 const day = value => String(value ?? '').replace(/\D/g, '').slice(0, 8);
+export const FORFAIT_REVIEW_REASON = 'Forfait : calcul automatique non pris en charge';
+export function visibleReviewReasons(row) {
+  if (row.billing_kind !== 'forfait' || row.state !== 'review') return row.reasons;
+  // The shared forfait instructions already ask the user to confirm realization.
+  // Keep all invoice, duplicate, identity and cancellation warnings visible.
+  const covered = new Set([FORFAIT_REVIEW_REASON, 'Validation de réalisation manquante', 'Réalisation de la prestation à confirmer']);
+  return row.reasons.filter(reason => !covered.has(reason));
+}
 export function decimal(value) {
   const source = String(value ?? '').trim().replace(/\s/g, '').replace(',', '.');
   return /^-?\d+(\.\d+)?$/.test(source) && Number.isFinite(Number(source)) ? Number(source) : null;
@@ -76,6 +84,14 @@ function realized(service, lists) {
   if (raw === 'R' || /realis|effectu|termine/.test(label)) return 'realized';
   return 'unconfirmed';
 }
+function forfaitFor(service, product, contract, lists) {
+  const namedForfait = value => /\bforfait(?:aire)?\b/.test(normalize(value));
+  if (namedForfait(product?.label) || namedForfait(labelled(lists, 'contract.pricing', contract?.pricing))) return true;
+  const matching = (contract?.lines || []).filter(line =>
+    (id(service.rates) && id(line.rates) === id(service.rates)) ||
+    (id(service.product_level) && id(line.product_level) === id(service.product_level)));
+  return matching.some(line => namedForfait(line.title) || namedForfait(labelled(lists, 'linecontract.unit', line.unit)));
+}
 function pricingFor(service, contract, rateMap, lists) {
   const issues = [];
   const monetary = (contract.lines || []).filter(line => id(line.line_type).toUpperCase() === 'M');
@@ -142,6 +158,7 @@ export function reconcile(snapshot) {
     const customer = customerMap.get(id(service.id_customer));
     const product = productMap.get(id(service.product_level));
     const contract = contractMap.get(id(service.contract));
+    const forfait = forfaitFor(service, product, contract, lists);
     const related = new Map((byService.get(id(service.id_service)) || []).map(i => [id(i.id_invoice), i]));
     const issues = [];
     for (const key of service.invoice_ids || []) {
@@ -155,7 +172,7 @@ export function reconcile(snapshot) {
     let state = 'review';
     const result = { id: id(service.id_service), customer_id: id(service.id_customer), client: customer?.label || 'Client ' + id(service.id_customer),
       product: product?.label || 'Prestation ' + id(service.product_level), start: service.start_date, end: service.end_date,
-      state, reasons: issues, amount_cents: null, quantity_hours: null, contract: contract?.reference || id(service.contract),
+      state, reasons: issues, amount_cents: null, quantity_hours: null, contract: contract?.reference || id(service.contract), billing_kind: forfait ? 'forfait' : 'hourly',
       invoices: attached.map(i => ({ id: i.id_invoice, number: i.number, state: invoiceState(i, lists) })) };
     if (!complete) issues.push('Lecture des données incomplète');
     if (id(service.type) !== 'I') issues.push('Type de prestation à vérifier');
@@ -177,7 +194,18 @@ export function reconcile(snapshot) {
       if (!product) issues.push('Prestation absente du catalogue Ogust');
       if (realization !== 'realized' && realization !== 'cancelled') issues.push('Réalisation de la prestation à confirmer');
       if (!validValidation(service.validate_date_I) && !validValidation(service.validate_date_C)) issues.push('Validation de réalisation manquante');
+      if (forfait) issues.push(FORFAIT_REVIEW_REASON);
       if (!contract) issues.push(contract_errors.includes(id(service.contract)) ? 'Lecture du contrat impossible' : 'Contrat associé manquant');
+      else if (forfait) {
+        // Unsupported pricing is one app limitation, not ten hourly-field errors.
+        // Known identity conflicts and contract/cancellation facts still matter.
+        if (id(contract.id_customer) !== id(service.id_customer)) issues.push('Contrat rattaché à un autre client');
+        if (contract.id_company && customer?.id_company && id(contract.id_company) !== id(customer.id_company)) issues.push('Rattachement de l’établissement à vérifier');
+        const status = normalize(labelled(lists, 'contract.status', contract.status));
+        if (/annul|supprim|brouillon|expire|inactif/.test(status)) issues.push('Statut du contrat à confirmer');
+        const start = validDay(contract.start_date), end = validDay(contract.end_date);
+        if ((start && day(service.start_date) < start) || (end && day(service.end_date) > end)) issues.push('Dates de validité du contrat à vérifier');
+      }
       else {
         if (id(contract.id_customer) !== id(service.id_customer)) issues.push('Contrat rattaché à un autre client');
         if (!contract.id_company || !customer?.id_company || id(contract.id_company) !== id(customer.id_company)) issues.push('Rattachement de l’établissement à vérifier');

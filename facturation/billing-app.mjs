@@ -1,4 +1,4 @@
-import { contractsToRead, normalize, reconcile } from './billing-core.mjs?v=2';
+import { contractsToRead, normalize, reconcile, visibleReviewReasons } from './billing-core.mjs?v=3';
 
 const API = 'https://acj-ogust-proxy.vercel.app/api/ogust-history';
 const COMPANY = 'ACJ Services';
@@ -24,7 +24,8 @@ function element(tag, className, content) {
   if (content !== undefined) node.textContent = content;
   return node;
 }
-function badge(state) { return element('span', 'badge ' + state, stateLabels[state]); }
+function badge(state, label = stateLabels[state]) { return element('span', 'badge ' + state, label); }
+function forfaitToReview(row) { return row.billing_kind === 'forfait' && row.state === 'review'; }
 function serviceDate(row) {
   const raw = String(row.start || '').replace(/\D/g, ''), end = String(row.end || '').replace(/\D/g, '');
   if (raw.length < 12) return 'Date à vérifier';
@@ -55,19 +56,31 @@ function render() {
   for (const client of visible) {
     const details = element('details', 'client'), summary = element('summary');
     const left = element('span'); left.append(element('span', 'client-title', client.client));
-    const n = client.rows.length, reasonCount = new Set(client.rows.flatMap(row => row.reasons)).size;
-    left.append(element('span', 'client-meta', `${n} prestation${n > 1 ? 's' : ''}` + (client.state === 'review' ? ` · ${reasonCount} point${reasonCount > 1 ? 's' : ''} à contrôler` : '')));
+    const n = client.rows.length, hasForfait = client.rows.some(forfaitToReview);
+    const reviews = client.rows.filter(row => row.state === 'review');
+    const onlyForfaits = reviews.length > 0 && reviews.every(forfaitToReview);
+    const reasonCount = new Set(client.rows.flatMap(visibleReviewReasons)).size;
+    const meta = onlyForfaits ? (reasonCount ? ` · ${reasonCount} point${reasonCount > 1 ? 's' : ''} et forfait à contrôler` : ' · forfait à contrôler dans Ogust') : client.state === 'review' ? ` · ${reasonCount + (hasForfait ? 1 : 0)} point${reasonCount + (hasForfait ? 1 : 0) > 1 ? 's' : ''} à contrôler` : '';
+    left.append(element('span', 'client-meta', `${n} prestation${n > 1 ? 's' : ''}` + meta));
     const right = element('span', 'client-right');
     if (client.state === 'ready') right.append(element('span', 'client-amount', money(client.amount_cents)));
-    right.append(badge(client.state), element('span', 'chevron', '›')); summary.append(left, right); details.append(summary);
+    right.append(badge(client.state, onlyForfaits && !reasonCount ? 'Forfait à contrôler' : stateLabels[client.state]), element('span', 'chevron', '›')); summary.append(left, right); details.append(summary);
     const content = element('div', 'client-content');
+    if (hasForfait) {
+      const guide = element('section', 'forfait-guide');
+      guide.append(element('strong', '', 'Ce forfait demande un contrôle dans Ogust.'), element('p', '', 'Le calcul automatique des forfaits n’est pas encore pris en charge par cette version. Les horaires ci-dessous sont ceux du planning.'));
+      const steps = element('ol');
+      for (const step of ['Vérifier si les passages figurent déjà sur une facture.', 'Confirmer les passages réellement effectués.', 'Retrouver le montant et le rythme du forfait dans le devis ou le contrat : par passage, par mois ou selon les travaux prévus.']) steps.append(element('li', '', step));
+      guide.append(steps, element('p', '', 'Les horaires affichés ne suffisent pas à calculer le montant de ce forfait.')); content.append(guide);
+    }
     for (const row of client.rows) {
       const service = element('article', 'service'), top = element('div', 'service-top'), info = element('div');
       info.append(element('div', 'service-title', row.product), element('p', 'service-date', serviceDate(row)));
-      top.append(info, badge(row.state)); service.append(top);
-      if (row.reasons.length) {
+      top.append(info, badge(row.state, forfaitToReview(row) ? 'Contrôle dans Ogust' : stateLabels[row.state])); service.append(top);
+      const visibleReasons = visibleReviewReasons(row);
+      if (visibleReasons.length) {
         const reasons = element('ul', 'service-reasons');
-        for (const reason of row.reasons) reasons.append(element('li', '', reason));
+        for (const reason of visibleReasons) reasons.append(element('li', '', reason));
         service.append(reasons);
       }
       if (row.state === 'ready' && row.amount_cents !== null) service.append(element('p', 'service-source', `${money(row.amount_cents)} TTC estimés · ${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 3 }).format(row.quantity_hours)} h · ${row.price_source}`));

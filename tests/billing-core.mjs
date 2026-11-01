@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { reconcile, contractsToRead, invoiceState, hours, unitKind } from '../facturation/billing-core.mjs';
+import { reconcile, contractsToRead, invoiceState, hours, unitKind, visibleReviewReasons, FORFAIT_REVIEW_REASON } from '../facturation/billing-core.mjs';
 
 function fixture() {
   return { month: '2026-10', complete: true,
@@ -39,7 +39,16 @@ test('Canceled services are reviewed, including when already invoiced', () => re
 test('Missing contracts prevent a ready classification', () => review(d => { d.contracts = []; }, /Contrat associé manquant/));
 test('Cross-client contracts cannot be used', () => review(d => { d.contracts[0].id_customer = 'c2'; }, /Contrat rattaché à un autre/));
 test('Cross-establishment contracts require review', () => review(d => { d.contracts[0].id_company = 'other'; }, /établissement/));
-test('Forfaits are never billed using planned hours', () => review(d => { d.lists['contract.pricing'].R = 'Forfait'; }, /Tarification particulière/));
+test('Forfaits are never billed using planned hours', () => { const r = review(d => { d.lists['contract.pricing'].R = 'Forfait'; }, /Forfait/); assert.equal(r.rows[0].amount_cents, null); });
+test('A forfait product cannot become ready even if its contract otherwise looks hourly', () => { const r = review(d => { d.products[0].label = 'Forfait Entretien complet du jardin'; }, /Forfait/); assert.equal(r.rows[0].billing_kind, 'forfait'); assert.equal(r.rows[0].amount_cents, null); });
+test('Uninterpreted forfait fields do not become a list of hourly billing errors', () => {
+  const r = review(d => { d.products[0].label = 'Forfait Entretien complet du jardin'; d.contracts[0].generation = ''; d.contracts[0].pricing = ''; d.contracts[0].to_invoice = ''; d.contracts[0].services_to_consider = ''; d.contracts[0].calculation_method = ''; d.contracts[0].id_company = ''; d.services[0].billing_amount_unit = ''; d.contracts[0].lines[0].amount_unit_TTC = ''; d.contracts[0].lines[0].sale_taxe_rat = ''; d.services[0].validate_date_I = ''; }, /Forfait/);
+  assert.deepEqual(r.rows[0].reasons.sort(), [FORFAIT_REVIEW_REASON, 'Validation de réalisation manquante'].sort());
+  assert.deepEqual(visibleReviewReasons(r.rows[0]), []);
+});
+test('A forfait already linked to a final invoice remains billed', () => { const d = fixture(); d.products[0].label = 'Forfait jardin'; d.invoices.push(invoice()); const r = reconcile(d); assert.equal(r.rows[0].state, 'billed'); assert.equal(r.counts.billed, 1); });
+test('Forfait guidance never hides credit notes or drafts', () => { const r = review(d => { d.products[0].label = 'Forfait jardin'; d.invoices.push(invoice({ status: 'B', number: '', validation_date: '' }), invoice({ id_invoice: 'credit', type: 'A' })); }); assert.match(visibleReviewReasons(r.rows[0]).join('|'), /Avoir/); assert.match(visibleReviewReasons(r.rows[0]).join('|'), /brouillon/); });
+test('Forfait guidance never hides duplicates or known contract identity conflicts', () => { const d = fixture(); d.products[0].label = 'Forfait jardin'; d.services.push({ ...d.services[0], id_service: 's2' }); d.contracts[0].id_customer = 'c2'; const r = reconcile(d); assert.ok(r.rows.every(row => visibleReviewReasons(row).some(reason => /identiques/.test(reason)))); assert.match(visibleReviewReasons(r.rows[0]).join('|'), /autre client/); });
 test('Discounts, fees and markups require review', () => review(d => { d.contracts[0].lines[0].discount_amount = '10'; d.services[0].fees_amount_charged = '5'; d.contracts[0].has_majorations = true; }, /Remise/));
 test('Unknown periodicity is not inferred', () => review(d => { d.lists['contract.generation'] = {}; }, /Périodicité/));
 test('An annulled contract is never treated as active', () => review(d => { d.lists['contract.status'].V = 'Annulé'; }, /Statut/));
