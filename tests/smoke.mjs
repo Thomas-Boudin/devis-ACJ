@@ -6,10 +6,10 @@ function expect(condition,message){if(!condition)throw new Error(message)}
 const sw=read('sw.js');
 const manifest=JSON.parse(read('manifest.json'));
 
-expect(sw.includes("const CACHE = 'devis-acj-v71';"),'Le cache PWA doit être v71');
-expect(sw.includes("const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/'];"),'Les sous-apps doivent être isolées du Service Worker Devis');
+expect(sw.includes("const CACHE = 'devis-acj-v72';"),'Le cache PWA doit être v72');
+expect(sw.includes("const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/', 'facturation/'];"),'Les sous-apps doivent être isolées du Service Worker Devis');
 expect(sw.includes("key.startsWith(CACHE_PREFIX)"),'Le Service Worker Devis ne doit supprimer que ses propres caches');
-expect(sw.includes("if (isIsolatedSubapp(event.request.url)) return;"),'Le Service Worker Devis doit ignorer Terrain et Intervenantes');
+expect(sw.includes("if (isIsolatedSubapp(event.request.url)) return;"),'Le Service Worker Devis doit ignorer Terrain, Intervenantes et Facturation');
 for(const asset of ['index.html','manifest.json','fast-flow-v42.js','draft-v42.js','voice-v43.js','learning-v45.js','ai-v17.js','auth-v29-2.js','ogust-write-v19.js','client-step-v21.js','multi-ogust-v28.js','prestation-sync-v24.js','costs-v28-1.js','ogust-units-v25.js','history-v29.js','history-delete-v29-1.js','ux-v30.js','contacts-v60.js','quote-pdf-v62.js','email-delivery-v62.js','vendor/jspdf-4.2.1.umd.min.js','vendor/acj-pdf-fonts-v62.js','availability-v32.js','history-reopen-v33.js']){
   expect(fs.existsSync(asset),`Asset manquant: ${asset}`);
   expect(sw.includes(`./${asset}${asset.endsWith('.js')?'?v=71':''}`),`Asset non préchargé dans sw.js: ${asset}`);
@@ -54,5 +54,6 @@ expect(read('index.html').includes('notes-import-v39.js?v=71'),'Import notes man
 expect(sw.includes('./notes-import-v39.js?v=71'),'Import notes non préchargé');
 
 expect(read('index.html').includes('learning-v45.js?v=71'),'Mémoire des corrections non chargée');
+
 
 
