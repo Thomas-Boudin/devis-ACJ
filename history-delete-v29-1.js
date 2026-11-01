@@ -44,21 +44,23 @@
     const client=String(p?.client?.nom||'ce devis');
     const ref=String(p?.numero_devis||'');
     const suffix=ref?` (${ref})`:'';
-    if(!window.confirm(`Supprimer ${client}${suffix} de l’historique de cette application ?\n\nCela ne supprime rien dans Ogust.`))return;
+    const shared=window.acjSharedQuotes72?.enabled;
+    if(!window.confirm(shared?`Masquer ${client}${suffix} sur cet appareil ?\n\nLe devis partagé reste disponible sur les autres appareils et dans Ogust. Tu pourras le réafficher.`:`Supprimer ${client}${suffix} de l’historique de cette application ?\n\nCela ne supprime rien dans Ogust.`))return;
 
     const key=quoteKey(p);
+    if(shared)window.acjSharedQuotes72.hideLocal(p.societe,p.numero_devis);
     const remaining=savedQuotes().filter(item=>quoteKey(item)!==key);
     try{localStorage.setItem(SAVED_KEY,JSON.stringify(remaining))}catch{}
     const meta=readJson(META_KEY,{});
     if(meta&&typeof meta==='object'&&!Array.isArray(meta)&&key in meta){delete meta[key];try{localStorage.setItem(META_KEY,JSON.stringify(meta))}catch{}}
-    refreshHistory('Devis supprimé de l’historique local. Aucun devis Ogust n’a été supprimé.');
+    refreshHistory(shared?'Devis masqué sur cet appareil. Utilise « Réafficher » pour le retrouver.':'Devis supprimé de l’historique local. Aucun devis Ogust n’a été supprimé.');
   }
   function enhanceCards(){
     const cards=document.querySelectorAll('#historyList .histCard');
     cards.forEach((card,index)=>{
       const actions=card.querySelector('.histMoreActions59')||card.querySelector('.histActions');if(!actions||actions.querySelector('.histDeleteBtn'))return;
       const button=document.createElement('button');
-      button.type='button';button.className='btn histDeleteBtn';button.textContent='Supprimer';
+      button.type='button';button.className='btn histDeleteBtn';button.textContent=window.acjSharedQuotes72?.enabled?'Masquer ici':'Supprimer';
       button.addEventListener('click',(event)=>{event.preventDefault();event.stopPropagation();removeLocal(index)});
       actions.insertBefore(button,actions.firstChild);
     });

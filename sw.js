@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v72';
+const CACHE = 'devis-acj-v73';
 const CACHE_PREFIX = 'devis-acj-';
 const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/', 'facturation/'];
 
@@ -9,39 +9,40 @@ const ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './sap-v7.js?v=71',
-  './print-v9.js?v=71',
-  './details-v10.js?v=71',
-  './print-v11.js?v=71',
-  './ai-v17.js?v=71',
-  './ai-policy-v18.js?v=71',
-  './ogust-write-v19.js?v=71',
-  './client-step-v21.js?v=71',
-  './compliance-v23.js?v=71',
-  './multi-ogust-v28.js?v=71',
-  './auth-v29-2.js?v=71',
-  './prestation-sync-v24.js?v=71',
-  './costs-v28-1.js?v=71',
-  './ogust-units-v25.js?v=71',
-  './history-v29.js?v=71',
-  './history-delete-v29-1.js?v=71',
-  './ux-v30.js?v=71',
-  './contacts-v60.js?v=71',
-  './availability-v32.js?v=71',
-  './history-reopen-v33.js?v=71',
-  './quotation-update-v34.js?v=71',
-  './ogust-rates-v40.js?v=71',
-  './ogust-picker-v41.js?v=71',
-  './notes-import-v39.js?v=71',
-  './fast-flow-v42.js?v=71',
-  './draft-v42.js?v=71',
-  './voice-v43.js?v=71',
-  './learning-v45.js?v=71',
-  './vendor/jspdf-4.2.1.umd.min.js?v=71',
-  './vendor/acj-pdf-fonts-v62.js?v=71',
-  './quote-pdf-v62.js?v=71',
-  './email-delivery-v62.js?v=71',
-  './pwa-update-v38.js?v=71'
+  './sap-v7.js?v=73',
+  './print-v9.js?v=73',
+  './details-v10.js?v=73',
+  './print-v11.js?v=73',
+  './ai-v17.js?v=73',
+  './ai-policy-v18.js?v=73',
+  './ogust-write-v19.js?v=73',
+  './client-step-v21.js?v=73',
+  './compliance-v23.js?v=73',
+  './multi-ogust-v28.js?v=73',
+  './auth-v29-2.js?v=73',
+  './prestation-sync-v24.js?v=73',
+  './costs-v28-1.js?v=73',
+  './ogust-units-v25.js?v=73',
+  './history-v29.js?v=73',
+  './history-delete-v29-1.js?v=73',
+  './ux-v30.js?v=73',
+  './contacts-v60.js?v=73',
+  './availability-v32.js?v=73',
+  './history-reopen-v33.js?v=73',
+  './quotation-update-v34.js?v=73',
+  './ogust-rates-v40.js?v=73',
+  './ogust-picker-v41.js?v=73',
+  './notes-import-v39.js?v=73',
+  './fast-flow-v42.js?v=73',
+  './draft-v42.js?v=73',
+  './voice-v43.js?v=73',
+  './learning-v45.js?v=73',
+  './vendor/jspdf-4.2.1.umd.min.js?v=73',
+  './vendor/acj-pdf-fonts-v62.js?v=73',
+  './quote-pdf-v62.js?v=73',
+  './email-delivery-v62.js?v=73',
+  './shared-quotes-v72.js?v=73',
+  './pwa-update-v38.js?v=73'
 ];
 
 function relativePath(urlValue) {
@@ -81,27 +82,27 @@ async function withV292(response) {
   if (!type.includes('text/html')) return response;
   const text = await response.text();
   let html = text;
-  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=71"></script></body>');
-  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=71"></script></body>');
-  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=71"></script></body>');
-  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=71"></script></body>');
-  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=71"></script></body>');
-  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=71"></script></body>');
-  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=71"></script></body>');
-  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=71"></script></body>');
-  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=71"></script></body>');
-  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=71"></script></body>');
-  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=71"></script></body>');
-  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=71"></script></body>');
-  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=71"></script></body>');
-  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=71"></script></body>');
-  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=71"></script></body>');
-  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=71"></script></body>');
-  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=71"></script></body>');
-  if (!html.includes('contacts-v60.js')) html = html.replace('</body>', '<script src="./contacts-v60.js?v=71"></script></body>');
-  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=71"></script></body>');
-  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=71"></script></body>');
-  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=71"></script></body>');
+  if (!html.includes('sap-v7.js')) html = html.replace('</body>', '<script src="./sap-v7.js?v=73"></script></body>');
+  if (!html.includes('print-v9.js')) html = html.replace('</body>', '<script src="./print-v9.js?v=73"></script></body>');
+  if (!html.includes('details-v10.js')) html = html.replace('</body>', '<script src="./details-v10.js?v=73"></script></body>');
+  if (!html.includes('print-v11.js')) html = html.replace('</body>', '<script src="./print-v11.js?v=73"></script></body>');
+  if (!html.includes('ai-v17.js')) html = html.replace('</body>', '<script src="./ai-v17.js?v=73"></script></body>');
+  if (!html.includes('ai-policy-v18.js')) html = html.replace('</body>', '<script src="./ai-policy-v18.js?v=73"></script></body>');
+  if (!html.includes('ogust-write-v19.js')) html = html.replace('</body>', '<script src="./ogust-write-v19.js?v=73"></script></body>');
+  if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=73"></script></body>');
+  if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=73"></script></body>');
+  if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=73"></script></body>');
+  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=73"></script></body>');
+  if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=73"></script></body>');
+  if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=73"></script></body>');
+  if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=73"></script></body>');
+  if (!html.includes('history-v29.js')) html = html.replace('</body>', '<script src="./history-v29.js?v=73"></script></body>');
+  if (!html.includes('history-delete-v29-1.js')) html = html.replace('</body>', '<script src="./history-delete-v29-1.js?v=73"></script></body>');
+  if (!html.includes('ux-v30.js')) html = html.replace('</body>', '<script src="./ux-v30.js?v=73"></script></body>');
+  if (!html.includes('contacts-v60.js')) html = html.replace('</body>', '<script src="./contacts-v60.js?v=73"></script></body>');
+  if (!html.includes('availability-v32.js')) html = html.replace('</body>', '<script src="./availability-v32.js?v=73"></script></body>');
+  if (!html.includes('history-reopen-v33.js')) html = html.replace('</body>', '<script src="./history-reopen-v33.js?v=73"></script></body>');
+  if (!html.includes('quotation-update-v34.js')) html = html.replace('</body>', '<script src="./quotation-update-v34.js?v=73"></script></body>');
   const headers = new Headers(response.headers);
   headers.delete('content-length');
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
@@ -137,6 +138,5 @@ self.addEventListener('fetch', (event) => {
     return response;
   })));
 });
-
 
 

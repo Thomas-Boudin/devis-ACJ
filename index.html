@@ -70,46 +70,46 @@ function renderQuoteLines(){
 function patchLine(id,k,v,options={}){const l=state.lines.find(x=>x.id===id);if(!l)return;l[k]=['qty','unitPriceTTC','vat'].includes(k)?num(v):v;if(k==='qty'&&l.type==='service'&&l.unit==='h'&&l.pricingMethod==='hourly')l.meta=`${l.qty} h de main-d’œuvre`;if(options.render===false){const card=el('quoteLines').querySelectorAll('.quoteLine')[state.lines.indexOf(l)];const title=card?.querySelector('.quoteTitle');if(title&&title.textContent!==l.designation)title.textContent=l.designation;const amount=card?.querySelector('.lineTotal'),meta=card?.querySelector('.quoteMeta');if(amount)amount.textContent=money(lineAmounts(l).ttc);if(meta)meta.textContent=l.meta||`${l.qty} ${l.unit}`;renderTotals()}else renderQuoteLines()}function removeLine(id){state.lines=state.lines.filter(x=>x.id!==id);renderQuoteLines()}function renderTotals(){const t=totals();['sumHT','reviewHT'].forEach(id=>el(id).textContent=money(t.ht));['sumTVA','reviewTVA'].forEach(id=>el(id).textContent=money(t.tva));['sumTTC','reviewTTC'].forEach(id=>el(id).textContent=money(t.ttc))}
 function syncClient(){state.client=el('client').value.trim();state.tel=el('tel').value.trim();state.address=el('adresse').value.trim()}function syncNotes(){state.notes=el('notes').value.trim()}function validateStep(step){if(step===2){syncClient();if(!state.client){el('client').focus();return false}}if(step===4&&!state.lines.length)return false;return true}function goStep(step){if(step>state.step&&!validateStep(step)){if(step===4)alert('Ajoute au moins une prestation avant de finaliser le devis.');return}syncClient();if(el('notes'))syncNotes();state.step=step;document.querySelectorAll('.step').forEach(s=>s.classList.toggle('active',Number(s.dataset.step)===step));const labels=['','1. Client','2. Prestations','3. Chiffrage','4. Devis prêt'];el('stepLabel').textContent=labels[step];for(let i=1;i<=4;i++)el('p'+i).classList.toggle('done',i<=step);if(step===3){renderQuoteLines();el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate}if(step===4)renderReview();window.scrollTo({top:0,behavior:'smooth'})}
 function renderReview(){syncClient();syncNotes();el('clientSummary').innerHTML=`<strong>${esc(state.client||'—')}</strong><span>${esc(state.tel||'Téléphone non renseigné')}</span><span>${esc(state.address||'Adresse non renseignée')}</span><span>${esc(state.company)} · ${esc(state.number)}</span>`;el('reviewLines').innerHTML=state.lines.map(l=>{const a=lineAmounts(l);return`<div class="reviewLine"><div><div class="name">${esc(l.designation)}</div><div class="meta">${esc(l.meta||`${l.qty} ${l.unit}`)} · TVA ${l.vat}%</div></div><div class="price">${money(a.ttc)}</div></div>`}).join('')||'<div class="empty">Aucune ligne</div>';renderTotals()}
-function quotePayload(){syncClient();syncNotes();const t=totals();return{version:6,societe:state.company,numero_devis:state.number,date:new Date().toISOString().slice(0,10),client:{nom:state.client,telephone:state.tel,adresse:state.address},mode:state.mode,lignes:state.lines.map(l=>{const a=lineAmounts(l);return{designation:l.designation,detail:l.meta,methode_chiffrage:l.pricingMethod||'',activite:l.activity||'',type:l.type,quantite:num(l.qty),unite:l.unit,prix_unitaire_ttc:num(l.unitPriceTTC),tva_rate:num(l.vat),total_ht:Number(a.ht.toFixed(2)),total_ttc:Number(a.ttc.toFixed(2))}}),totaux:{ht:Number(t.ht.toFixed(2)),tva:Number(t.tva.toFixed(2)),ttc:Number(t.ttc.toFixed(2))},notes:state.notes}}function saveQuote(){const p=quotePayload();let saved=[];try{saved=JSON.parse(localStorage.getItem(LS_SAVED)||'[]')}catch(e){}saved.unshift(p);saved=saved.slice(0,50);localStorage.setItem(LS_SAVED,JSON.stringify(saved));showStatus('finalStatus',`Devis ${state.number} enregistré sur cet appareil.`,'ok')}
+function quotePayload(){syncClient();syncNotes();const t=totals();return{version:6,societe:state.company,numero_devis:state.number,date:new Date().toISOString().slice(0,10),client:{nom:state.client,telephone:state.tel,adresse:state.address},mode:state.mode,lignes:state.lines.map(l=>{const a=lineAmounts(l);return{designation:l.designation,detail:l.meta,methode_chiffrage:l.pricingMethod||'',activite:l.activity||'',type:l.type,quantite:num(l.qty),unite:l.unit,prix_unitaire_ttc:num(l.unitPriceTTC),tva_rate:num(l.vat),total_ht:Number(a.ht.toFixed(2)),total_ttc:Number(a.ttc.toFixed(2))}}),totaux:{ht:Number(t.ht.toFixed(2)),tva:Number(t.tva.toFixed(2)),ttc:Number(t.ttc.toFixed(2))},notes:state.notes}}function saveQuote(){const p=quotePayload();let saved=[];try{saved=JSON.parse(localStorage.getItem(LS_SAVED)||'[]')}catch(e){}saved.unshift(p);saved=saved.slice(0,3000);localStorage.setItem(LS_SAVED,JSON.stringify(saved));showStatus('finalStatus',`Devis ${state.number} enregistré sur cet appareil.`,'ok')}
 async function copyForWhatsApp(){const p=quotePayload(),lines=p.lignes.map(l=>`• ${l.designation} : ${money(l.total_ttc)}`).join('\n'),msg=`Bonjour ${p.client.nom||''},\n\nVoici votre devis ${p.numero_devis} :\n${lines}\n\nTotal : ${money(p.totaux.ttc)} TTC.\nDevis valable 30 jours.\n\n${p.societe}`;try{await navigator.clipboard.writeText(msg);showStatus('finalStatus','Message WhatsApp copié.','ok')}catch(e){prompt('Copie ce message :',msg)}}function isSapQuote(p){const company=COMPANY_PRINT[p.societe];if(!company?.sap)return false;const services=p.lignes.filter(l=>l.type==='service');return services.length>0&&services.every(l=>['jardin','menage','bricol'].includes(l.activite))}
 function buildPrintHTML(){const p=quotePayload();const date=new Date().toLocaleDateString('fr-FR');const company=COMPANY_PRINT[p.societe]||{subtitle:'',sap:false};const vatRows=vatBreakdown(state.lines).map(v=>`<div class="printTotalsRow vat"><span>TVA ${v.rate.toLocaleString('fr-FR')} %</span><span>${money(v.amount)}</span></div>`).join('');const sap=isSapQuote(p)?`<div class="printSap"><strong>Services à la personne</strong> — Les dépenses éligibles peuvent ouvrir droit à un crédit d’impôt de 50 %, sous réserve des conditions prévues par la réglementation en vigueur.</div>`:'';const note=p.notes?`<div class="printNotes"><strong>Note :</strong><br>${esc(p.notes)}</div>`:`<div class="printNotes">Les prestations seront réalisées selon les conditions prévues au présent devis.</div>`;return `<div class="printWrap"><div class="printHeader"><div class="printBrand"><img class="printLogo" src="icon-512.png" alt="${esc(p.societe)}"><div><div class="printCompanyName">${esc(p.societe)}</div><div class="printCompanySub">${esc(company.subtitle)}</div></div></div><div class="printDoc"><div class="printTitle">DEVIS</div><div class="printDocNo">N° ${esc(p.numero_devis)}</div><div class="printDate">Émis le ${esc(date)} · valable 30 jours</div></div></div><div class="printPartyGrid"><div class="printParty"><div class="printLabel">Client</div><strong>${esc(p.client.nom||'—')}</strong>${p.client.telephone?`<br>${esc(p.client.telephone)}`:''}</div><div class="printParty"><div class="printLabel">Adresse d’intervention</div><strong>${esc(p.client.adresse||'—')}</strong></div></div><div class="printSectionTitle">Prestations proposées</div><table class="printTable"><thead><tr><th style="width:44%">Désignation</th><th>Détail</th><th class="right">Qté</th><th class="right">PU TTC</th><th class="right">Total TTC</th></tr></thead><tbody>${p.lignes.map(l=>`<tr><td><div class="printLineTitle">${esc(l.designation)}</div></td><td><div class="printLineDetail">${esc(l.detail||'—')}</div></td><td class="right">${l.quantite} ${esc(l.unite)}</td><td class="right">${money(l.prix_unitaire_ttc)}</td><td class="right"><strong>${money(l.total_ttc)}</strong></td></tr>`).join('')}</tbody></table><div class="printAfterTable">${note}<div class="printTotals"><div class="printTotalsRow"><span>Total HT</span><strong>${money(p.totaux.ht)}</strong></div>${vatRows}<div class="printTotalsRow grand"><span>Total TTC</span><span>${money(p.totaux.ttc)}</span></div></div></div>${sap}<div class="printAgreement"><div class="printAgreementBox"><div class="printAgreementTitle">Bon pour accord</div><div class="printAgreementHint">Date, nom et mention « Bon pour accord »</div></div><div class="printAgreementBox"><div class="printAgreementTitle">Signature du client</div></div></div><div class="printFooter"><strong>Conditions :</strong> devis valable 30 jours. Paiement à l’issue de la prestation sauf accord contraire. Toute prestation supplémentaire fera l’objet d’un accord préalable.<br>Document établi par ${esc(p.societe)}.</div></div>`}function printPDF(){el('printArea').innerHTML=buildPrintHTML();setTimeout(()=>window.print(),120)}
 async function sendToOgust(){const p=quotePayload();if(!p.client.nom||!p.lignes.length){showStatus('finalStatus','Client ou prestation manquante.','err');return}showStatus('finalStatus','Envoi vers Ogust…','info');const payload={quotation:{method:'quotation.create',numero_devis:p.numero_devis,societe:p.societe,client:p.client,lignes:p.lignes.map(l=>({designation:l.designation,quantite:l.quantite,unite:l.unite,prix_unitaire:l.prix_unitaire_ttc,tva:l.tva_rate})),total_ttc:p.totaux.ttc,notes:p.notes}};try{const resp=await fetch('https://acj-ogust-proxy.vercel.app/api/ogust-devis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data={};try{data=await resp.json()}catch(e){}if(resp.ok&&data.ok){saveQuote();showStatus('finalStatus','Devis envoyé à Ogust.','ok')}else{showStatus('finalStatus','Ogust n’a pas confirmé la création du devis. Le devis reste enregistré localement.','err');console.error(data)}}catch(e){showStatus('finalStatus','Connexion Ogust impossible. Le devis n’a pas été perdu.','err');console.error(e)}}function showStatus(id,msg,type='info'){const b=el(id);if(!b)return;b.textContent=msg;b.className=`status show ${type}`}function newQuote(){state={step:1,number:nextQuoteNumber(),company:state.company,client:'',tel:'',address:'',mode:'jardin',activePreset:null,builderMethod:'hourly',lines:[],notes:''};el('client').value='';el('tel').value='';el('adresse').value='';el('notes').value='';el('quoteNumberTop').textContent=state.number;renderCompanies();renderModes();renderQuoteLines();goStep(1);showStatus('finalStatus','','info')}function init(){initQuoteNumber();renderCompanies();renderModes();renderQuoteLines();el('kmRate').value=settings.kmRate;el('wasteRate').value=settings.wasteRate;['kmRate','wasteRate'].forEach(id=>el(id).addEventListener('change',persistSettings));goStep(1);if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(console.error)}document.addEventListener('DOMContentLoaded',init);
 </script>
 
-<script src="./sap-v7.js?v=71"></script>
-<script src="./print-v9.js?v=71"></script>
-<script src="./details-v10.js?v=71"></script>
-<script src="./print-v11.js?v=71"></script>
-<script src="./ai-v17.js?v=71"></script>
-<script src="./ai-policy-v18.js?v=71"></script>
-<script src="./ogust-write-v19.js?v=71"></script>
-<script src="./client-step-v21.js?v=71"></script>
-<script src="./compliance-v23.js?v=71"></script>
-<script src="./multi-ogust-v28.js?v=71"></script>
-<script src="./auth-v29-2.js?v=71"></script>
-<script src="./prestation-sync-v24.js?v=71"></script>
-<script src="./costs-v28-1.js?v=71"></script>
-<script src="./ogust-units-v25.js?v=71"></script>
-<script src="./history-v29.js?v=71"></script>
-<script src="./history-delete-v29-1.js?v=71"></script>
-<script src="./ux-v30.js?v=71"></script>
-<script src="./contacts-v60.js?v=71"></script>
-<script src="./availability-v32.js?v=71"></script>
-<script src="./history-reopen-v33.js?v=71"></script>
-<script src="./quotation-update-v34.js?v=71"></script>
-<script src="./notes-import-v39.js?v=71"></script>
-<script src="./ogust-rates-v40.js?v=71"></script>
-<script src="./ogust-picker-v41.js?v=71"></script>
-<script src="./fast-flow-v42.js?v=71"></script>
-<script src="./draft-v42.js?v=71"></script>
-<script src="./voice-v43.js?v=71"></script>
-<script src="./learning-v45.js?v=71"></script>
-<script src="./quote-pdf-v62.js?v=71"></script>
-<script src="./email-delivery-v62.js?v=71"></script>
-<script src="./pwa-update-v38.js?v=71"></script>
+<script src="./sap-v7.js?v=73"></script>
+<script src="./print-v9.js?v=73"></script>
+<script src="./details-v10.js?v=73"></script>
+<script src="./print-v11.js?v=73"></script>
+<script src="./ai-v17.js?v=73"></script>
+<script src="./ai-policy-v18.js?v=73"></script>
+<script src="./ogust-write-v19.js?v=73"></script>
+<script src="./client-step-v21.js?v=73"></script>
+<script src="./compliance-v23.js?v=73"></script>
+<script src="./multi-ogust-v28.js?v=73"></script>
+<script src="./auth-v29-2.js?v=73"></script>
+<script src="./prestation-sync-v24.js?v=73"></script>
+<script src="./costs-v28-1.js?v=73"></script>
+<script src="./ogust-units-v25.js?v=73"></script>
+<script src="./history-v29.js?v=73"></script>
+<script src="./history-delete-v29-1.js?v=73"></script>
+<script src="./ux-v30.js?v=73"></script>
+<script src="./contacts-v60.js?v=73"></script>
+<script src="./availability-v32.js?v=73"></script>
+<script src="./history-reopen-v33.js?v=73"></script>
+<script src="./quotation-update-v34.js?v=73"></script>
+<script src="./notes-import-v39.js?v=73"></script>
+<script src="./ogust-rates-v40.js?v=73"></script>
+<script src="./ogust-picker-v41.js?v=73"></script>
+<script src="./fast-flow-v42.js?v=73"></script>
+<script src="./draft-v42.js?v=73"></script>
+<script src="./voice-v43.js?v=73"></script>
+<script src="./learning-v45.js?v=73"></script>
+<script src="./quote-pdf-v62.js?v=73"></script>
+<script src="./email-delivery-v62.js?v=73"></script>
+<script src="./shared-quotes-v72.js?v=73"></script>
+<script src="./pwa-update-v38.js?v=73"></script>
 <script src="./billing-entry-v1.js?v=1"></script>
 </body>
 </html>
-
 
 
