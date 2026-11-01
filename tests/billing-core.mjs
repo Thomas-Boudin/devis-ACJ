@@ -28,6 +28,8 @@ test('An unresolved linked invoice is an anomaly', () => review(d => { d.service
 test('An invoice for a different client cannot prove billing', () => review(d => d.invoices.push(invoice({ id_customer: 'c2' })), /autre client/));
 test('An unlinked invoice for the period blocks potential double billing', () => review(d => d.invoices.push(invoice({ service_ids: [], invoice_month: '202610' })), /sans lien explicite/));
 test('An older unlinked invoice with an explicit nonoverlapping period does not block October', () => { const d = fixture(); d.invoices.push(invoice({ service_ids: [], start_of_period: '20260901', end_of_period: '20260930', invoice_month: '202609' })); assert.equal(reconcile(d).rows[0].state, 'ready'); });
+test('An explicit different invoice month remains sufficient when period dates are absent', () => { const d = fixture(); d.invoices.push(invoice({ service_ids: [], invoice_month: '202609' })); assert.equal(reconcile(d).rows[0].state, 'ready'); });
+test('A multi-month invoice still blocks overlapping services even when its invoice month differs', () => review(d => d.invoices.push(invoice({ service_ids: [], invoice_month: '202609', start_of_period: '20260901', end_of_period: '20261031' })), /sans lien explicite/));
 test('Minutes are converted against an hourly contract without changing quantity', () => { const d = fixture(); d.services[0].billing_amount = '120'; d.services[0].billing_amount_unit = 'MN'; const r = reconcile(d).rows[0]; assert.equal(r.state, 'ready'); assert.equal(r.amount_cents, 6000); assert.equal(r.quantity_hours, 2); });
 test('Sexagesimal decimals are never guessed', () => { assert.equal(hours('2.30', 'clock'), null); assert.equal(hours('2:30', 'clock'), 2.5); assert.equal(unitKind('X', 'Heure en centièmes'), 'hours'); });
 test('A zero billing quantity is not replaced by planned hours', () => review(d => { d.services[0].billing_amount = '0'; }, /Quantité/));
@@ -42,6 +44,7 @@ test('Discounts, fees and markups require review', () => review(d => { d.contrac
 test('Unknown periodicity is not inferred', () => review(d => { d.lists['contract.generation'] = {}; }, /Périodicité/));
 test('An annulled contract is never treated as active', () => review(d => { d.lists['contract.status'].V = 'Annulé'; }, /Statut/));
 test('Expired contracts remain blocked', () => review(d => { d.contracts[0].end_date = '20260930'; }, /validité/));
+test('An invalid contract start date remains blocked', () => review(d => { d.contracts[0].start_date = '00000000'; }, /validité/));
 test('Conflicting contract lines are ambiguous', () => review(d => { d.contracts[0].lines.push({ ...d.contracts[0].lines[0], amount_unit_TTC: '20' }); }, /ambiguë/));
 test('Internal hours are excluded using their explicit catalogue flag', () => { const d = fixture(); d.products[0].internal_hour = 'O'; assert.equal(reconcile(d).rows[0].state, 'ignored'); });
 test('A client dossier is blocked as a whole when one intervention has an issue', () => { const d = fixture(); d.services.push({ ...d.services[0], id_service: 's2', start_date: '202610060900', end_date: '202610061100', validate_date_I: '' }); const result = reconcile(d); assert.ok(result.rows.every(r => r.state === 'review')); assert.equal(result.counts.ready_amount_cents, 0); });

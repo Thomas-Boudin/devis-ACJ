@@ -23,6 +23,10 @@ function dateTime(value) {
   return check.getUTCFullYear() === y && check.getUTCMonth() === m - 1 && check.getUTCDate() === dt && h < 24 && min < 60 ? time : null;
 }
 function validValidation(value) { return dateTime(value) !== null; }
+function validDay(value) {
+  const valueDay = day(value);
+  return valueDay.length === 8 && dateTime(valueDay + '0000') !== null ? valueDay : '';
+}
 export function unitKind(value, label = '') {
   const raw = normalize(value), name = normalize(label || value);
   if (/hh\s*[:h]\s*mm|heure.*minute|heure.*sexages/.test(name)) return 'clock';
@@ -46,17 +50,20 @@ export function invoiceState(invoice, lists = {}) {
   if (id(invoice?.type).toUpperCase() === 'A') return 'credit';
   if (id(invoice?.type).toUpperCase() !== 'F') return 'unknown';
   if (raw === 'B' || /brouillon/.test(label)) return 'draft';
-  if ((id(invoice?.number) && id(invoice.number) !== '0') || (day(invoice?.validation_date).length === 8 && day(invoice.validation_date) !== '00000000')) return 'final';
+  if ((id(invoice?.number) && id(invoice.number) !== '0') || validDay(invoice?.validation_date)) return 'final';
   return 'unknown';
 }
 function overlapsMonth(invoice, month) {
   const target = month.replace('-', '');
   const explicit = String(invoice.invoice_month || '').replace(/\D/g, '');
-  if (explicit.startsWith(target)) return true;
-  const first = day(invoice.start_of_period), last = day(invoice.end_of_period);
-  if (first.length === 8 && last.length === 8) return first <= target + '31' && last >= target + '01';
-  // Missing period information remains ambiguous for that client, regardless of issue date.
-  return !first || !last;
+  const knownMonth = /^20\d{2}(0[1-9]|1[0-2])/.test(explicit);
+  if (knownMonth && explicit.startsWith(target)) return true;
+  const first = validDay(invoice.start_of_period), last = validDay(invoice.end_of_period);
+  if (first && last && first <= last) return first <= target + '31' && last >= target + '01';
+  // A partial/invalid period remains ambiguous; a different explicit month can
+  // disambiguate a legacy invoice only when both period dates are absent.
+  const hasPeriod = [invoice.start_of_period, invoice.end_of_period].some(value => day(value) && day(value) !== '00000000');
+  return hasPeriod || !knownMonth;
 }
 function monthly(label) {
   const value = normalize(label);
@@ -176,7 +183,9 @@ export function reconcile(snapshot) {
         if (!contract.id_company || !customer?.id_company || id(contract.id_company) !== id(customer.id_company)) issues.push('Rattachement de l’établissement à vérifier');
         const status = normalize(labelled(lists, 'contract.status', contract.status));
         if (/annul|supprim|brouillon|expire|inactif/.test(status) || !/valide|accepte|signe|actif|en cours/.test(status)) issues.push('Statut du contrat à confirmer');
-        if (!day(contract.start_date) || day(service.start_date) < day(contract.start_date) || (day(contract.end_date) && day(contract.end_date) !== '00000000' && day(service.end_date) > day(contract.end_date))) issues.push('Dates de validité du contrat à vérifier');
+        const contractStart = validDay(contract.start_date), contractEnd = validDay(contract.end_date);
+        const hasEnd = day(contract.end_date) && day(contract.end_date) !== '00000000';
+        if (!contractStart || day(service.start_date) < contractStart || (hasEnd && (!contractEnd || day(service.end_date) > contractEnd))) issues.push('Dates de validité du contrat à vérifier');
         if (!monthly(labelled(lists, 'contract.generation', contract.generation))) issues.push('Périodicité de facturation à confirmer');
         const pricing = normalize(labelled(lists, 'contract.pricing', contract.pricing));
         if (!pricing || /forfait|proportion|mensualis/.test(pricing) || !/reel|heure|horaire/.test(pricing)) issues.push('Tarification particulière ou règle à confirmer');

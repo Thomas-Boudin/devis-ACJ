@@ -1,4 +1,4 @@
-import { contractsToRead, normalize, reconcile } from './billing-core.mjs?v=1';
+import { contractsToRead, normalize, reconcile } from './billing-core.mjs?v=2';
 
 const API = 'https://acj-ogust-proxy.vercel.app/api/ogust-history';
 const COMPANY = 'ACJ Services';
