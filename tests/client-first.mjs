@@ -103,7 +103,7 @@ try{
 
   // A locally saved quote retains its full contact card on history reopen.
   const history=await boot({}, {customerCandidates:[{id_customer:'unrelated-homonym',label:customer.label,phone:'0600000001',address:'99 rue Autre, 75001 Paris'}]});apps.push(history);newMode(history);await fill(history);pickLine(history);history.w.saveQuote();const savedQuote=JSON.parse(history.w.localStorage.getItem('acj_devis_saved_v6'))[0];assert.equal(savedQuote.client.fiche.email,fields.ogcNewEmail);assert.equal(savedQuote.client.fiche.last_name,fields.ogcNewLastName);const savedReference=savedQuote.client.fiche.reference;
-  history.w.newQuote();history.w.openQuoteHistoryV29();history.w.reopenHistoryQuoteV33(0);await until(()=>history.doc.getElementById('ogcNewEmail')?.value===fields.ogcNewEmail,'saved client card reopened');await configured(history);
+  history.w.newQuote();history.w.openQuoteHistoryV29();history.doc.querySelector('[data-history-view="draft"]').click();history.w.reopenHistoryQuoteV33(0);await until(()=>history.doc.getElementById('ogcNewEmail')?.value===fields.ogcNewEmail,'saved client card reopened');await configured(history);
   await wait(60);
   for(const [id,value] of Object.entries(fields))assert.equal(history.doc.getElementById(id).value,value,`${id} is retained in local history`);assert.equal(state(history).number,savedQuote.numero_devis);assert.equal(history.w.acjClientFormV46.getDraft().reference,savedReference);assert.equal(history.w.ogustClientChoiceV21.mode,'new');assert.equal(createCalls(history).length,0,'Local history reopen never creates Ogust records');
   assert.equal(history.w.ogustClientChoiceV21.selected?.id_customer||'','', 'A saved new-client card cannot silently adopt an Ogust homonym');assert.equal(JSON.parse(history.w.localStorage.getItem('acj_devis_saved_v6'))[0].client.id_customer||'','', 'An unrelated existing client ID must not enter local history');
@@ -128,3 +128,4 @@ try{
   for(const app of apps)assert.equal(app.errors.length,0,app.errors.map(error=>error.stack||error.message).join('\n'));
   console.log('Client-first production DOM: step-one form, late-config/tab guards, tenant choice reset, partial draft/history restore, notes import, summary-only final creation, same-ID retry, one-shot inline creation and durable uncertain-write guard OK; synthetic fixtures and fully mocked APIs.');
 }finally{for(const app of apps)app.dom.window.close()}
+

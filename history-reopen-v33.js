@@ -14,6 +14,7 @@
   function keyFor(p){return `${String(p?.societe||'')}|${String(p?.numero_devis||'')}`}
   function dateMs(p){const raw=String(p?.date||'');const d=Date.parse(raw);if(Number.isFinite(d))return d;const m=raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?Date.UTC(Number(m[3]),Number(m[2])-1,Number(m[1])):0}
   function filtered(){
+    if(window.acjHistory71)return window.acjHistory71.displayed();
     const q=norm(document.getElementById('historySearch')?.value||'');
     const company=String(document.getElementById('historyCompany')?.value||'');
     const meta=readMeta();

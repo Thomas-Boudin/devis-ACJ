@@ -16,18 +16,22 @@
   function close(){const session=active;if(!session)return;session.overlay.remove();document.body.style.overflow=session.bodyOverflow;active=null;document.getElementById('emailLaunch62')?.focus()}
   function node(tag,text,className){const el=document.createElement(tag);if(text)el.textContent=text;if(className)el.className=className;return el}
   function status(session,text,kind='info'){if(active!==session)return;session.message.textContent=text;session.message.className=`emailMessage62 ${kind}`}
-  function markOpened(session){patch(session.ctx.k,{email_delivery_pending:{fingerprint:session.ctx.hash,envelope:session.envelope?.(),opened_at:new Date().toISOString()}});session.opened=true;session.confirm.hidden=false;status(session,'Après l’envoi du mail, reviens ici et clique sur « J’ai envoyé le devis ».')}
+  function markOpened(session){patch(session.ctx.k,{email_delivery_pending:{fingerprint:session.ctx.hash,envelope:session.envelope?.(),kind:session.kind,opened_at:new Date().toISOString()}});session.opened=true;session.confirm.hidden=false;status(session,session.kind==='reminder'?'Après l’envoi du mail, reviens ici et clique sur « J’ai envoyé la relance ».':'Après l’envoi du mail, reviens ici et clique sur « J’ai envoyé le devis ».')}
   function download(session){const url=URL.createObjectURL(session.file),link=node('a');link.href=url;link.download=session.file.name;document.body.appendChild(link);link.click();link.remove();session.pdfDownloaded=true;setTimeout(()=>URL.revokeObjectURL(url),30000)}
   async function confirmSent(session){
     if(!session.opened||session.done||writes.has(session.ctx.k))return;
     if(!current(session.ctx))return status(session,'Le devis a été modifié. Enregistre et prépare la nouvelle version avant de confirmer son envoi.','err');
     writes.add(session.ctx.k);session.confirm.disabled=true;status(session,'Mise à jour du statut dans Ogust…');
-    try{const data=await request(session.ctx,'mark_sent');if(data.verified!==true||String(data.ogust_status)!=='E')throw Error('Le statut envoyé n’a pas été confirmé par Ogust.');patch(session.ctx.k,{ogust_status:'E',ogust_status_label:data.ogust_status_label||'Envoyé',ogust_number:data.ogust_number||session.ctx.meta.ogust_number,email_delivery_pending:null,email_sent_confirmed_at:new Date().toISOString()});session.done=true;if(current(session.ctx))window.acjQuotationUpdateV34?.render();status(session,'Statut « Envoyé » confirmé dans Ogust.','ok');session.confirm.textContent='Envoyé dans Ogust';session.confirm.disabled=true;const share=session.content.querySelector('#emailShare62');if(share)share.disabled=true;const mail=session.content.querySelector('#emailMailto62');if(mail)mail.removeAttribute('href');session.content.querySelector('input').readOnly=true;const copy=session.content.querySelector('#emailCopyRecipient70');if(copy)copy.disabled=true}
+    try{const data=await request(session.ctx,'mark_sent');if(data.verified!==true||String(data.ogust_status)!=='E')throw Error('Le statut envoyé n’a pas été confirmé par Ogust.');
+      const now=new Date().toISOString(),previous=metas()[session.ctx.k]||{},reminder=session.kind==='reminder';
+      const dates=reminder?{email_last_reminded_at:now,email_reminder_count:Math.max(0,Number(previous.email_reminder_count)||0)+1,...(!previous.email_first_sent_confirmed_at&&previous.email_sent_confirmed_at?{email_first_sent_confirmed_at:previous.email_sent_confirmed_at}:{})}:{email_sent_confirmed_at:now,email_first_sent_confirmed_at:previous.email_first_sent_confirmed_at||previous.email_sent_confirmed_at||now};
+      patch(session.ctx.k,{ogust_status:'E',ogust_status_label:data.ogust_status_label||'Envoyé',ogust_number:data.ogust_number||session.ctx.meta.ogust_number,email_delivery_pending:null,...dates});session.done=true;if(current(session.ctx))window.acjQuotationUpdateV34?.render();status(session,reminder?'Relance enregistrée. Le devis reste « Envoyé » dans Ogust.':'Statut « Envoyé » confirmé dans Ogust.','ok');session.confirm.textContent=reminder?'Relancé aujourd’hui':'Envoyé dans Ogust';session.confirm.disabled=true;const share=session.content.querySelector('#emailShare62');if(share)share.disabled=true;const mail=session.content.querySelector('#emailMailto62');if(mail)mail.removeAttribute('href');session.content.querySelector('input').readOnly=true;const copy=session.content.querySelector('#emailCopyRecipient70');if(copy)copy.disabled=true}
     catch(error){status(session,error.message||'Connexion Ogust impossible. Le statut reste à vérifier.','err')}
     finally{writes.delete(session.ctx.k);if(!session.done)session.confirm.disabled=false}
   }
-  function mailTemplate(quote,number){
+  function mailTemplate(quote,number,kind){
     const amount=new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(quote.totaux.ttc);
+    if(kind==='reminder')return{amount,subject:`Relance - votre devis n° ${number} - ${quote.societe}`,body:['Bonjour,','',`Je reviens vers vous concernant notre devis n° ${number}, d’un montant de ${amount} TTC.`,'Avez-vous pu en prendre connaissance ?','','Vous en trouverez une copie en pièce jointe.','Nous restons disponibles pour toute précision.','','Cordialement,',quote.societe].join('\n')};
     const titles=(quote.lignes||[]).map(line=>String(line.designation||'').replace(/\s+/g,' ').trim()).filter(Boolean);
     const summary=['Prestations prévues :',...titles.slice(0,8).map(title=>`- ${title}`)];
     if(titles.length>8)summary.push('Le détail complet figure dans le devis joint.');
@@ -40,7 +44,7 @@
     patch(ctx.k,{ogust_number:ctx.meta.ogust_number,ogust_status:data.ogust_status,ogust_status_label:data.ogust_status_label});
     window.applyOgustQuotationNumber?.(ctx.meta.ogust_number,ctx.id);
     session.file=window.acjQuotePdf62.create(window.buildPrintHTML(),ctx.meta.ogust_number);
-    const number=ctx.meta.ogust_number,{amount,subject,body}=mailTemplate(ctx.quote,number);
+    const number=ctx.meta.ogust_number,{amount,subject,body}=mailTemplate(ctx.quote,number,session.kind);
     session.content.replaceChildren();session.content.appendChild(node('p',`Devis n° ${number} · ${amount}`,'emailSummary62'));
     const choice=window.ogustClientChoiceV21,selected=choice?.company===ctx.quote.societe?choice.selected:null,selectedEmail=String(selected?.id_customer||'')===ctx.customer?selected.email:'';
     let native=false;try{native=!!navigator.share&&!!navigator.canShare?.({files:[session.file]})}catch{}
@@ -48,7 +52,7 @@
     const recipientRow=node('div',null,'emailRecipientRow70'),copy=node('button','Copier','btn');copy.id='emailCopyRecipient70';copy.type='button';recipientRow.append(email,copy);session.content.appendChild(recipientRow);
     const recipientHint=node('p',null,'emailRecipientHint63');recipientHint.id='emailRecipientHint63';recipientHint.setAttribute('role','status');session.content.appendChild(recipientHint);
     const mail=node('a',native?'Ouvrir avec l’adresse préremplie':'Ouvrir ma messagerie','btn');mail.id='emailMailto62';
-    const share=native?node('button','Envoyer avec le PDF','btn primary'):null;
+    const share=native?node('button',session.kind==='reminder'?'Relancer avec le PDF':'Envoyer avec le PDF','btn primary'):null;
     if(share){share.id='emailShare62';share.type='button'}
     session.envelope=()=>JSON.stringify([email.value.trim(),subject,body]);
     function address(){if(session.done)return;const to=email.value.trim(),valid=validEmail(to);copy.disabled=!valid;if(share)share.disabled=!valid;mail.setAttribute('aria-disabled',String(!valid));if(valid)mail.href=`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.replace(/\n/g,'\r\n'))}`;else mail.removeAttribute('href');recipientHint.textContent=valid?(native?'L’adresse sera copiée pour la coller dans « À ».':'Cette adresse sera préremplie dans le champ « À » de ta messagerie.'):'Aucune adresse utilisable trouvée. Renseigne celle du client pour préparer le mail.'}
@@ -81,8 +85,8 @@
       mail.classList.add('primary');session.content.append(node('p','L’adresse, l’objet et le message seront préremplis. Ce navigateur demande d’ajouter le PDF manuellement.'),mail,save,preview);
     }
     mail.addEventListener('click',event=>{if(session.done){event.preventDefault();return}if(!current(ctx)){event.preventDefault();mail.removeAttribute('href');status(session,'Le devis a changé. Prépare la nouvelle version.','err');return}if(!validEmail(email.value)){event.preventDefault();address();email.focus();return}try{if(!session.pdfDownloaded)download(session);markOpened(session)}catch{event.preventDefault();status(session,'Le téléchargement du PDF n’a pas abouti. Réessaie avec « Télécharger le PDF ».','err')}});
-    session.confirm=node('button','J’ai envoyé le devis','btn good');session.confirm.id='emailConfirm62';session.confirm.type='button';session.confirm.hidden=true;session.confirm.addEventListener('click',()=>confirmSent(session));session.content.append(session.confirm);
-    const pending=metas()[ctx.k]?.email_delivery_pending;if(pending?.fingerprint===ctx.hash&&(!pending.envelope||pending.envelope===session.envelope())){session.opened=true;session.confirm.hidden=false;status(session,'Un envoi avait été préparé. Confirme seulement si le mail a bien été envoyé.')}else status(session,'Le statut Ogust reste inchangé pendant la préparation du mail.');
+    session.confirm=node('button',session.kind==='reminder'?'J’ai envoyé la relance':'J’ai envoyé le devis','btn good');session.confirm.id='emailConfirm62';session.confirm.type='button';session.confirm.hidden=true;session.confirm.addEventListener('click',()=>confirmSent(session));session.content.append(session.confirm);
+    const pending=metas()[ctx.k]?.email_delivery_pending;if(pending?.fingerprint===ctx.hash&&(pending.kind||'delivery')===session.kind&&(!pending.envelope||pending.envelope===session.envelope())){session.opened=true;session.confirm.hidden=false;status(session,'Un envoi avait été préparé. Confirme seulement si le mail a bien été envoyé.')}else status(session,'Le statut Ogust reste inchangé pendant la préparation du mail.');
   }
   function preparationStep(session,data){
     session.content.replaceChildren();
@@ -106,16 +110,20 @@
       const values={ogust_status:data.ogust_status,ogust_status_label:data.ogust_status_label};if(data.ogust_number)values.ogust_number=String(data.ogust_number);patch(session.ctx.k,values);
       if(active!==session)return;if(!current(session.ctx))throw Error('Le devis a changé pendant sa préparation.');
       window.acjQuotationUpdateV34?.render();
+      if(session.kind==='reminder'&&String(data.ogust_status)!=='E')throw Error(`Ogust indique « ${data.ogust_status_label||data.ogust_status} ». La relance est réservée aux devis envoyés.`);
       if(data.needs_validation||data.needs_number){preparationStep(session,data);return}
       await window.acjQuotePdf62.load();if(active!==session)return;if(!current(session.ctx))throw Error('Le devis a changé pendant sa préparation.');ready(session,data);
     }catch(error){if(active===session){status(session,error.message||'La préparation a échoué.','err');if(!session.content.querySelector('#emailRetry67')){const retry=node('button','Réessayer la préparation','btn');retry.id='emailRetry67';retry.type='button';retry.addEventListener('click',()=>prepareSession(session));session.content.appendChild(retry)}}}
     finally{session.busy=false;if(validate)validations.delete(session.ctx.k);if(active===session)session.content.querySelectorAll('#emailValidate67,#emailRetry67').forEach(b=>{b.disabled=false});else if(validate&&active?.ctx.k===session.ctx.k){const b=active.content.querySelector('#emailValidate67');if(b)b.disabled=false}}
   }
-  async function open(){
-    close();const ctx=context();if(!ctx.id||!ctx.customer||!ctx.meta.ogust_snapshot||fingerprint(ctx.meta.ogust_snapshot)!==ctx.hash)return;
-    const overlay=node('div');overlay.id='emailOverlay62';const dialog=node('section');dialog.className='emailDialog62';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','Envoyer le devis');const head=node('div',null,'emailHead62'),title=node('h2','Envoyer le devis'),exit=node('button','×','btn');exit.type='button';exit.setAttribute('aria-label','Fermer l’envoi du devis');exit.addEventListener('click',close);head.append(title,exit);
+  async function open(options={}){
+    close();const ctx=context(),pending=ctx.meta.email_delivery_pending,kind=options.kind==='reminder'||(pending?.fingerprint===ctx.hash&&pending.kind==='reminder')?'reminder':'delivery';
+    const synced=ctx.id&&ctx.customer&&ctx.meta.ogust_snapshot&&fingerprint(ctx.meta.ogust_snapshot)===ctx.hash;if(!synced&&kind!=='reminder')return;
+    const titleText=kind==='reminder'?'Relancer le devis':'Envoyer le devis';
+    const overlay=node('div');overlay.id='emailOverlay62';const dialog=node('section');dialog.className='emailDialog62';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label',titleText);const head=node('div',null,'emailHead62'),title=node('h2',titleText),exit=node('button','×','btn');exit.type='button';exit.setAttribute('aria-label','Fermer l’envoi du devis');exit.addEventListener('click',close);head.append(title,exit);
     const content=node('div',null,'emailContent62'),message=node('p','Vérification du devis dans Ogust…','emailMessage62');message.setAttribute('role','status');dialog.append(head,content,message);overlay.appendChild(dialog);document.body.appendChild(overlay);
-    const session={ctx,overlay,content,message,opened:false,done:false,bodyOverflow:document.body.style.overflow};document.body.style.overflow='hidden';active=session;exit.focus();overlay.addEventListener('click',event=>{if(event.target===overlay)close()});overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close()}else if(event.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,a[href],summary')].filter(el=>!el.disabled&&el.getClientRects().length);if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus()}else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus()}}});
+    const session={ctx,kind,overlay,content,message,opened:false,done:false,bodyOverflow:document.body.style.overflow};document.body.style.overflow='hidden';active=session;exit.focus();overlay.addEventListener('click',event=>{if(event.target===overlay)close()});overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close()}else if(event.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,a[href],summary')].filter(el=>!el.disabled&&el.getClientRects().length);if(event.shiftKey&&document.activeElement===controls[0]){event.preventDefault();controls.at(-1)?.focus()}else if(!event.shiftKey&&document.activeElement===controls.at(-1)){event.preventDefault();controls[0]?.focus()}}});
+    if(!synced){status(session,'Enregistre les modifications du devis dans Ogust avant de préparer sa relance.','err');return}
     await prepareSession(session);
   }
   function render(step){
