@@ -19,13 +19,13 @@ const contract = { id_contract: 'ct1', id_customer: 'c1', reference: 'CT-EXAMPLE
 const fixture = {
   services: [
     { id_service: 's1', id_customer: 'c1', id_employee: 'e1', product_level: 'p1', rates: '', contract: 'ct1', type: 'I', status: 'R', start_date: '202610141330', end_date: '202610141430', billing_amount: '0', billing_amount_unit: 'H', invoice_ids: [] },
-    { id_service: 's2', id_customer: 'c1', id_employee: 'e1', product_level: 'p1', rates: '', contract: 'ct1', type: 'I', status: 'A', start_date: '202610081330', end_date: '202610081630', billing_amount: '0', billing_amount_unit: 'H', invoice_ids: [] }
+    { id_service: 's2', id_customer: 'c1', id_employee: 'e1', product_level: 'p1', rates: '', contract: 'ct1', type: 'I', status: 'A', version: 'a'.repeat(64), start_date: '202610081330', end_date: '202610081630', billing_amount: '0', billing_amount_unit: 'H', invoice_ids: [] }
   ],
   customers: [{ id_customer: 'c1', label: 'Client exemple jardin' }], products: [{ id_productlevel: 'p1', label: 'Forfait Entretien du jardin', internal_hour: 'N' }], rates: [],
   invoices: [{ id_invoice: 'i1', id_customer: 'c1', type: 'F', status: 'V', number: 'F-EXAMPLE', amount_incl_taxe: '80', invoice_date: '20261031', start_of_period: '20261001', end_of_period: '20261031', contract: 'ct1', service_ids: [], document_available: true }],
   lists: { 'service.status': { R: 'Réalisé', A: 'A réaliser', N: 'Annulé' }, 'contract.status': { C: 'Accepté' } }
 };
-const errors = [], calls = [], objectUrls = [], revoked = []; let releasePdf = null, holdPdf = false;
+const errors = [], calls = [], objectUrls = [], revoked = []; let releasePdf = null, holdPdf = false, linkedPassage = true;
 const vc = new VirtualConsole(); vc.on('jsdomError', error => errors.push(error));
 const dom = new JSDOM(html, { url: 'https://thomas-boudin.github.io/devis-ACJ/facturation/?month=2026-10', runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc });
 const w = dom.window, doc = w.document;
@@ -34,7 +34,29 @@ w.URL.createObjectURL = blob => { assert.equal(blob.type, 'application/pdf'); co
 w.URL.revokeObjectURL = url => revoked.push(url);
 w.Storage.prototype.setItem = () => { throw new Error('Financial evidence must not be persisted in browser storage'); };
 w.fetch = async (input, options) => {
-  const url = new URL(input); assert.equal(url.origin, 'https://acj-ogust-proxy.vercel.app'); assert.equal(options.method, 'GET'); assert.equal(options.cache, 'no-store');
+  const url = new URL(input);
+  if (url.searchParams.get('action') === 'billing-confirm') {
+    if (options.method === 'GET') {
+      assert.equal(url.searchParams.get('service_id'), 's2');
+      return Response.json({ ok: true, status: 'A', can_edit: !linkedPassage,
+        reason: linkedPassage ? 'BILLING_CONFIRM_INVOICE' : '' });
+    }
+    assert.equal(options.method, 'POST');
+    const sent = JSON.parse(options.body);
+    assert.equal(sent.service_id, 's2'); assert.equal(sent.customer_id, 'c1');
+    assert.equal(sent.month, '2026-10'); assert.equal(sent.version, 'a'.repeat(64));
+    calls.push({ operation: sent.operation });
+    const pending = fixture.services[1];
+    if (sent.operation === 'report') {
+      assert.equal(sent.note, 'Horaire à contrôler');
+      pending.anomaly_reported = true;
+      return Response.json({ ok: true, status: 'A', anomaly_reported: true });
+    }
+    assert.equal(sent.operation, 'confirm');
+    pending.status = 'R';
+    return Response.json({ ok: true, status: 'R' });
+  }
+  assert.equal(url.origin, 'https://acj-ogust-proxy.vercel.app'); assert.equal(options.method, 'GET'); assert.equal(options.cache, 'no-store');
   const resource = url.searchParams.get('resource'); calls.push({ resource, id: url.searchParams.get('id'), customer: url.searchParams.get('customer_id'), type: url.searchParams.get('document_type') });
   if (url.searchParams.get('month') !== '2026-10') return new Response(JSON.stringify({ ok: false, error: 'BILLING_READ_FAILED' }), { status: 502 });
   if (resource === 'document') {
@@ -78,5 +100,29 @@ try {
   releasePdf(); await wait(60);
   assert.equal(doc.getElementById('document-dialog').open, false); assert.equal(objectUrls.length, 1, 'A late old-period PDF is discarded before creating a new blob URL');
   assert.equal(doc.querySelectorAll('.contract-card').length, 0); assert.equal(errors.length, 0);
+  month.value = '2026-10'; month.dispatchEvent(new w.Event('change', { bubbles: true }));
+  await until(() => doc.querySelector('.client'));
+  doc.querySelector('.client').open = true;
+  findButton(doc.querySelector('.client'), 'Traiter le passage').click();
+  assert.match(doc.getElementById('passage-summary').textContent, /120,00\s*€/);
+  assert.equal(calls.filter(c => c.operation).length, 0, 'Opening a review never writes');
+  await until(() => doc.getElementById('passage-status').textContent.includes('facture liée'));
+  assert.equal(doc.getElementById('passage-confirm').hidden, true);
+  doc.getElementById('passage-close').click();
+  linkedPassage = false;
+  findButton(doc.querySelector('.client'), 'Traiter le passage').click();
+  await until(() => !doc.getElementById('passage-confirm').hidden);
+  doc.getElementById('passage-note').value = 'Horaire à contrôler';
+  doc.getElementById('passage-report').dispatchEvent(new w.Event('submit', { cancelable: true }));
+  await until(() => doc.getElementById('status').textContent.includes('Anomalie enregistrée'));
+  assert.ok(doc.querySelector('.client').open);
+  assert.match(doc.querySelector('.client').textContent, /Anomalie signalée dans Ogust/);
+  findButton(doc.querySelector('.client'), 'Traiter le passage').click();
+  await until(() => !doc.getElementById('passage-confirm').hidden);
+  doc.getElementById('passage-confirm').click();
+  await until(() => doc.getElementById('status').textContent.includes('Passage confirmé'));
+  assert.equal(calls.filter(c => c.operation === 'confirm').length, 1);
+  assert.equal(doc.querySelectorAll('.service').length, 2);
+  assert.doesNotMatch(doc.querySelector('.client').textContent, /Statut Ogust : A réaliser/);
   console.log('Billing evidence UI: native hourly rules under a Forfait label, contract unit prices vs totals, invoice lines, in-app PDF, source-scoped reads, no browser storage and stale document cleanup verified with synthetic APIs.');
 } finally { w.close(); }

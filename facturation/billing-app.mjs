@@ -1,5 +1,5 @@
-import { contractsToRead, normalize, reconcile, visibleReviewReasons } from './billing-core.mjs?v=4';
-import { contractView, invoiceEvidence, ruleLabel, frenchDay, displayUnit, moneyValue } from './billing-details.mjs?v=1';
+import { contractsToRead, normalize, reconcile, visibleReviewReasons } from './billing-core.mjs?v=5';
+import { contractView, invoiceEvidence, ruleLabel, frenchDay, displayUnit, moneyValue } from './billing-details.mjs?v=2';
 
 const API = 'https://acj-ogust-proxy.vercel.app/api/ogust-history';
 const COMPANY = 'ACJ Services';
@@ -167,13 +167,121 @@ async function mountEvidence(parent, client, scope) {
     history.append(summary, list, more); history.addEventListener('toggle', () => { if (history.open && !loaded) appendMore(); }); parent.append(history);
   }
 }
+const passageClock = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+});
+let passage = null, savingPassage = false;
+
+function closePassage() {
+  if (savingPassage) return;
+  const dialog = $('passage-dialog');
+  if (dialog.open && typeof dialog.close === 'function') dialog.close();
+  else dialog.removeAttribute('open');
+  passage?.trigger.focus();
+  passage = null;
+}
+async function openPassage(row, trigger) {
+  if (!evidence || savingPassage) return;
+  const selected = { row, scope: evidence, trigger, canEdit: false };
+  passage = selected;
+  const summary = [row.client, row.product, serviceDate(row)];
+  if (row.quantity != null) summary.push(quantityText(row.quantity) + ' ' + displayUnit(row.quantity_unit));
+  if (row.unit_price_ttc != null) summary.push(sourceAmount(Math.round(row.unit_price_ttc * 100)) + ' / ' + displayUnit(row.quantity_unit));
+  summary.push(row.amount_cents === null ? 'Montant à vérifier' : money(row.amount_cents) + ' TTC estimés');
+  $('passage-summary').textContent = summary.join(' · ');
+  $('passage-note').value = '';
+  $('passage-confirm').hidden = true;
+  $('passage-report').hidden = true;
+  $('passage-status').textContent = 'Vérification du passage dans Ogust…';
+  const dialog = $('passage-dialog');
+  if (typeof dialog.showModal === 'function') dialog.showModal();
+  else dialog.setAttribute('open', '');
+  try {
+    const url = passageUrl();
+    url.searchParams.set('company', COMPANY);
+    url.searchParams.set('month', selected.scope.data.month);
+    url.searchParams.set('service_id', row.id);
+    url.searchParams.set('customer_id', row.customer_id);
+    url.searchParams.set('version', row.version);
+    const response = await fetch(url, { method: 'GET', cache: 'no-store' });
+    const data = await response.json().catch(() => ({}));
+    if (selected !== passage) return;
+    selected.canEdit = response.ok && data.ok && data.can_edit === true;
+    $('passage-confirm').hidden = !selected.canEdit;
+    $('passage-report').hidden = !selected.canEdit;
+    $('passage-status').textContent = selected.canEdit ? '' : passageError(
+      response.status === 401 || response.status === 403 ? 'BILLING_AUTH_REQUIRED' : data.reason || data.error
+    );
+  } catch {
+    if (selected === passage) $('passage-status').textContent = passageError();
+  }
+}
+function passageUrl() {
+  const url = new URL(API);
+  url.searchParams.set('action', 'billing-confirm');
+  return url;
+}
+function passageError(code) {
+  const messages = {
+    BILLING_CONFIRM_CHANGED: 'Le passage a changé dans Ogust. Ferme cette fenêtre et actualise la fiche.',
+    BILLING_CONFIRM_INVOICE: 'Ogust indique une facture liée à ce passage. Son statut est protégé.',
+    BILLING_CONFIRM_PAYROLL: 'Ce passage est rattaché à un bulletin de paie. Son statut est protégé.',
+    BILLING_CONFIRM_LOCKED: 'Ce passage est déjà traité ou annulé dans Ogust. Actualise la fiche.',
+    BILLING_CONFIRM_DATE: 'Le passage ne peut être traité qu’après sa fin, pour le mois affiché.',
+    BILLING_CONFIRM_BUSY: 'Ce passage est déjà en cours de traitement. Actualise la fiche.',
+    BILLING_CONFIRM_NOTE: 'Indique un motif de 300 caractères maximum.',
+    BILLING_CONFIRM_COMMENT_FULL: 'La note Ogust est déjà trop longue pour y ajouter ce signalement.'
+  };
+  if (code === 'BILLING_AUTH_REQUIRED') return errorMessage(code);
+  return messages[code] || 'Le résultat n’a pas pu être vérifié. Ferme cette fenêtre et actualise avant de réessayer.';
+}
+async function savePassage(operation) {
+  if (!passage?.canEdit || passage.scope !== evidence || savingPassage) return;
+  const { row, scope } = passage;
+  const note = $('passage-note').value.trim();
+  if (operation === 'report' && !note) {
+    $('passage-status').textContent = 'Indique le motif de l’anomalie.';
+    $('passage-note').focus();
+    return;
+  }
+  const controls = ['passage-confirm', 'passage-send-report', 'passage-note', 'passage-close'];
+  savingPassage = true;
+  for (const id of controls) $(id).disabled = true;
+  $('passage-status').textContent = 'Enregistrement et vérification dans Ogust…';
+  let success;
+  try {
+    const response = await fetch(passageUrl(), {
+      method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company: COMPANY, month: scope.data.month, service_id: row.id,
+        customer_id: row.customer_id, version: row.version, operation, note: operation === 'report' ? note : undefined })
+    });
+    const data = await response.json().catch(() => ({}));
+    const verified = operation === 'confirm' ? data.status === 'R' : data.anomaly_reported === true;
+    if (!response.ok || !data.ok || !verified) {
+      if (response.status === 401 || response.status === 403) throw new Error('BILLING_AUTH_REQUIRED');
+      throw new Error(data.error || 'BILLING_CONFIRM_UNVERIFIED');
+    }
+    success = operation === 'confirm' ? 'Passage confirmé dans Ogust.' : 'Anomalie enregistrée dans Ogust.';
+  } catch (error) {
+    $('passage-status').textContent = passageError(error.message);
+  } finally {
+    savingPassage = false;
+    for (const id of controls) $(id).disabled = false;
+  }
+  if (success && scope === evidence) {
+    closePassage();
+    load({ reopenClient: row.customer_id, success });
+  }
+}
+
 function serviceDate(row) {
   const raw = String(row.start || '').replace(/\D/g, ''), end = String(row.end || '').replace(/\D/g, '');
   if (raw.length < 12) return 'Date à vérifier';
   const first = `${raw.slice(6, 8)}/${raw.slice(4, 6)} · ${raw.slice(8, 10)} h ${raw.slice(10, 12)}`;
   return first + (end.length >= 12 ? ` – ${end.slice(8, 10)} h ${end.slice(10, 12)}` : '');
 }
-function render() {
+function render(reopenClient) {
   const clientsBox = $('clients'); clientsBox.replaceChildren();
   if (!report) {
     clientsBox.append(element('div', 'empty', 'Les dossiers apparaîtront après la lecture complète d’Ogust.'));
@@ -227,9 +335,17 @@ function render() {
       }
       if (row.realization === 'realized' && row.amount_cents !== null && !row.invoices.length) service.append(element('p', 'service-source', `${money(row.amount_cents)} TTC estimés · ${quantityText(row.quantity)} ${displayUnit(row.quantity_unit)} · ${row.price_source}`));
       if (row.invoices.length) service.append(element('p', 'invoice-ref', 'Facture' + (row.invoices.length > 1 ? 's' : '') + ' : ' + row.invoices.map(invoice => invoice.number || 'brouillon ' + invoice.id).join(', ')));
+      if (row.anomaly_reported) service.append(element('p', 'service-source', 'Anomalie signalée dans Ogust'));
+      const end = String(row.end || '').slice(0, 12);
+      if (row.status === 'A' && row.version && !row.invoices.length && /^\d{12}$/.test(end)
+          && end < passageClock.format(new Date()).replace(/\D/g, '')) {
+        const reviewPassage = button('Traiter le passage', () => openPassage(row, reviewPassage));
+        service.append(reviewPassage);
+      }
       content.append(service);
     }
     details.append(content); fragment.append(details);
+    if (client.id === reopenClient) details.open = true;
   }
   clientsBox.append(fragment);
 }
@@ -278,7 +394,7 @@ function errorMessage(code) {
   if (/PAGINATION|RESPONSE|REFERENCE/.test(code)) return 'Ogust n’a pas renvoyé une lecture complète et vérifiable. Aucun dossier ne peut être classé prêt. Réessaie.';
   return 'La lecture d’Ogust n’a pas abouti. Les résultats restent indisponibles jusqu’à une lecture complète.';
 }
-async function load() {
+async function load({ reopenClient, success } = {}) {
   if (!authReady || !$('period-form').reportValidity()) return;
   controller?.abort(); const turn = ++serial; const abort = new AbortController(); controller = abort;
   const month = $('month').value; closeDocument(); evidence = null; report = null; render(); $('error').hidden = true; $('loading').hidden = false; $('refresh').disabled = true;
@@ -303,9 +419,14 @@ async function load() {
       read++; progress('Vérification des contrats clients', `${read} contrats sur ${contractIds.length} consultés.`, 65 + Math.round(read / contractIds.length * 30));
     });
     abort.signal.throwIfAborted(); if (turn !== serial) return;
-    data.complete = true; evidence = { data, contracts: new Map(data.contracts.map(contract => [String(contract.id_contract), contract])), invoices: new Map() }; report = reconcile(data); render();
+    data.complete = true; evidence = { data, contracts: new Map(data.contracts.map(contract => [String(contract.id_contract), contract])), invoices: new Map() }; report = reconcile(data);
+    if (reopenClient && !report.clients.some(client => client.id === reopenClient && (filter === 'all' || client.state === filter))) {
+      filter = 'all';
+      for (const option of document.querySelectorAll('[data-filter]')) option.setAttribute('aria-pressed', String(option.dataset.filter === filter));
+    }
+    render(reopenClient);
     const completedAt = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());
-    $('status').textContent = `Lecture complète le ${completedAt} · ${report.counts.total} prestations · ${report.counts.clients} clients`;
+    $('status').textContent = (success ? success + ' ' : '') + `Lecture complète le ${completedAt} · ${report.counts.total} prestations · ${report.counts.clients} clients`;
     $('sources').textContent = `${data.services.length} prestations du mois, ${data.invoices.length} factures et avoirs parcourus, ${data.customers.length} clients, ${data.rates.length} tarifs, ${data.products.length} prestations du catalogue et ${read} contrats consultés.` + (missingLists || data.contract_errors.length ? ' Les règles ou contrats non disponibles sont signalés dans les dossiers concernés.' : '') + ' Les données sont gardées uniquement en mémoire dans cette page.';
     const url = new URL(location.href); url.searchParams.set('month', month); history.replaceState(null, '', url);
   } catch (error) {
@@ -322,6 +443,10 @@ $('month').addEventListener('change', () => { controller?.abort(); closeDocument
 $('cancel').addEventListener('click', () => controller?.abort());
 $('retry').addEventListener('click', load);
 $('search').addEventListener('input', render);
+$('passage-close').addEventListener('click', closePassage);
+$('passage-dialog').addEventListener('cancel', event => { event.preventDefault(); closePassage(); });
+$('passage-confirm').addEventListener('click', () => savePassage('confirm'));
+$('passage-report').addEventListener('submit', event => { event.preventDefault(); savePassage('report'); });
 $('document-close').addEventListener('click', closeDocument);
 $('document-dialog').addEventListener('cancel', event => { event.preventDefault(); closeDocument(); });
 window.addEventListener('pagehide', () => { closeDocument(); evidence = null; });

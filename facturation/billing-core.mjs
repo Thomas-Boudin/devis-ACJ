@@ -182,6 +182,7 @@ export function reconcile(snapshot) {
     const result = { id: id(service.id_service), customer_id: id(service.id_customer), client: customer?.label || 'Client ' + id(service.id_customer),
       product: product?.label || 'Prestation ' + id(service.product_level), start: service.start_date, end: service.end_date,
       state, reasons: issues, amount_cents: null, quantity_hours: null, contract: contract?.reference || ref(service.contract), contract_id: ref(service.contract), billing_kind: forfait ? 'forfait' : billingKind, realization,
+      version: service.version, anomaly_reported: service.anomaly_reported,
       status: service.status, status_label: labelled(lists, 'service.status', service.status),
       invoices: attached.map(i => ({ id: i.id_invoice, number: i.number, state: invoiceState(i, lists) })) };
     if (!complete) issues.push('Lecture des données incomplète');

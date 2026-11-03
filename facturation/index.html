@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex,nofollow">
   <meta name="description" content="Contrôle des prestations ACJ Services à facturer dans Ogust.">
   <title>Facturation ACJ</title>
-  <link rel="stylesheet" href="./billing.css?v=3">
+  <link rel="stylesheet" href="./billing.css?v=4">
   <!-- Compatibility with the previous Devis worker, until its update isolates this app:
     sap-v7.js print-v9.js details-v10.js print-v11.js ai-v17.js ai-policy-v18.js
     ogust-write-v19.js client-step-v21.js compliance-v23.js multi-ogust-v28.js
@@ -19,7 +19,7 @@
   <header class="top">
     <div class="top-inner">
       <a class="brand" href="../" aria-label="Retour à Devis ACJ"><span class="mark">ACJ</span><span><strong>Facturation</strong><small>ACJ Services</small></span></a>
-      <span class="mode">Lecture seule</span>
+      <span class="mode">Contrôle ACJ</span>
     </div>
   </header>
   <main>
@@ -65,6 +65,17 @@
       <object id="pdf-object" type="application/pdf" aria-label="Document Ogust"><p>Utilise « PDF en plein écran » ou « Enregistrer le PDF » pour consulter ce document.</p></object>
     </div>
   </dialog>
-  <script type="module" src="./billing-app.mjs?v=4"></script>
+  <dialog id="passage-dialog" aria-labelledby="passage-title" class="document-dialog passage-dialog">
+    <div class="document-head"><h2 id="passage-title">Vérifier le passage</h2><button id="passage-close" type="button" class="quiet">Fermer</button></div>
+    <p id="passage-summary"></p>
+    <button id="passage-confirm" type="button" class="primary">Marquer réalisé dans Ogust</button>
+    <form id="passage-report">
+      <label for="passage-note">Motif de l’anomalie</label>
+      <textarea id="passage-note" rows="3" maxlength="300" required></textarea>
+      <button id="passage-send-report" type="submit" class="quiet">Signaler dans Ogust</button>
+    </form>
+    <p id="passage-status" role="status"></p>
+  </dialog>
+  <script type="module" src="./billing-app.mjs?v=5"></script>
 </body>
 </html>

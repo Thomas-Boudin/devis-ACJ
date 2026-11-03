@@ -1,4 +1,4 @@
-import { decimal, invoiceState, contractMode } from './billing-core.mjs?v=4';
+import { decimal, invoiceState, contractMode } from './billing-core.mjs?v=5';
 
 const text = value => String(value ?? '').trim();
 const day = value => text(value).replace(/\D/g, '').slice(0, 8);
