@@ -30,17 +30,23 @@
     POINTAGE_PHOTO_TOO_LARGE:'La photo est trop volumineuse. Prenez une nouvelle photo.',
     POINTAGE_PHOTO_REQUIRED:'Prenez une photo pour confirmer ce pointage.',
     POINTAGE_PHOTO_INVALID:'La photo ne peut pas être lue. Prenez une nouvelle photo.',
+    POINTAGE_REPORT_TASKS_REQUIRED:'Cochez les tâches obligatoires avant de terminer.',
+    POINTAGE_REPORT_NOTE_REQUIRED:'Ajoutez une remarque pour décrire l’anomalie signalée.',
+    POINTAGE_REPORT_NOTE_TOO_LONG:'La remarque est trop longue.',
+    POINTAGE_REPORT_INVALID:'Vérifiez la fiche d’intervention.',
+    POINTAGE_SIGNATURE_REQUIRED:'Faites signer le client ou indiquez son absence.',
     POINTAGE_COMMENT_TOO_LONG:'La note de la prestation Ogust est trop longue pour y ajouter les pointages. Le gestionnaire doit la vérifier.',
     POINTAGE_OGUST_NOT_CONFIRMED:'Le pointage est conservé. Son affichage dans Ogust n’a pas été confirmé.',
     AUTH_REQUIRED:'Reconnectez-vous pour envoyer les pointages.',AUTH_INVALID:'Reconnectez-vous pour envoyer les pointages.'
   };
-  const message=e=>messages[e?.message]||'Envoi indisponible. Le pointage et sa photo sont conservés sur ce téléphone pour réessayer.';
+  const message=e=>messages[e?.message]||'Envoi indisponible. Le pointage, sa fiche et ses photos restent conservés sur ce téléphone pour réessayer.';
   const setText=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
   const banner=value=>setText(document.querySelector('.banner'),value);
   function css(){const s=document.createElement('style');s.id='acj-pointage-css';s.textContent=`
     .pointage{background:#0f766e;color:white;cursor:pointer}.pointage[data-state="active"]{background:#b91c1c}.pointage[data-state="done"]{background:#dcfce7;color:#166534}.pointage:disabled{opacity:.65;cursor:default}
     .pointageMeta{margin-top:9px;padding:11px;border-radius:12px;background:#f0fdf4;font-size:12px;line-height:1.5;color:#166534}.pointageMeta.pending{background:#fff7ed;color:#9a3412}.pointageTools{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.pointageTools button{background:white;border:1px solid #cbd5e1;border-radius:10px;min-height:40px;padding:8px 12px;color:#334155;font-weight:800}.pointageTools .pointageValidate{background:#0f766e;color:white;border:0}
     .pointageDialog{width:min(calc(100% - 24px),520px);max-height:90dvh;border:0;border-radius:22px;padding:22px;color:#0f172a;overflow:auto}.pointageDialog::backdrop{background:rgba(15,23,42,.65)}.pointageDialog h2{font-size:22px;margin:0 0 10px}.pointageDialog p{line-height:1.5}.pointageDialog button{min-height:48px;border-radius:12px;padding:12px;font-weight:800;cursor:pointer}.pointageDialog .photoButton{width:100%;background:white;border:1px solid #cbd5e1}.pointageDialog img{max-width:100%;max-height:55dvh;object-fit:contain;border-radius:12px;margin-top:12px}.pointageDialog footer{display:flex;gap:8px;margin-top:18px}.pointageDialog .confirm{flex:1;background:#0f766e;color:white;border:0}.pointageDialog .confirm:disabled{opacity:.45;cursor:default}.pointageDialog .cancel{background:#f1f5f9;color:#334155;border:0}.pointageDialog .error{color:#b91c1c;font-size:14px}.pointageDialog label{display:block;font-size:14px;color:#64748b;margin:8px 0}
+    .pointageReport{margin-top:16px;padding:14px;background:#f8fafc;border:1px solid #dbe3ee;border-radius:14px}.pointageReport h3{font-size:16px;margin:0 0 8px}.pointageTask{display:flex!important;align-items:flex-start;gap:10px;padding:9px 0;color:#334155!important}.pointageTask input{width:20px;height:20px;accent-color:#0f766e;flex:0 0 auto}.pointageNote{box-sizing:border-box;width:100%;min-height:82px;border:1px solid #cbd5e1;border-radius:10px;padding:10px;font:inherit;resize:vertical}.pointageSignature{display:block;width:100%;height:150px;border:1px dashed #94a3b8;border-radius:10px;background:#fff;touch-action:none}.pointageSignatureActions{display:flex;gap:8px;align-items:center}.pointageSignatureActions button{background:#fff;border:1px solid #cbd5e1;color:#334155}.pointageAbsent{font-weight:600;color:#334155!important}
     .pointageHistory{background:white;border:1px solid #dbe3ee;border-radius:19px;padding:16px}.pointageHistory h2{font-size:19px;margin:0 0 8px}.pointageHistory>p{font-size:13px;line-height:1.5;color:#64748b}.pointageHistoryEntry{border-top:1px solid #dbe3ee;padding:14px 0 0;margin-top:14px}.pointageHistoryEntry h3{font-size:15px;margin:0}
   `;document.head.appendChild(s);}
   function dialog(title){const d=document.createElement('dialog');d.className='pointageDialog';const h=document.createElement('h2');h.textContent=title;d.appendChild(h);d.addEventListener('close',()=>d.remove(),{once:true});document.body.appendChild(d);d.showModal();return d;}
@@ -56,24 +62,119 @@
     const input=document.createElement('input');input.type='file';input.accept='image/*';input.required=true;input.setAttribute('capture','environment');input.hidden=true;d.appendChild(input);
     const photoButton=button('Prendre une photo','photoButton',()=>input.click());d.appendChild(photoButton);
     const preview=document.createElement('img');preview.alt='Photo de la prestation';preview.hidden=true;d.appendChild(preview);
-    const error=p(d,'','error'),footer=document.createElement('footer');let photo=null,processing=false,photoAttempt=0;
-    const cancel=button('Annuler','cancel',()=>d.close()),confirm=button(phase==='start'?'Démarrer':'Terminer','confirm',async()=>{
+    let photo=null,processing=false,photoAttempt=0,signatureDrawn=false,painting=false,taskInputs={},noteInput=null,clientAbsentInput=null,signatureCanvas=null,signatureContext=null,refreshConfirm=()=>{};
+    if(phase==='stop'){
+      const section=document.createElement('section');section.className='pointageReport';
+      const title=document.createElement('h3');title.textContent='Fiche de fin d’intervention';section.appendChild(title);
+      p(section,'Cochez les tâches réalisées, puis faites signer le client ou indiquez son absence.');
+      const definitions=[
+        {key:'service_done',label:'Prestation prévue réalisée',required:true},
+        {key:'instructions_followed',label:'Consignes respectées',required:true},
+        {key:'area_left_tidy',label:'Zone rangée ou nettoyée',required:true},
+        {key:'issue_reported',label:'Anomalie signalée',required:false}
+      ];
+      for(const item of definitions){
+        const row=document.createElement('label');row.className='pointageTask';
+        const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=item.key;checkbox.required=item.required;
+        const text=document.createElement('span');text.textContent=item.label+(item.required?' *':' (si besoin)');
+        row.append(checkbox,text);section.appendChild(row);taskInputs[item.key]=checkbox;
+        checkbox.addEventListener('change',()=>refreshConfirm());
+      }
+      const noteLabel=document.createElement('label');noteLabel.textContent='Remarque (obligatoire si anomalie signalée, 280 caractères maximum)';
+      noteInput=document.createElement('textarea');noteInput.className='pointageNote';noteInput.maxLength=280;noteInput.rows=3;noteInput.setAttribute('aria-label','Remarque sur l’intervention');
+      noteLabel.appendChild(noteInput);section.appendChild(noteLabel);
+      const absentLabel=document.createElement('label');absentLabel.className='pointageTask pointageAbsent';
+      clientAbsentInput=document.createElement('input');clientAbsentInput.type='checkbox';
+      const absentText=document.createElement('span');absentText.textContent='Aucun client ou référent présent';
+      absentLabel.append(clientAbsentInput,absentText);section.appendChild(absentLabel);
+      const signatureLabel=document.createElement('label');signatureLabel.textContent='Signature du client ou du référent';
+      signatureCanvas=document.createElement('canvas');signatureCanvas.className='pointageSignature';signatureCanvas.width=600;signatureCanvas.height=180;signatureCanvas.setAttribute('aria-label','Zone de signature du client ou du référent');signatureLabel.appendChild(signatureCanvas);section.appendChild(signatureLabel);
+      signatureContext=signatureCanvas.getContext('2d');
+      const clearSignature=()=>{
+        signatureContext.fillStyle='#fff';signatureContext.fillRect(0,0,signatureCanvas.width,signatureCanvas.height);
+        signatureDrawn=false;refreshConfirm();
+      };
+      clearSignature();
+      const actions=document.createElement('div');actions.className='pointageSignatureActions';
+      actions.appendChild(button('Effacer la signature','',clearSignature));section.appendChild(actions);
+      const point=event=>{
+        const rect=signatureCanvas.getBoundingClientRect();
+        return {x:(event.clientX-rect.left)*signatureCanvas.width/rect.width,y:(event.clientY-rect.top)*signatureCanvas.height/rect.height};
+      };
+      signatureCanvas.addEventListener('pointerdown',event=>{
+        if(clientAbsentInput.checked)return;
+        painting=true;signatureCanvas.setPointerCapture(event.pointerId);clientAbsentInput.checked=false;
+        const pos=point(event);signatureContext.beginPath();signatureContext.moveTo(pos.x,pos.y);
+        signatureDrawn=true;refreshConfirm();
+      });
+      signatureCanvas.addEventListener('pointermove',event=>{
+        if(!painting)return;
+        const pos=point(event);signatureContext.lineWidth=3;signatureContext.lineCap='round';signatureContext.lineJoin='round';signatureContext.strokeStyle='#0f172a';signatureContext.lineTo(pos.x,pos.y);signatureContext.stroke();
+      });
+      signatureCanvas.addEventListener('pointerup',()=>{painting=false;});
+      signatureCanvas.addEventListener('pointercancel',()=>{painting=false;});
+      clientAbsentInput.addEventListener('change',()=>{
+        if(clientAbsentInput.checked)clearSignature();
+        signatureCanvas.style.pointerEvents=clientAbsentInput.checked?'none':'auto';
+        refreshConfirm();
+      });
+      noteInput.addEventListener('input',()=>refreshConfirm());
+      d.appendChild(section);
+    }
+    const error=p(d,'','error'),footer=document.createElement('footer');
+    const checklistReady=()=>phase!=='stop'||['service_done','instructions_followed','area_left_tidy'].every(key=>taskInputs[key]?.checked);
+    const signatureReady=()=>phase!=='stop'||!!clientAbsentInput?.checked||signatureDrawn;
+    const noteReady=()=>phase!=='stop'||!taskInputs.issue_reported?.checked||!!noteInput?.value.trim();
+    const canSubmit=()=>!!photo&&checklistReady()&&signatureReady()&&noteReady();
+    const cancel=button('Annuler','cancel',()=>d.close());
+    let confirm;
+    refreshConfirm=()=>{if(confirm&&!processing)confirm.disabled=!canSubmit();};
+    confirm=button(phase==='start'?'Démarrer':'Terminer','confirm',async()=>{
       if(processing)return;
       if(!photo){setText(error,messages.POINTAGE_PHOTO_REQUIRED);return;}
+      if(!checklistReady()){setText(error,messages.POINTAGE_REPORT_TASKS_REQUIRED);return;}
+      if(!noteReady()){setText(error,messages.POINTAGE_REPORT_NOTE_REQUIRED);return;}
+      if(!signatureReady()){setText(error,messages.POINTAGE_SIGNATURE_REQUIRED);return;}
       if(phase==='stop'&&Date.now()-Date.parse(previous.started_at)<60000){setText(error,messages.POINTAGE_DURATION_INVALID);return;}
       processing=true;confirm.disabled=true;cancel.disabled=true;photoButton.disabled=true;const occurred_at=new Date().toISOString();
-      try{const selectedOwner=owner();if(!selectedOwner||selectedOwner!==currentOwner)throw new Error('AUTH_REQUIRED');
-        const event_id=crypto.randomUUID(),event={key:`${selectedOwner}:${event_id}`,owner:selectedOwner,event_id,type:phase,service_id:String(service.id_service),employee_id:employee(),scheduled_date:previous?.scheduled_date||date(),occurred_at,gps:await gps(),photo};
+      try{
+        const selectedOwner=owner();if(!selectedOwner||selectedOwner!==currentOwner)throw new Error('AUTH_REQUIRED');
+        const report=phase==='stop'?{
+          tasks:Object.keys(taskInputs).filter(key=>taskInputs[key].checked),
+          note:noteInput.value.trim(),
+          client_absent:clientAbsentInput.checked,
+          signature:signatureDrawn?signatureCanvas.toDataURL('image/png'):null
+        }:null;
+        const event_id=crypto.randomUUID(),event={key:selectedOwner+':'+event_id,owner:selectedOwner,event_id,type:phase,service_id:String(service.id_service),employee_id:employee(),scheduled_date:previous?.scheduled_date||date(),occurred_at,gps:await gps(),photo};
+        if(report)event.report=report;
         const state={...previous,key:key(service.id_service),owner:selectedOwner,service_id:event.service_id,employee_id:event.employee_id,scheduled_date:event.scheduled_date,status:phase==='start'?'active':'completed',ogust_synced:false,error:null,pending:true};
-        if(phase==='start')Object.assign(state,{started_at:occurred_at,start_event_id:event_id,start_photo:!!photo,start_gps_status:event.gps.status});else Object.assign(state,{ended_at:occurred_at,stop_event_id:event_id,end_photo:!!photo,end_gps_status:event.gps.status});
+        if(phase==='start')Object.assign(state,{started_at:occurred_at,start_event_id:event_id,start_photo:!!photo,start_gps_status:event.gps.status});
+        else Object.assign(state,{ended_at:occurred_at,stop_event_id:event_id,end_photo:!!photo,end_gps_status:event.gps.status,report:{tasks:report.tasks,note:report.note,client_absent:report.client_absent,signature:!!report.signature}});
         await save(state,event);d.close();paintAll();flush();
-      }catch(e){setText(error,message(e));confirm.disabled=!photo;cancel.disabled=false;photoButton.disabled=false;processing=false;}
+      }catch(e){setText(error,message(e));confirm.disabled=!canSubmit();cancel.disabled=false;photoButton.disabled=false;processing=false;}
     });
     confirm.disabled=true;
-    input.onchange=async()=>{if(processing||!input.files?.[0])return;const attempt=++photoAttempt;photo=null;confirm.disabled=true;photoButton.disabled=true;preview.hidden=true;preview.removeAttribute('src');setText(error,'');setText(photoButton,'Prendre une photo');try{const value=await compress(input.files[0]);if(attempt!==photoAttempt||!d.isConnected)return;photo=value;preview.src=photo;preview.hidden=false;setText(photoButton,'Reprendre la photo');}catch(e){if(attempt===photoAttempt&&d.isConnected)setText(error,message(e));}finally{if(attempt===photoAttempt&&d.isConnected){confirm.disabled=!photo;photoButton.disabled=false;}}};
+    input.onchange=async()=>{
+      if(processing||!input.files?.[0])return;
+      const attempt=++photoAttempt;photo=null;confirm.disabled=true;photoButton.disabled=true;preview.hidden=true;preview.removeAttribute('src');setText(error,'');setText(photoButton,'Prendre une photo');
+      try{const value=await compress(input.files[0]);if(attempt!==photoAttempt||!d.isConnected)return;photo=value;preview.src=photo;preview.hidden=false;setText(photoButton,'Reprendre la photo');}
+      catch(e){if(attempt===photoAttempt&&d.isConnected)setText(error,message(e));}
+      finally{if(attempt===photoAttempt&&d.isConnected){photoButton.disabled=false;refreshConfirm();}}
+    };
     footer.append(cancel,confirm);d.appendChild(footer);d.addEventListener('cancel',e=>{if(processing)e.preventDefault();});d.addEventListener('close',()=>{busy=false;paintAll();},{once:true});
   }
-  async function viewPhoto(state,phase){const d=dialog(phase==='start'?'Photo de début':'Photo de fin'),status=p(d,'Chargement de la photo…');d.appendChild(button('Fermer','cancel',()=>d.close()));try{const blob=await call('pointage_photo',{service_id:state.service_id,employee_id:state.employee_id,date:state.scheduled_date,type:phase},false,true);const img=document.createElement('img'),url=URL.createObjectURL(blob);img.src=url;img.alt=phase==='start'?'Photo de début':'Photo de fin';d.insertBefore(img,status);status.remove();d.addEventListener('close',()=>URL.revokeObjectURL(url),{once:true});}catch{setText(status,'La photo sera consultable après son envoi.');}}
+
+  async function viewPhoto(state,phase){
+    const title=phase==='signature'?'Signature du client ou du référent':phase==='start'?'Photo de début':'Photo de fin';
+    const alt=phase==='signature'?'Signature du client ou du référent':phase==='start'?'Photo de début':'Photo de fin';
+    const d=dialog(title),status=p(d,'Chargement…');d.appendChild(button('Fermer','cancel',()=>d.close()));
+    try{
+      const blob=await call('pointage_photo',{service_id:state.service_id,employee_id:state.employee_id,date:state.scheduled_date,type:phase},false,true);
+      const img=document.createElement('img'),url=URL.createObjectURL(blob);img.src=url;img.alt=alt;d.insertBefore(img,status);status.remove();
+      d.addEventListener('close',()=>URL.revokeObjectURL(url),{once:true});
+    }catch{setText(status,'La preuve sera consultable après son envoi.');}
+  }
+
   async function validate(state){const d=dialog('Valider les heures réelles');p(d,`Prévu : ${state.scheduled_start?.slice(8,10)||'—'}:${state.scheduled_start?.slice(10,12)||'—'} → ${state.scheduled_end?.slice(8,10)||'—'}:${state.scheduled_end?.slice(10,12)||'—'}`);p(d,`Réalisé : ${time(state.started_at)} → ${time(state.ended_at)} · ${state.duration_minutes} min`);p(d,'La validation remplace les horaires de cette prestation dans Ogust, ajuste la quantité en heures et la marque « Réalisée ». Les pointages et le planning d’origine restent conservés.');const error=p(d,'','error'),footer=document.createElement('footer');const cancel=button('Annuler','cancel',()=>d.close()),confirm=button('Valider dans Ogust','confirm',async()=>{confirm.disabled=true;cancel.disabled=true;try{const result=await call('pointage_validate',{service_id:state.service_id,employee_id:state.employee_id,scheduled_date:state.scheduled_date,confirm:true},true);await save({...state,...result.state,key:key(state.service_id),owner:owner()});paintAll();d.close();if(typeof window.loadPlanning==='function')window.loadPlanning();}catch(e){setText(error,message(e));confirm.disabled=false;cancel.disabled=false;}});footer.append(cancel,confirm);d.appendChild(footer);}
   const absent=s=>absences.some(a=>String(a.start_date)<String(s.end_date||'')&&String(a.end_date)>String(s.start_date||''));
   const otherActive=sid=>[...states.values()].some(s=>s.employee_id===employee()&&s.service_id!==sid&&s.status==='active')||(remoteActive?.service_id&&remoteActive.service_id!==sid);
@@ -87,12 +188,16 @@
     finally{syncing.delete(attempt);if(stillCurrent())paintAll();}
   }
   async function retry(serviceId){const selectedOwner=owner();for(const event of await all('events')){if(event.owner===selectedOwner&&event.service_id===serviceId&&event.blocked)await save(null,{...event,blocked:false});}const state=states.get(serviceId);if(state)await save({...state,blocked:false,error:null,status:state.stop_event_id?'completed':'active'});paintAll();flush();}
-  const description=state=>`${time(state.started_at)}${state.ended_at?` → ${time(state.ended_at)}`:''} · ${state.blocked?'Envoi bloqué · vérification par le gestionnaire':state.validated?'Heures validées dans Ogust':state.pending?'Enregistré sur ce téléphone · en attente d’envoi':!visibleReceipt(state)?'Pointage enregistré · transmission à Ogust à confirmer':state.status==='active'?'Début transmis · Ogust : Ordre de mission':'Pointages transmis · Ogust : Ordre de mission · heures à valider'}${state.error?` — ${state.error}`:''}`;
+  const description=state=>{
+    const base=time(state.started_at)+(state.ended_at?' → '+time(state.ended_at):'')+' · '+(state.blocked?'Envoi bloqué · vérification par le gestionnaire':state.validated?'Heures validées dans Ogust':state.pending?'Enregistré sur ce téléphone · en attente d’envoi':!visibleReceipt(state)?'Pointage enregistré · transmission à Ogust à confirmer':state.status==='active'?'Début transmis · Ogust : Ordre de mission':'Pointages transmis · Ogust : Ordre de mission · heures à valider');
+    const report=state.report,reportText=report?' · Fiche : '+report.tasks.length+' tâches · '+(report.signature?'signature jointe':'client/référent absent'):'';
+    return base+reportText+(state.error?' — '+state.error:'');
+  };
   function paintTools(tools,sid,state,allowValidation=true){
     const transmitting=state?syncing.has(syncKey(state)):false;
-    const signature=JSON.stringify([state?.status,state?.blocked,state?.start_photo,state?.end_photo,state?.pending,visibleReceipt(state),state?.validated,transmitting,window.ACJ_INTERVENANTES_ROLE,allowValidation]);
+    const signature=JSON.stringify([state?.status,state?.blocked,state?.start_photo,state?.end_photo,state?.report?.tasks,state?.report?.signature,state?.pending,visibleReceipt(state),state?.validated,transmitting,window.ACJ_INTERVENANTES_ROLE,allowValidation]);
     if(tools.dataset.signature===signature)return;
-    tools.dataset.signature=signature;tools.replaceChildren();if(state?.start_photo)tools.appendChild(button('Photo début','',()=>viewPhoto(states.get(sid),'start')));if(state?.end_photo)tools.appendChild(button('Photo fin','',()=>viewPhoto(states.get(sid),'stop')));if(state?.pending)tools.appendChild(button('Réessayer l’envoi','',()=>retry(sid)));if(state&&!state.pending&&!visibleReceipt(state)){const send=button(transmitting?'Transmission…':'Transmettre à Ogust','pointageSync',()=>syncExisting(states.get(sid),true));send.disabled=transmitting;tools.appendChild(send);}if(allowValidation&&state?.status==='completed'&&visibleReceipt(state)&&!state.pending&&!state.validated&&window.ACJ_INTERVENANTES_ROLE==='admin')tools.appendChild(button('Valider les heures réelles','pointageValidate',()=>validate(states.get(sid))));
+    tools.dataset.signature=signature;tools.replaceChildren();if(state?.start_photo)tools.appendChild(button('Photo début','',()=>viewPhoto(states.get(sid),'start')));if(state?.end_photo)tools.appendChild(button('Photo fin','',()=>viewPhoto(states.get(sid),'stop')));if(state?.report?.signature&&!state?.pending)tools.appendChild(button('Signature client','',()=>viewPhoto(states.get(sid),'signature')));if(state?.pending)tools.appendChild(button('Réessayer l’envoi','',()=>retry(sid)));if(state&&!state.pending&&!visibleReceipt(state)){const send=button(transmitting?'Transmission…':'Transmettre à Ogust','pointageSync',()=>syncExisting(states.get(sid),true));send.disabled=transmitting;tools.appendChild(send);}if(allowValidation&&state?.status==='completed'&&visibleReceipt(state)&&!state.pending&&!state.validated&&window.ACJ_INTERVENANTES_ROLE==='admin')tools.appendChild(button('Valider les heures réelles','pointageValidate',()=>validate(states.get(sid))));
   }
   function paint(card,service){
     const sid=String(service.id_service||''),b=card.querySelector('.pointage');if(!b||!sid)return;
