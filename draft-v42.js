@@ -28,12 +28,13 @@
       if(!hasWork(draft)){localStorage.removeItem(KEY);last=text;status('');return}
       localStorage.setItem(KEY,text);last=text;status(restored?'Saisie reprise · enregistrée sur cet appareil':'Saisie enregistrée sur cet appareil');
       window.acjHistoryV29?.rememberCurrent?.();
+      window.dispatchEvent(new CustomEvent('acj:draft-saved'));
     }catch{status('Enregistrement automatique impossible sur cet appareil.',true)}
   }
   function queue(){if(suspended)return;clearTimeout(timer);timer=setTimeout(save,300)}
   function valid(d){return d?.version===42&&d.state&&typeof d.state.number==='string'&&typeof d.state.client==='string'&&Array.isArray(d.state.lines)&&d.state.lines.length<500&&COMPANIES.includes(d.state.company)&&!!MODES[d.state.mode]&&d.state.lines.every(l=>l&&typeof l.id==='string'&&typeof l.designation==='string'&&Number.isFinite(Number(l.qty))&&Number.isFinite(Number(l.unitPriceTTC))&&Number.isFinite(Number(l.vat)))}
-  function restore(){
-    let draft;try{draft=JSON.parse(localStorage.getItem(KEY)||'null')}catch{return}
+  function restore(supplied){
+    let draft=supplied;try{if(!draft)draft=JSON.parse(localStorage.getItem(KEY)||'null')}catch{return}
     if(!valid(draft))return;
     Object.assign(state,clone(draft.state));state.step=1;
     window.renderCompanies?.();window.renderModes?.();
@@ -71,7 +72,7 @@
     document.addEventListener('input',queue);document.addEventListener('change',queue);document.addEventListener('click',queue);
     window.addEventListener('acj:company-changed',queue);window.addEventListener('acj:ogust-picker-changed',queue);window.addEventListener('acj:quote-reopened',queue);window.addEventListener('acj:availability-selected',queue);
     window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save()});
-    window.acjDraftV42={save,get key(){return KEY}};
+    window.acjDraftV42={save,restoreShared(draft){const original=suspended,reopened=window.acjReopenedQuoteV33;suspended=true;try{if(!valid(draft))return false;const safe=clone(draft);safe.reopened=reopened;localStorage.setItem(KEY,JSON.stringify(safe));restore(safe);last='';return true}finally{suspended=original}},get key(){return KEY}};
   }
   const start=()=>queueMicrotask(init);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();

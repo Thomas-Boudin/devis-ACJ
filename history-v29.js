@@ -22,7 +22,7 @@
   function readJson(key,fallback){try{const v=JSON.parse(localStorage.getItem(key)||'null');return v??fallback}catch{return fallback}}
   function readSaved(){const a=readJson(SAVED_KEY,[]);return Array.isArray(a)?a:[]}
   function readMeta(){const x=readJson(META_KEY,{});return x&&typeof x==='object'&&!Array.isArray(x)?x:{}}
-  function writeMeta(meta){try{localStorage.setItem(META_KEY,JSON.stringify(meta))}catch{}}
+  function writeMeta(meta){try{localStorage.setItem(META_KEY,JSON.stringify(meta));window.dispatchEvent(new CustomEvent('acj:local-quote-changed'))}catch{}}
   function patchMeta(company,ref,patch){
     if(!company||!ref)return;
     const meta=readMeta(),k=keyFor(company,ref);
@@ -32,7 +32,7 @@
   function currentPayload(){try{return typeof window.quotePayload==='function'?window.quotePayload():null}catch{return null}}
   function dedupeSaved(){
     const saved=readSaved(),seen=new Set(),out=[];
-    for(const p of saved){const k=quoteKey(p);if(!k||seen.has(k))continue;seen.add(k);out.push(p);if(out.length>=50)break}
+    for(const p of saved){const k=quoteKey(p);if(!k||seen.has(k))continue;seen.add(k);out.push(p);if(out.length>=3000)break}
     try{localStorage.setItem(SAVED_KEY,JSON.stringify(out))}catch{}
     return out;
   }
@@ -44,8 +44,8 @@
     const copy=JSON.parse(JSON.stringify(p));
     const at=saved.findIndex(x=>quoteKey(x)===k);if(at>=0)saved[at]=copy;else saved.unshift(copy);
     const seen=new Set(),out=[];
-    for(const item of saved){const ik=quoteKey(item);if(!ik||seen.has(ik))continue;seen.add(ik);out.push(item);if(out.length>=50)break}
-    try{localStorage.setItem(SAVED_KEY,JSON.stringify(out))}catch{}
+    for(const item of saved){const ik=quoteKey(item);if(!ik||seen.has(ik))continue;seen.add(ik);out.push(item);if(out.length>=3000)break}
+    try{localStorage.setItem(SAVED_KEY,JSON.stringify(out));window.dispatchEvent(new CustomEvent('acj:local-quote-changed'))}catch{}
   }
   function dateMs(p){
     const raw=String(p?.date||'');
@@ -54,13 +54,15 @@
     return 0;
   }
   function dateLabel(p){
+    const day=String(p?.date||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(day)return `${day[3]}/${day[2]}/${day[1]}`;
     const ms=dateMs(p);if(ms)return new Date(ms).toLocaleDateString('fr-FR');
     return String(p?.date||'').slice(0,10)||'—';
   }
-  function statusText(meta){
+  function statusText(meta,p){
     if(meta?.ogust_status_label)return meta.ogust_status_label;
     if(meta?.ogust_status&&STATUS_LABELS[meta.ogust_status])return STATUS_LABELS[meta.ogust_status];
     if(meta?.ogust_id)return 'Créé dans Ogust';
+    if(window.acjSharedQuotes72?.isShared?.(p))return 'Brouillon partagé';
     return 'Enregistré localement';
   }
   function statusClass(label){
@@ -135,7 +137,7 @@
     const refresh=document.getElementById('historyRefresh71');if(refresh){refresh.disabled=syncing;refresh.textContent=syncing?'Actualisation…':'Actualiser'}
     if(!displayed.length){list.innerHTML=`<div class="histEmpty">${historyView==='follow'?'Aucun devis envoyé à suivre pour cette sélection. Retrouve les autres dans « Brouillons » ou « Tous ».':'Aucun devis enregistré ne correspond à cette sélection.'}</div>`;window.dispatchEvent(new CustomEvent('acj:history-rendered'));return}
     list.innerHTML=displayed.map((p,i)=>{
-      const m=meta[quoteKey(p)]||{},status=statusText(m),lines=p?.lignes||[];
+      const m=meta[quoteKey(p)]||{},status=statusText(m,p),lines=p?.lignes||[];
       const details=lines.map(l=>`<div class="histDetailLine"><span>${e(l?.designation||'Prestation')} · ${e(l?.quantite??'')} ${e(l?.unite||'')}</span><strong>${euro(l?.total_ttc??(n(l?.quantite)*n(l?.prix_unitaire_ttc)))}</strong></div>`).join('');
       const args=[p.societe,p.numero_devis].map(value=>e(JSON.stringify(value))).join(','),locked=['C','V','T','S'].includes(String(m.ogust_status||'').toUpperCase());
       const sent=String(m.ogust_status||'').toUpperCase()==='E',supported=['ACJ Services','ACJ Services Lens'].includes(p.societe),canRemind=sent&&supported&&m.ogust_id&&checked.has(quoteKey(p)),contact=contactLabel(m);
@@ -161,7 +163,7 @@
     renderHistory();syncStatuses();
   }
   window.openQuoteHistoryV29=openHistory;
-  window.acjHistory71={displayed:()=>displayed.slice()};
+  window.acjHistory71={displayed:()=>displayed.slice(),render:renderHistory};
   window.remindHistoryQuoteV71=async function(company,ref){
     const p=readSaved().find(item=>item.societe===company&&item.numero_devis===ref),m=readMeta()[keyFor(company,ref)]||{};
     if(!p||m.ogust_status!=='E'||!checked.has(quoteKey(p)))return;
@@ -218,13 +220,14 @@
   async function syncStatuses(){
     const generation=++syncGeneration,overlay=document.getElementById('historyOverlayV29'),active=()=>generation===syncGeneration&&overlay?.isConnected;
     checked.clear();syncing=true;syncMessage='Actualisation des statuts Ogust…';const box=document.getElementById('historySync');if(box)box.textContent=syncMessage;renderHistory();
+    if(window.acjSharedQuotes72?.enabled){await window.acjSharedQuotes72.sync();if(!active())return}
     const saved=readSaved(),meta=readMeta();
     const groups={};
     for(const p of saved){if(!['ACJ Services','ACJ Services Lens'].includes(p?.societe))continue;const m=meta[quoteKey(p)]||{};if(!m.ogust_id)continue;(groups[p.societe]||(groups[p.societe]=[])).push({p,meta:m})}
     let total=0;const attempted=Object.values(groups).reduce((sum,items)=>sum+items.length,0);
     await Promise.allSettled(Object.entries(groups).map(async([company,items])=>{for(let i=0;i<items.length&&active();i+=12){try{total+=await syncCompany(company,items.slice(i,i+12),active)}catch{}if(active())renderHistory()}}));
     if(!active())return;syncing=false;
-    syncMessage=attempted?(total===attempted?`${total} statut${total>1?'s':''} Ogust actualisé${total>1?'s':''}.`:`${total} statut${total>1?'s':''} sur ${attempted} actualisé${total>1?'s':''}. Les autres restent à vérifier ; réessaie avec « Actualiser ».`):'Les devis locaux apparaîtront dans « Brouillons » et « Tous ».';
+    syncMessage=attempted?(total===attempted?`${total} statut${total>1?'s':''} Ogust actualisé${total>1?'s':''}.`:`${total} statut${total>1?'s':''} sur ${attempted} actualisé${total>1?'s':''}. Les autres restent à vérifier ; réessaie avec « Actualiser ».`):(window.acjSharedQuotes72?.enabled?'Les brouillons partagés apparaissent dans « Brouillons » et « Tous ».':'Les devis locaux apparaîtront dans « Brouillons » et « Tous ».');
     box.textContent=syncMessage;renderHistory();
   }
 

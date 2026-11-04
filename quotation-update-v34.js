@@ -8,7 +8,7 @@
 
   function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function readMeta(){try{const x=JSON.parse(localStorage.getItem(META_KEY)||'{}');return x&&typeof x==='object'&&!Array.isArray(x)?x:{}}catch{return{}}}
-  function writeMeta(x){try{localStorage.setItem(META_KEY,JSON.stringify(x))}catch{}}
+  function writeMeta(x){try{localStorage.setItem(META_KEY,JSON.stringify(x));window.dispatchEvent(new CustomEvent('acj:local-quote-changed'))}catch{}}
   function keyFor(company,ref){return `${String(company||'')}|${String(ref||'')}`}
   function currentContext(){
     const reopened=window.acjReopenedQuoteV33;
@@ -60,6 +60,8 @@
     })();ctx.reopened.recoveryPromise=run;return run;
   }
   function statusMessage(code,data){
+    if(code==='SHARED_CONFLICT')return 'Une autre version partagée doit être vérifiée. La saisie locale est conservée.';
+    if(code==='SHARED_SYNC_REQUIRED')return 'Synchronisation indisponible. La saisie locale est conservée ; réessaie la synchronisation.';
     if(code==='LEGACY_QUOTE_UNSUPPORTED'||code==='QUOTATION_REFERENCE_MISMATCH')return 'Le contenu de cet ancien devis doit être vérifié directement dans Ogust. Aucun devis n’a été modifié.';
     if(code==='LEGACY_RECOVERY_FAILED')return 'Impossible de récupérer cet ancien devis. Réessaie « Enregistrer dans Ogust ».';
     if(code==='QUOTATION_PRODUCT_REQUIRED')return 'Prestation Ogust manquante. Le devis existant reste inchangé.';
