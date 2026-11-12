@@ -1,4 +1,4 @@
-const CACHE = 'devis-acj-v72';
+const CACHE = 'devis-acj-v73';
 const CACHE_PREFIX = 'devis-acj-';
 const ISOLATED_SUBAPPS = ['intervenantes/', 'terrain/', 'facturation/'];
 
@@ -19,7 +19,7 @@ const ASSETS = [
   './client-step-v21.js?v=71',
   './compliance-v23.js?v=71',
   './multi-ogust-v28.js?v=71',
-  './auth-v29-2.js?v=71',
+  './auth-v29-2.js?v=73',
   './prestation-sync-v24.js?v=71',
   './costs-v28-1.js?v=71',
   './ogust-units-v25.js?v=71',
@@ -41,7 +41,7 @@ const ASSETS = [
   './vendor/acj-pdf-fonts-v62.js?v=71',
   './quote-pdf-v62.js?v=71',
   './email-delivery-v62.js?v=71',
-  './pwa-update-v38.js?v=71'
+  './pwa-update-v38.js?v=73'
 ];
 
 function relativePath(urlValue) {
@@ -91,7 +91,7 @@ async function withV292(response) {
   if (!html.includes('client-step-v21.js')) html = html.replace('</body>', '<script src="./client-step-v21.js?v=71"></script></body>');
   if (!html.includes('compliance-v23.js')) html = html.replace('</body>', '<script src="./compliance-v23.js?v=71"></script></body>');
   if (!html.includes('multi-ogust-v28.js')) html = html.replace('</body>', '<script src="./multi-ogust-v28.js?v=71"></script></body>');
-  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=71"></script></body>');
+  if (!html.includes('auth-v29-2.js')) html = html.replace('</body>', '<script src="./auth-v29-2.js?v=73"></script></body>');
   if (!html.includes('prestation-sync-v24.js')) html = html.replace('</body>', '<script src="./prestation-sync-v24.js?v=71"></script></body>');
   if (!html.includes('costs-v28-1.js')) html = html.replace('</body>', '<script src="./costs-v28-1.js?v=71"></script></body>');
   if (!html.includes('ogust-units-v25.js')) html = html.replace('</body>', '<script src="./ogust-units-v25.js?v=71"></script></body>');
