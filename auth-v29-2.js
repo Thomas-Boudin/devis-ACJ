@@ -4,15 +4,26 @@
 
   const CLIENT_ID='93181159242-i64qf82vtrij5c4b7l5q18ctjj48l3so.apps.googleusercontent.com';
   const STORAGE_KEY='acj_auth_id_token_v29_2';
+  const SIGNED_OUT_KEY='acj_devis_signed_out';
+  const SESSION_HEADER='X-ACJ-Devis-Session';
   const API_ORIGIN='https://acj-ogust-proxy.vercel.app';
   const AUTH_STATUS_URL=API_ORIGIN+'/api/ogust-devis';
+  const SESSION_PATHS=new Set([
+    '/api/ogust-devis', '/api/ogust-quotation', '/api/ogust-customer',
+    '/api/ogust-history', '/api/analyse-chantier'
+  ]);
   const FORCE_TEST=new URLSearchParams(location.search).get('auth_test')==='1';
   let token='';
   let profile=null;
   let reloadScheduled=false;
   let authRequired=false;
   let serverRequiresAuth=false;
-  let modePromise=null;
+  let sessionSupported=false;
+  let persistentSession=false;
+  let initPromise=null;
+  let signingIn=false;
+  let signedOut=false;
+  try { signedOut=localStorage.getItem(SIGNED_OUT_KEY)==='1'; } catch {}
 
   function decodePart(value){
     try{
@@ -33,18 +44,31 @@
     return '';
   }
   function store(value){try{sessionStorage.setItem(STORAGE_KEY,value)}catch{}}
-  function clear(){token='';profile=null;try{sessionStorage.removeItem(STORAGE_KEY)}catch{}}
-  function isApiTarget(input){
+  function clear(){
+    token='';
+    profile=null;
+    persistentSession=false;
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+  }
+  function rememberSignOut(value){
+    signedOut=value;
+    try {
+      if(value)localStorage.setItem(SIGNED_OUT_KEY,'1');
+      else localStorage.removeItem(SIGNED_OUT_KEY);
+    } catch {}
+  }
+  function apiPath(input){
     try{
       const raw=typeof input==='string'||input instanceof URL?String(input):String(input?.url||'');
       const u=new URL(raw,location.href);
-      return u.origin===API_ORIGIN&&u.pathname.startsWith('/api/');
-    }catch{return false}
+      return u.origin===API_ORIGIN&&u.pathname.startsWith('/api/')?u.pathname.replace(/\/$/,''):'';
+    }catch{return ''}
   }
   function authHeaders(input,init){
     const base=init?.headers||(input instanceof Request?input.headers:undefined);
     const headers=new Headers(base||{});
     if(token)headers.set('Authorization',`Bearer ${token}`);
+    if(persistentSession)headers.set(SESSION_HEADER,'1');
     return headers;
   }
   function syntheticAuthRequired(){
@@ -57,29 +81,70 @@
 
   const nativeFetch=window.fetch.bind(window);
   async function detectAuthMode(){
-    if(modePromise)return modePromise;
-    modePromise=(async()=>{
-      try{
-        const r=await nativeFetch(AUTH_STATUS_URL,{cache:'no-store'});
-        const data=await r.json().catch(()=>null);
-        serverRequiresAuth=!!(r.ok&&data?.auth_required===true&&String(data?.auth_version||'')==='29.2');
-      }catch{serverRequiresAuth=false}
-      authRequired=serverRequiresAuth||FORCE_TEST;
-      return authRequired;
-    })();
-    return modePromise;
+    try{
+      const response=await nativeFetch(AUTH_STATUS_URL,{cache:'no-store'});
+      const data=await response.json();
+      serverRequiresAuth=response.ok&&data?.auth_required===true&&String(data?.auth_version||'')==='29.2';
+      sessionSupported=serverRequiresAuth&&data.persistent_session===true;
+    }catch{serverRequiresAuth=false}
+    authRequired=serverRequiresAuth||FORCE_TEST;
+  }
+
+  async function sessionRequest(action, credential){
+    const headers=new Headers({[SESSION_HEADER]:'1'});
+    if(credential)headers.set('Authorization',`Bearer ${credential}`);
+    try {
+      return await nativeFetch(`${AUTH_STATUS_URL}?action=${action}`, {
+        method:action==='session'?'GET':'POST',
+        credentials:'include',
+        cache:'no-store',
+        headers,
+        signal:AbortSignal.timeout?.(6000)
+      });
+    } catch { return null; }
+  }
+
+  async function restoreSession(){
+    const response=await sessionRequest('session');
+    if(!response?.ok)return response?.status||0;
+    const data=await response.json().catch(()=>null);
+    if(data?.ok!==true||typeof data.user?.email!=='string'||!data.user.email)return 0;
+    clear();
+    persistentSession=true;
+    profile=data.user;
+    return 200;
+  }
+
+  function startAuth(){
+    if(!initPromise)initPromise=init();
+    return initPromise;
   }
 
   window.fetch=async function(input,init){
-    if(!isApiTarget(input))return nativeFetch(input,init);
-    await detectAuthMode();
+    const path=apiPath(input);
+    if(!path)return nativeFetch(input,init);
+    await startAuth();
     if(!serverRequiresAuth)return nativeFetch(input,init);
-    if(!tokenValid(token))return syntheticAuthRequired();
+    const usingSession=persistentSession;
+    if(usingSession&&!SESSION_PATHS.has(path))return nativeFetch(input,init);
+    if(!usingSession&&!tokenValid(token)){
+      if(token)requireLogin('Ta session Google est arrivée à expiration.');
+      return syntheticAuthRequired();
+    }
     const next={...(init||{}),headers:authHeaders(input,init)};
+    if(usingSession)next.credentials='include';
     let response;
     if(input instanceof Request)response=await nativeFetch(new Request(input,next));
     else response=await nativeFetch(input,next);
-    if(response.status===401||response.status===403)scheduleRelogin();
+    if(response.status===401||response.status===403){
+      if(!usingSession)scheduleRelogin();
+      else {
+        const data=await response.clone().json().catch(()=>null);
+        if(persistentSession&&['AUTH_REQUIRED','AUTH_INVALID','AUTH_FORBIDDEN'].includes(data?.error)){
+          requireLogin('Choisis un compte Google autorisé pour reprendre ta session.');
+        }
+      }
+    }
     return response;
   };
 
@@ -96,29 +161,60 @@
     document.body.appendChild(el);document.body.style.overflow='hidden';
   }
   function status(text){const el=document.getElementById('acjAuthStatusV292');if(el)el.textContent=text||''}
-  function loginSuccess(response){
+  function requireLogin(message, autoSelect=false){
+    clear();
+    document.getElementById('acjAuthSessionV292')?.remove();
+    if(!document.getElementById('acjAuthGateV292')){
+      gate(message);
+      loadGoogle(autoSelect);
+    }else if(message){
+      status(message);
+    }
+  }
+  async function useGoogleCredential(value){
+    if(sessionSupported){
+      const response=await sessionRequest('session_login',value);
+      const sessionStatus=response?.ok?await restoreSession():0;
+      if(sessionStatus===200){
+        rememberSignOut(false);
+        unlock();
+        return;
+      }
+      if(response?.status===401||response?.status===403||sessionStatus===403){
+        requireLogin('Choisis un compte Google autorisé pour Devis ACJ.');
+        return;
+      }
+    }
+    token=value;
+    store(value);
+    profile=claims(value)||null;
+    rememberSignOut(false);
+    unlock();
+  }
+  async function loginSuccess(response){
+    if(signingIn)return;
     const value=String(response?.credential||'');
     if(!tokenValid(value)){status('La connexion Google n’a pas renvoyé une session valide. Réessaie.');return}
-    token=value;store(value);profile=claims(value)||null;
-    status('Connexion validée. Ouverture de l’application…');
-    setTimeout(()=>{document.getElementById('acjAuthGateV292')?.remove();document.body.style.overflow='';addSessionControl();window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{email:String(profile?.email||'')}}));},120);
+    signingIn=true;
+    status('Connexion en cours…');
+    try { await useGoogleCredential(value); } finally { signingIn=false; }
   }
-  function renderGoogleButton(){
+  function renderGoogleButton(autoSelect){
     const box=document.getElementById('acjGoogleButtonV292');if(!box||!window.google?.accounts?.id)return false;
     try{
-      google.accounts.id.initialize({client_id:CLIENT_ID,callback:loginSuccess,auto_select:true,cancel_on_tap_outside:false});
+      google.accounts.id.initialize({client_id:CLIENT_ID,callback:loginSuccess,auto_select:autoSelect,cancel_on_tap_outside:false});
       google.accounts.id.renderButton(box,{type:'standard',theme:'outline',size:'large',shape:'pill',text:'continue_with',width:300,locale:'fr'});
-      google.accounts.id.prompt();
-      status('Choisis le compte Google autorisé pour ACJ.');
+      if(autoSelect)google.accounts.id.prompt();
       return true;
     }catch{status('Impossible d’initialiser la connexion Google.');return false}
   }
-  function loadGoogle(){
-    if(renderGoogleButton())return;
+  function loadGoogle(autoSelect){
+    const render=()=>renderGoogleButton(autoSelect);
+    if(render())return;
     const existing=document.querySelector('script[data-acj-google-auth]');
-    if(existing){existing.addEventListener('load',renderGoogleButton,{once:true});return}
+    if(existing){existing.addEventListener('load',render,{once:true});return}
     const script=document.createElement('script');script.src='https://accounts.google.com/gsi/client';script.async=true;script.defer=true;script.dataset.acjGoogleAuth='1';
-    script.onload=()=>{if(!renderGoogleButton())status('La connexion Google n’est pas disponible. Réessaie.')};
+    script.onload=()=>{if(!render())status('La connexion Google n’est pas disponible. Réessaie.')};
     script.onerror=()=>{status('Google est inaccessible. Vérifie la connexion internet.');const card=document.querySelector('.acjAuthCard');if(card&&!card.querySelector('.acjAuthRetry')){const b=document.createElement('button');b.className='acjAuthRetry';b.textContent='Réessayer';b.onclick=()=>location.reload();card.appendChild(b)}};
     document.head.appendChild(script);
   }
@@ -126,26 +222,35 @@
     if(document.getElementById('acjAuthSessionV292'))return;
     const settings=document.querySelector('.settings');if(!settings)return;
     const p=profile||{};const line=document.createElement('div');line.id='acjAuthSessionV292';line.className='acjAuthSession';
-    const label=p.email?`Session Google : ${String(p.email)}`:'Session Google sécurisée';
+    const label=p.email?`Connecté avec ${String(p.email)}`:'Session Google sécurisée';
     line.innerHTML=`<span>${label.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}</span><button type="button" class="acjAuthLogout">Déconnexion</button>`;
-    line.querySelector('button').addEventListener('click',()=>{try{google?.accounts?.id?.disableAutoSelect()}catch{}clear();location.reload()});
+    line.querySelector('button').addEventListener('click',logout);
     settings.appendChild(line);
   }
   function unlock(){
     document.getElementById('acjAuthGateV292')?.remove();document.body.style.overflow='';
-    profile=claims(token)||null;
     if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addSessionControl,{once:true});else addSessionControl();
     window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{email:String(profile?.email||'')}}));
   }
+  async function logout(){
+    rememberSignOut(true);
+    try { window.google?.accounts?.id?.disableAutoSelect(); } catch {}
+    clear();
+    if(sessionSupported)await sessionRequest('session_logout');
+    location.reload();
+  }
   async function init(){
-    const required=await detectAuthMode();
-    if(!required){window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{legacy:true}}));return}
-    token=readStored();
-    if(token){unlock();return}
-    gate(FORCE_TEST&&!serverRequiresAuth?'Test de connexion Google — aucune protection serveur n’est encore activée.':undefined);loadGoogle();
+    await detectAuthMode();
+    if(!authRequired){window.dispatchEvent(new CustomEvent('acj:auth-ready',{detail:{legacy:true}}));return}
+    if(!signedOut){
+      if(sessionSupported&&await restoreSession()===200){unlock();return}
+      const stored=readStored();
+      if(stored){await useGoogleCredential(stored);return}
+    }
+    requireLogin(FORCE_TEST&&!serverRequiresAuth?'Test de connexion Google — aucune protection serveur n’est encore activée.':undefined,!signedOut);
   }
 
-  window.acjAuthV292={get authenticated(){return !authRequired||tokenValid(token)},get serverRequired(){return serverRequiresAuth},logout(){clear();location.reload()}};
+  window.acjAuthV292={get authenticated(){return !authRequired||persistentSession||tokenValid(token)},get serverRequired(){return serverRequiresAuth},logout};
   window.__acjAuthV292=true;
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startAuth,{once:true});else startAuth();
 })();
