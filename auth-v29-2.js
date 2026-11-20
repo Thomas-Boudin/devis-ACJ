@@ -151,15 +151,43 @@
   function addStyles(){
     if(document.getElementById('acj-auth-v29-2-style'))return;
     const s=document.createElement('style');s.id='acj-auth-v29-2-style';s.textContent=`
-      .acjAuthGate{position:fixed;inset:0;z-index:5000;background:#102033;display:grid;place-items:center;padding:22px;color:#f5f9fc}.acjAuthCard{width:min(420px,100%);background:#172b40;border:1px solid #456784;border-radius:22px;padding:22px;box-shadow:0 28px 90px rgba(0,0,0,.48);text-align:center}.acjAuthLogo{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;margin:0 auto 14px;background:linear-gradient(135deg,#58c7f3,#0ea5e9);color:#062034;font-weight:950;font-size:18px}.acjAuthTitle{font-size:22px;font-weight:950}.acjAuthText{font-size:12px;color:#b6c7d8;line-height:1.55;margin:8px 0 18px}.acjAuthButton{min-height:44px;display:flex;justify-content:center}.acjAuthStatus{font-size:11px;color:#b6c7d8;line-height:1.45;margin-top:13px}.acjAuthRetry{margin-top:12px;border:1px solid #456784;background:#1a3349;color:#f5f9fc;border-radius:12px;padding:10px 13px;font-weight:800}.acjAuthSession{margin-top:12px;padding-top:11px;border-top:1px solid #304d68;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:#b6c7d8}.acjAuthLogout{border:1px solid #456784;background:#1a3349;color:#f5f9fc;border-radius:10px;padding:8px 10px;font-weight:800}
+      .acjAuthGate{position:fixed;inset:0;z-index:5000;background:#102033;display:grid;place-items:center;padding:22px;color:#f5f9fc}.acjAuthCard{width:min(420px,100%);background:#172b40;border:1px solid #456784;border-radius:22px;padding:22px;box-shadow:0 28px 90px rgba(0,0,0,.48);text-align:center}.acjAuthLogo{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;margin:0 auto 14px;background:linear-gradient(135deg,#58c7f3,#0ea5e9);color:#062034;font-weight:950;font-size:18px}.acjAuthTitle{font-size:22px;font-weight:950}.acjAuthText{font-size:12px;color:#b6c7d8;line-height:1.55;margin:8px 0 18px}.acjAuthButton{min-height:44px;display:flex;justify-content:center}.acjAuthStatus{font-size:11px;color:#b6c7d8;line-height:1.45;margin-top:13px}.acjAuthRetry{margin-top:12px;border:1px solid #456784;background:#1a3349;color:#f5f9fc;border-radius:12px;padding:10px 13px;font-weight:800}.acjAuthSession{margin-top:12px;padding-top:11px;border-top:1px solid #304d68;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:#b6c7d8}.acjAuthLogout{border:1px solid #456784;background:#1a3349;color:#f5f9fc;border-radius:10px;padding:8px 10px;font-weight:800}.acjAuthPassword{margin-top:14px;padding-top:14px;border-top:1px solid #304d68;display:grid;gap:9px;text-align:left}.acjAuthPassword label{font-size:12px;color:#dbe5f1}.acjAuthPassword input{border:1px solid #456784;background:#0c1a2b;color:white;border-radius:10px;min-height:42px;padding:9px 12px;width:100%}.acjAuthPassword button{border:0;background:#38bdf8;color:#001522;border-radius:10px;min-height:43px;font-weight:800;cursor:pointer}.acjAuthPassword small{font-size:11px;color:#a8b9c9;text-align:center}
     `;document.head.appendChild(s);
   }
   function gate(status='Connexion Google requise pour accéder aux données Ogust.'){
     addStyles();document.getElementById('acjAuthGateV292')?.remove();
     const el=document.createElement('div');el.id='acjAuthGateV292';el.className='acjAuthGate';
-    el.innerHTML=`<div class="acjAuthCard"><div class="acjAuthLogo">ACJ</div><div class="acjAuthTitle">Devis ACJ</div><div class="acjAuthText">L’accès aux clients et aux devis Ogust est protégé par un compte Google autorisé.</div><div id="acjGoogleButtonV292" class="acjAuthButton"></div><div id="acjAuthStatusV292" class="acjAuthStatus">${status}</div></div>`;
+    el.innerHTML=`<div class="acjAuthCard"><div class="acjAuthLogo">ACJ</div><div class="acjAuthTitle">Devis ACJ</div><div class="acjAuthText">L’accès aux clients et aux devis Ogust est protégé par un compte Google autorisé.</div><div id="acjGoogleButtonV292" class="acjAuthButton"></div><form id="acjPasswordLoginV292" class="acjAuthPassword" autocomplete="on"><label>Adresse professionnelle<input id="acjPasswordEmailV292" type="email" autocomplete="username" required placeholder="jessy@acjservices.fr"></label><label>Mot de passe personnel<input id="acjPasswordValueV292" type="password" autocomplete="current-password" required></label><button type="submit">Se connecter avec e-mail</button><small>Premier accès : utilise le lien d'activation transmis par l'administrateur.</small></form><div id="acjAuthStatusV292" class="acjAuthStatus">${status}</div></div>`;
     document.body.appendChild(el);document.body.style.overflow='hidden';
+    el.querySelector('#acjPasswordLoginV292')?.addEventListener('submit',passwordLogin);
   }
+
+  async function passwordLogin(event){
+    event.preventDefault();
+    const form=event.currentTarget;
+    const email=form.querySelector('#acjPasswordEmailV292')?.value.trim().toLowerCase();
+    const password=form.querySelector('#acjPasswordValueV292')?.value;
+    const button=form.querySelector('button');
+    if(!email||!password||button?.disabled)return;
+    button.disabled=true;
+    status('Vérification du compte…');
+    try {
+      const response=await nativeFetch(AUTH_STATUS_URL+'?action=password_login',{
+        method:'POST',credentials:'include',cache:'no-store',
+        headers:{'Content-Type':'application/json',[SESSION_HEADER]:'1'},
+        body:JSON.stringify({email,password}),
+        signal:AbortSignal.timeout?.(30000)
+      });
+      if(response.ok&&await restoreSession()===200){
+        rememberSignOut(false);
+        unlock();
+        return;
+      }
+      status(response.status===401?'Adresse ou mot de passe incorrect.':response.status===403?'Ce compte ne dispose pas des accès Devis ACJ.':response.status===429?'Trop de tentatives. Réessaie plus tard.':response.ok?'Le navigateur bloque la session sécurisée. Vérifie les cookies.':'Connexion temporairement indisponible.');
+    }catch{status('Connexion temporairement indisponible. Réessaie.');}
+    finally{form.querySelector('#acjPasswordValueV292').value='';button.disabled=false;}
+  }
+
   function status(text){const el=document.getElementById('acjAuthStatusV292');if(el)el.textContent=text||''}
   function requireLogin(message, autoSelect=false){
     clear();
